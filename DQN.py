@@ -9,16 +9,20 @@ from keras.optimizers import Adamax
 import os
 import json
 import datetime
+from skimage.transform import resize
+from skimage.color import rgb2gray
+from collections import deque
 
 
 # Parameters
-ENV_NAME = "Pong-v0"
+ENV_NAME = "SpaceInvaders-frame-v0"
 ALGORITHM = "DQN"
-MODEL_DESC = "2 Layer ConvNet, big strides, Dropout, 1 Layer FC ReLU"
-EXP_SIZE = 1000000
+MODEL_DESC = "Resize, grayscale and framestack preprocessing, 3 Layer ConvNet, " + \
+    "Dropout, 1 Layer FC ReLU"
+EXP_SIZE = 100000
 EXP_STEPS = 100000
 GAMMA = 0.99
-EPISODES = 500
+EPISODES = 250
 MAX_STEPS = 9000
 UPDATES_PER_STEP = 1
 TARGET_NETWORK_UPDATE = 10000
@@ -26,16 +30,21 @@ BATCH_SIZE = 31
 ONLINE_TRAIN = True
 MODEL_CHECKPOINT = 25
 DIRECTORY_INFO = "Testing"
+ACTION_REPEAT = 4
 ######
 
 
 def atari_image_model():
 
-    inputs = Input(shape=(3, 210, 160))  # RGB Image 210 x 160
+    inputs = Input(shape=(1 * ACTION_REPEAT, 105, 80))  # RGB Image 210 x 160
 
-    x = Convolution2D(32, 9, 9, subsample=(8, 8))(inputs)
+    # Max pool instead of pre-processing
+    # x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(inputs)
+    x = Convolution2D(32, 5, 5, subsample=(3, 3))(inputs)
     x = Activation("relu")(x)
-    x = Convolution2D(64, 7, 7, subsample=(6, 6))(x)
+    x = Convolution2D(64, 3, 3, subsample=(2, 2))(x)
+    x = Activation("relu")(x)
+    x = Convolution2D(64, 3, 3, subsample=(1, 1))(x)
     x = Activation("relu")(x)
     # x = Convolution2D(96, 3, 3, subsample=(2, 2))(x)
     # x = Activation("relu")(x)
@@ -82,6 +91,7 @@ info["updates_per_step"] = UPDATES_PER_STEP
 info["target_update_steps"] = TARGET_NETWORK_UPDATE
 info["minibatch_size"] = BATCH_SIZE
 info["online_training"] = ONLINE_TRAIN
+info["action_repeat"] = ACTION_REPEAT
 
 # Setup logging directorties
 print("Creating log directory")
@@ -95,15 +105,31 @@ os.chdir(directory)
 with open("info.json", "w") as fp:
     json.dump(info, fp)
 
+
+# Frame processing stuff
+def process_frame(frame, get_state=False):
+    new_frame = resize(rgb2gray(frame), (105, 80))
+    # Divive by 255 to put in [0,1] then take away 0.5 to kinda subtract mean
+    new_frame /= 255.0
+    new_frame -= 0.5
+    prev_frames.popleft()
+    prev_frames.append(new_frame)
+    if get_state:
+        return np.stack(prev_frames, axis=0)
+
+# Init to zeroes
+prev_frames = deque([np.zeros(shape=(105, 80))
+                     for _ in range(ACTION_REPEAT)])
+
 # Start the algorithm
 print("Starting episodes")
 
 # Deep Q Learning
 total_steps = 0
 
-for i in tqdm(range(EPISODES)):
-    env.reset()
-    state = np.zeros(shape=(3, 210, 160))
+for i in tqdm(range(1, EPISODES + 1)):
+    frame = env.reset()
+    state = process_frame(frame, get_state=True)
     epsilon = 0.1 + 0.9 * ((EPISODES - i) / EPISODES)
     total_reward = 0
     steps = 0
@@ -116,14 +142,18 @@ for i in tqdm(range(EPISODES)):
         if total_steps < EXP_STEPS or np.random.random() < epsilon:
             action = env.action_space.sample()
         else:
-            actions = dqn.predict(state.reshape(1, 3, 210, 160))
+            actions = dqn.predict(np.swapaxes(np.swapaxes(
+                state, 1, 2), 0, 1).reshape(1, 1 * ACTION_REPEAT, 105, 80))
             action = np.argmax(actions)
 
         # Make a step
-        state_new, reward, done, info = env.step(action)
-        state_new = state_new.reshape(3, 210, 160)
-
-        total_reward += reward
+        for a_i in range(ACTION_REPEAT):
+            frame_new, reward, done, info = env.step(action)
+            total_reward += reward
+            if a_i == ACTION_REPEAT - 1:
+                state_new = process_frame(frame_new, get_state=True)
+            else:
+                process_frame(frame_new)
 
         replay.Add_Exp(state, action, reward, state_new, done)
 
@@ -136,8 +166,10 @@ for i in tqdm(range(EPISODES)):
         y = np.zeros(shape=(len(batch), env.action_space.n))
         for index, batch_item in enumerate(batch):
             st, at, rt, snew, term = batch_item
-            q = dqn.predict(st.reshape(1, 3, 210, 160))
-            q_target = old_dqn.predict(snew.reshape(1, 3, 210, 160))
+            q = dqn.predict(np.swapaxes(np.swapaxes(st, 1, 2), 0, 1).reshape(
+                1, 1 * ACTION_REPEAT, 105, 80))
+            q_target = old_dqn.predict(np.swapaxes(np.swapaxes(
+                snew, 1, 2), 0, 1).reshape(1, 1 * ACTION_REPEAT, 105, 80))
             y[index] = q
             if term:
                 y[index][at] = rt
@@ -146,7 +178,7 @@ for i in tqdm(range(EPISODES)):
 
         for _ in range(UPDATES_PER_STEP):
             hist = dqn.train_on_batch(
-                np.array(list(map(lambda tups: tups[0], batch))), y)
+                np.array(list(map(lambda tups: np.swapaxes(np.swapaxes(tups[0], 1, 2), 0, 1).reshape(1 * ACTION_REPEAT, 105, 80), batch))), y)
             histories.append(hist)
 
         state = state_new
@@ -172,5 +204,5 @@ for i in tqdm(range(EPISODES)):
         dqn.save_weights("weights_" + str(i) + ".h5")
 
 
-print("Saving model weights")
+print("Saving final model weights")
 dqn.save_weights("weights_" + str(EPISODES) + "_end.h5")
