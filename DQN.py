@@ -109,7 +109,7 @@ with open("info.json", "w") as fp:
 # Frame processing stuff
 def process_frame(frame, get_state=False):
     new_frame = resize(rgb2gray(frame), (105, 80))
-    # Divive by 255 to put in [0,1] then take away 0.5 to kinda subtract mean
+    # Divide by 255 to put in [0,1] then take away 0.5 to kinda subtract mean
     new_frame /= 255.0
     new_frame -= 0.5
     prev_frames.popleft()
