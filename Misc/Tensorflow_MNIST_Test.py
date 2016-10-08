@@ -1,13 +1,13 @@
 import tensorflow as tf
 import tflearn
 from tensorflow.examples.tutorials.mnist import input_data
-import os
+# import os
 
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 with tf.Graph().as_default():
 
-    inputs = tf.placeholder(tf.float32, shape=[None, 28*28], name="Flattened_input")
+    inputs = tf.placeholder(tf.float32, shape=[None, 28 * 28], name="Flattened_input")
     # dropout_keep_prob = tf.placeholder(tf.float32, name="Dropout_Probability")
     labels = tf.placeholder(tf.float32, shape=[None, 10], name="Labels")
 
@@ -40,8 +40,8 @@ with tf.Graph().as_default():
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
 
-        summary_writer_train = tf.train.SummaryWriter(summary_dir+"_train", graph=sess.graph)
-        summary_writer_val = tf.train.SummaryWriter(summary_dir+"_validation", graph=sess.graph)
+        summary_writer_train = tf.train.SummaryWriter(summary_dir + "_train", graph=sess.graph)
+        summary_writer_val = tf.train.SummaryWriter(summary_dir + "_validation", graph=sess.graph)
 
         for i in range(1, 1001):
             x, y = mnist.train.next_batch(256)
