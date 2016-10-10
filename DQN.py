@@ -111,15 +111,14 @@ def process_frame(frame, get_state=False):
     new_frame = resize(rgb2gray(frame), (105, 80))
     # Divide by 255 to put in [0,1] then take away 0.5 to kinda subtract mean
     new_frame /= 255.0
-    new_frame -= 0.5
+    # new_frame -= 0.5
     prev_frames.popleft()
     prev_frames.append(new_frame)
     if get_state:
         return np.stack(prev_frames, axis=0)
 
 # Init to zeroes
-prev_frames = deque([np.zeros(shape=(105, 80))
-                     for _ in range(ACTION_REPEAT)])
+prev_frames = deque([np.zeros(shape=(105, 80)) for _ in range(ACTION_REPEAT)])
 
 # Start the algorithm
 print("Starting episodes")
