@@ -14,7 +14,8 @@ GAMMA = 0.99
 
 
 def model(scope=0):
-    with tf.name_scope("ID_" + str(scope)):
+    name = "ID_" + str(scope)
+    with tf.name_scope(name):
         obs = tf.placeholder(tf.float32, shape=[None, 4], name="Observation_Input")
         net = tflearn.fully_connected(obs, 128, activation="relu", weights_init="variance_scaling", name="FC")
         value = tflearn.fully_connected(net, 1, activation="linear", weights_init="variance_scaling", name="Value")
@@ -31,17 +32,19 @@ def model(scope=0):
         # tf.mul is elementwise multiplication, hence then reduce_sum.
         # reduction_index = 1 since dim 0 is for batches
         log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
-        # Don't include the critic here because it shares parameters with policy.
-        # Multiply by the values when calculating the gradient
-        policy_loss = -log_probability_of_action  # * (value_target - value)
+        # Maybe change this so that we dont computer the gradient of (value_target - value)
+        advantage_no_grad = tf.stop_gradient(value_target - value)
+        policy_loss = -log_probability_of_action * advantage_no_grad
 
-    return obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
+    return obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables
 
 
-def actor(env, id, model, sess, compute_policy_gradients, compute_value_gradients, t_max, apply_gradients):
+def actor(env, id, model, sess, update_policy_gradients, update_value_gradients, t_max, sync_vars):
     global T, T_MAX, GAMMA
     local_model = model
-    (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss) = local_model
+    (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, _) = local_model
 
     while T < T_MAX:
         states = []
@@ -81,15 +84,9 @@ def actor(env, id, model, sess, compute_policy_gradients, compute_value_gradient
         targets.reverse()
 
         # print(states, "\n", actions, "\n", targets)
-        value_errors = \
-            sess.run([value_error],
-                     feed_dict={obs: states, action_index: actions, value_target: targets})
-        policy_gradients_incomplete = compute_policy_gradients(policy_loss)
-        value_gradients = compute_value_gradients(value_loss)
+        sess.run([update_policy_gradients, update_value_gradients], feed_dict={obs: states, action_index: actions, value_target: targets})
 
-        policy_gradients = policy_gradients_incomplete * value_errors
-        apply_gradients(policy_gradients, value_gradients)
-
+        sess.run(sync_vars)
         # TODO: Rest of stuff here
 
 
@@ -100,31 +97,37 @@ with tf.Graph().as_default():
         global_policy_optimiser = tf.train.RMSPropOptimizer(0.1)
         global_value_optimiser = tf.train.RMSPropOptimizer(0.1)
         global_model = model()
+        (_,_,_,_,_,_,_,_,global_vars) = global_model
 
         envs = []
         models = []
         policies = []
         values = []
+        variables = []
 
         for i in range(THREADS):
             envs.append(gym.make(ENV_NAME))
             mm = model(i + 1)
             models.append(mm)
-            (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss) = mm
-            policies.append(global_policy_optimiser.compute_gradients)
-            values.append(global_value_optimiser.compute_gradients)
-
-        print(values)
-
-        def apply_gradients(policy_grads, value_grads):
-            global_policy_optimiser.apply_gradients(policy_grads)
-            global_value_optimiser.apply_gradients(value_grads)
+            (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables) = mm
+            policy_grads = tf.gradients(policy_loss, variables)
+            policy_grad_vars = zip(policy_grads, global_vars)
+            update_policy_grads = global_policy_optimiser.apply_gradients(policy_grad_vars)
+            policies.append(update_policy_grads)
+            value_grads = tf.gradients(value_loss, variables)
+            value_grad_vars = zip(value_grads, global_vars)
+            update_value_grads = global_value_optimiser.apply_gradients(value_grad_vars)
+            values.append(update_value_grads)
+            sync_vars = []
+            for (ref, val) in zip():
+                sync_vars.append(tf.assign(ref, val))
+            variables.append(sync_vars)
 
         sess.run(tf.initialize_all_variables())
 
         tf.train.SummaryWriter("test_graph", graph=sess.graph)
 
-        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 500, apply_gradients), daemon=True) for i in range(THREADS)]
+        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 500, variables[i]), daemon=True) for i in range(THREADS)]
         # Start the actors
         for t in threads:
             t.start()
