@@ -5,35 +5,42 @@ import tensorflow as tf
 import tflearn
 import threading
 import time
-# from skimage.transform import resize
+from skimage.transform import resize
+import datetime
 
+tf.app.flags.DEFINE_float("learning_rate", 0.01, "Initial Learning Rate")
+tf.app.flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
+FLAGS = tf.app.flags.FLAGS
 # Parameters
 # TODO: Use tf.flags to make cmd line configurable
-THREADS = 16
-ENV_NAME = "FrozenLake-v0"
-T = 0
-T_MAX = 1e6
+ENV_NAME = "Breakout-v0"
+T = 1
+T_MAX = 5e7
 GAMMA = 0.99
-ACTIONS = 4
+ACTIONS = 3
 BETA = 0.01
-FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_float('learning_rate', 0.01, "Initial Learning Rate")
 LR = FLAGS.learning_rate
+THREADS = FLAGS.actors
 
 print("LR: ", LR)
 
 
 def model(scope=0):
-    global ACTIONS
+    global ACTIONS, BETA
     name = "ID_" + str(scope)
     with tf.device('/cpu:0'):
         with tf.name_scope(name):
-            obs = tf.placeholder(tf.float32, shape=[None, 16], name="Observation_Input")
-            net = tflearn.fully_connected(obs, 64, activation="relu", weights_init="xavier", name="FC")
+            # Last 4 observed frames with all 3 colour channels
+            obs = tf.placeholder(tf.float32, shape=[None, 105, 80, 12], name="Observation_Input")
+            # net = tflearn.fully_connected(obs, 64, activation="relu", weights_init="xavier", name="FC")
+            net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu")
+            net = tflearn.conv_2d(net, 32, 4, 2, activation="relu")
+            net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier")
             value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
             policy = tflearn.fully_connected(net, ACTIONS, activation="softmax", weights_init="xavier", name="Policy")
 
-            tflearn.get_all_variables
+            # Clip to avoid NaNs
+            policy = tf.clip_by_value(policy, 1e-10, 1)
 
             value_target = tf.placeholder(tf.float32, shape=[None, 1], name="Value_Target")
             value_error = value_target - value
@@ -47,13 +54,42 @@ def model(scope=0):
             # tf.mul is elementwise multiplication, hence then reduce_sum.
             # reduction_index = 1 since dim 0 is for batches
             log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
+
+            policy_entropy = -tf.reduce_sum(policy * log_policy)
             # Maybe change this so that we dont computer the gradient of (value_target - value)
             advantage_no_grad = tf.stop_gradient(value_target - value)
-            policy_loss = -log_probability_of_action * advantage_no_grad
+            policy_loss = -log_probability_of_action * advantage_no_grad + BETA * policy_entropy
 
             variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
     return obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables
+
+
+def add_frame(frames, new_frame):
+    resized_frame = resize(new_frame, (105, 80))
+    new_frames = np.concatenate([frames[:, :, 3:], resized_frame], axis=2)
+    return new_frames
+
+
+def start_frames(frame):
+    resized_frame = resize(frame, (105, 80))
+    new_frames = np.concatenate([resized_frame for _ in range(4)], axis=2)
+    return new_frames
+
+
+def sample(sess_probs):
+    # Probably don't need to try and normalise here since we are clipping the output of the softmax
+    # p = sess_probs[0, :] / np.sum(sess_probs[0, :])
+    p = sess_probs[0, :]
+
+    # Too avoid sum(p) > 1, if sum(p)<1 then the np multinomial will correct it
+    p -= np.finfo(np.float32).eps
+    one_hot_index = np.random.multinomial(1, p)
+    index = np.where(one_hot_index > 0)
+    if index[0].size == 0:
+        print(sess_probs, p, one_hot_index)
+    index = index[0][0]
+    return index
 
 
 def actor(env, id, model, sess, update_policy_gradients, update_value_gradients, t_max, sync_vars):
@@ -61,6 +97,7 @@ def actor(env, id, model, sess, update_policy_gradients, update_value_gradients,
     local_model = model
     (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables) = local_model
 
+    # Try and decorrelate the updates
     time.sleep(id)
 
     while T < T_MAX:
@@ -69,24 +106,24 @@ def actor(env, id, model, sess, update_policy_gradients, update_value_gradients,
         rewards = []
 
         t = 0
+
         s_t = env.reset()
-        s_t_oh = np.zeros(16)
-        s_t_oh[s_t] = 1
-        s_t = s_t_oh
+        frames = start_frames(s_t)
+
         episode_finished = False
         while (not episode_finished) and t < t_max:
             # env.render()
-            policy_distrib = sess.run(policy, feed_dict={obs: s_t[np.newaxis,:]})
-            a_t_index = np.random.choice(ACTIONS, p=policy_distrib[0,:])
+            policy_distrib_sess = sess.run(policy, feed_dict={obs: frames[np.newaxis, :]})
+            a_t_index = sample(policy_distrib_sess)
+
             s_t, r_t, episode_finished, _ = env.step(a_t_index)
-            s_t_oh = np.zeros(16)
-            s_t_oh[s_t] = 1
-            s_t = s_t_oh
+            frames = add_frame(frames, s_t)
+
             # One hot encoding for a_t
             a_t = np.zeros(ACTIONS)
             a_t[a_t_index] = 1
 
-            states.append(s_t)
+            states.append(frames)
             actions.append(a_t)
             rewards.append(r_t)
 
@@ -98,8 +135,7 @@ def actor(env, id, model, sess, update_policy_gradients, update_value_gradients,
             R_t = 0
         else:
             # Bootstrap
-            R_t = sess.run(value, feed_dict={obs: s_t[np.newaxis,:]})[0, 0]
-            print(R_t)
+            R_t = sess.run(value, feed_dict={obs: frames[np.newaxis, :]})[0, 0]
 
         targets = []
         for i in reversed(range(0, t)):
@@ -113,16 +149,28 @@ def actor(env, id, model, sess, update_policy_gradients, update_value_gradients,
         sess.run(sync_vars)
 
         # print("Id:", id, "-Score:", np.sum(rewards))
-        # TODO: Rest of stuff here
+
+
+def time_str(s):
+    days, remainder = divmod(s, 60 * 60 * 24)
+    hours, remainder = divmod(remainder, 60 * 60)
+    minutes, seconds = divmod(remainder, 60)
+    string = ""
+    if days > 0:
+        string += "{:d} days, ".format(int(days))
+    if hours > 0:
+        string += "{:d} hours, ".format(int(hours))
+    if minutes > 0:
+        string += "{:d} minutes, ".format(int(minutes))
+    string += "{:d} seconds".format(int(seconds))
+    return string
 
 
 # Setup the threads
 with tf.Graph().as_default():
     with tf.Session() as sess:
         # Shared optimisers for policy and value
-        learning_rate = tf.train.exponential_decay(1e-1, T, T_MAX, 0.99, staircase=True)
-        global_policy_optimiser = tf.train.RMSPropOptimizer(learning_rate)
-        global_value_optimiser = tf.train.RMSPropOptimizer(learning_rate)
+        optimiser = tf.train.AdamOptimizer(LR, use_locking=False)
         global_model = model()
         (global_obs, _, _, _, global_policy, _, _, _, global_vars) = global_model
 
@@ -146,7 +194,7 @@ with tf.Graph().as_default():
                     else:
                         clipped_policy_grads.append(None)
                 policy_grad_vars = zip(clipped_policy_grads, global_vars)
-                update_policy_grads = global_policy_optimiser.apply_gradients(policy_grad_vars)
+                update_policy_grads = optimiser.apply_gradients(policy_grad_vars)
                 policies.append(update_policy_grads)
                 value_grads = tf.gradients(value_loss, variables)
                 clipped_value_grads = []
@@ -156,7 +204,7 @@ with tf.Graph().as_default():
                     else:
                         clipped_value_grads.append(None)
                 value_grad_vars = zip(clipped_value_grads, global_vars)
-                update_value_grads = global_value_optimiser.apply_gradients(value_grad_vars)
+                update_value_grads = optimiser.apply_gradients(value_grad_vars)
                 values.append(update_value_grads)
                 sync_vars = []
                 for (ref, val) in zip(variables, global_vars):
@@ -169,43 +217,46 @@ with tf.Graph().as_default():
 
         # print(len(envs), len(models), len(policies), len(values), len(variables_list))
 
-        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 100, variables_list[i])) for i in range(THREADS)]
-
-
-        def eval_policy():
-            global T, T_MAX, GAMMA, ACTIONS
-            # Evaluate policies
-            TLast = 0
-            env = gym.make(ENV_NAME)
-            times = 10
-            while T < T_MAX:
-                if T- TLast > 1e4:
-                    returns = []
-                    for _ in range(times):
-                        R_t = 0
-                        s_t = env.reset()
-                        s_t_oh = np.zeros(16)
-                        s_t_oh[s_t] = 1
-                        s_t = s_t_oh
-                        episode_finished = False
-                        while (not episode_finished):
-                            # env.render()
-                            policy_distrib = sess.run(global_policy, feed_dict={global_obs: s_t[np.newaxis,:]})
-                            a_t_index = np.random.choice(ACTIONS, p=policy_distrib[0,:])
-                            s_t, r_t, episode_finished, _ = env.step(a_t_index)
-                            s_t_oh = np.zeros(16)
-                            s_t_oh[s_t] = 1
-                            s_t = s_t_oh
-                            R_t = r_t + R_t * GAMMA
-                        returns.append(R_t)
-                    print(sum(returns) / times)
-                    TLast = T
-
-        threads.append(threading.Thread(target=eval_policy))
+        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 400, variables_list[i])) for i in range(THREADS)]
 
         for t in threads:
             t.daemon = True
             t.start()
+
+        env = gym.make(ENV_NAME)
+
+        print("T_MAX: {:,}".format(int(T_MAX)))
+
+        # Evaluate policies
+        TLast = 0
+        times = 10
+        start_time = time.time()
+        while T < T_MAX:
+            time_elapsed = time.time() - start_time
+            time_left = time_elapsed * (T_MAX - T) / T
+            # Just in case, 100 days is the upper limit
+            time_left = min(time_left, 60 * 60 * 24 * 100)
+            print("T:", T, " Elapsed Time:", time_str(time_elapsed), " Left:", time_str(time_left), "     ", end="\r")
+            if T - TLast > 1e6:
+                returns = []
+                for _ in range(times):
+                    R_t = 0
+                    s_t = env.reset()
+                    frames = start_frames(s_t)
+
+                    episode_finished = False
+                    while not episode_finished:
+                        env.render()
+                        policy_distrib_sess = sess.run(policy, feed_dict={obs: frames[np.newaxis, :]})
+                        a_t_index = sample(policy_distrib_sess)
+
+                        s_t, r_t, episode_finished, _ = env.step(a_t_index)
+                        frames = add_frame(frames, s_t)
+                        R_t = r_t + R_t * GAMMA
+                    returns.append(R_t)
+                print(sum(returns) / times)
+                TLast = T
+            time.sleep(5)
 
         while T < T_MAX:
             time.sleep(1)
