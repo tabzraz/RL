@@ -28,39 +28,38 @@ print("LR: ", LR)
 def model(scope=0):
     global ACTIONS, BETA
     name = "ID_" + str(scope)
-    with tf.device('/cpu:0'):
-        with tf.name_scope(name):
-            # Last 4 observed frames with all 3 colour channels
-            obs = tf.placeholder(tf.float32, shape=[None, 105, 80, 12], name="Observation_Input")
-            # net = tflearn.fully_connected(obs, 64, activation="relu", weights_init="xavier", name="FC")
-            net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu")
-            net = tflearn.conv_2d(net, 32, 4, 2, activation="relu")
-            net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier")
-            value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
-            policy = tflearn.fully_connected(net, ACTIONS, activation="softmax", weights_init="xavier", name="Policy")
+    with tf.name_scope(name):
+        # Last 4 observed frames with all 3 colour channels
+        obs = tf.placeholder(tf.float32, shape=[None, 105, 80, 12], name="Observation_Input")
+        # net = tflearn.fully_connected(obs, 64, activation="relu", weights_init="xavier", name="FC")
+        net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu")
+        net = tflearn.conv_2d(net, 32, 4, 2, activation="relu")
+        net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier")
+        value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
+        policy = tflearn.fully_connected(net, ACTIONS, activation="softmax", weights_init="xavier", name="Policy")
 
-            # Clip to avoid NaNs
-            policy = tf.clip_by_value(policy, 1e-10, 1)
+        # Clip to avoid NaNs
+        policy = tf.clip_by_value(policy, 1e-10, 1)
 
-            value_target = tf.placeholder(tf.float32, shape=[None, 1], name="Value_Target")
-            value_error = value_target - value
-            # Apparently they multiply by 0.5
-            value_loss = 0.5 * tf.reduce_sum(tf.square(value_error))
+        value_target = tf.placeholder(tf.float32, shape=[None, 1], name="Value_Target")
+        value_error = value_target - value
+        # Apparently they multiply by 0.5
+        value_loss = 0.5 * tf.reduce_sum(tf.square(value_error))
 
-            log_policy = tf.log(policy)
-            action_index = tf.placeholder(tf.float32, shape=[None, ACTIONS], name="Action_Taken")
-            # We have the Probability distribution for the actions, we want the probability of taking the
-            # action that was actually taken
-            # tf.mul is elementwise multiplication, hence then reduce_sum.
-            # reduction_index = 1 since dim 0 is for batches
-            log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
+        log_policy = tf.log(policy)
+        action_index = tf.placeholder(tf.float32, shape=[None, ACTIONS], name="Action_Taken")
+        # We have the Probability distribution for the actions, we want the probability of taking the
+        # action that was actually taken
+        # tf.mul is elementwise multiplication, hence then reduce_sum.
+        # reduction_index = 1 since dim 0 is for batches
+        log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
 
-            policy_entropy = -tf.reduce_sum(policy * log_policy)
-            # Maybe change this so that we dont computer the gradient of (value_target - value)
-            advantage_no_grad = tf.stop_gradient(value_target - value)
-            policy_loss = -log_probability_of_action * advantage_no_grad + BETA * policy_entropy
+        policy_entropy = -tf.reduce_sum(policy * log_policy)
+        # Maybe change this so that we dont computer the gradient of (value_target - value)
+        advantage_no_grad = tf.stop_gradient(value_target - value)
+        policy_loss = -log_probability_of_action * advantage_no_grad + BETA * policy_entropy
 
-            variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
     return obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables
 
@@ -181,82 +180,93 @@ with tf.Graph().as_default():
         variables_list = []
 
         for i in range(THREADS):
-            with tf.device('/cpu:0'):
-                envs.append(gym.make(ENV_NAME))
-                mm = model(i + 1)
-                models.append(mm)
-                (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables) = mm
-                policy_grads = tf.gradients(policy_loss, variables)
-                clipped_policy_grads = []
-                for grad in policy_grads:
-                    if grad is not None:
-                        clipped_policy_grads.append(tf.clip_by_norm(grad, 10))
-                    else:
-                        clipped_policy_grads.append(None)
-                policy_grad_vars = zip(clipped_policy_grads, global_vars)
-                update_policy_grads = optimiser.apply_gradients(policy_grad_vars)
-                policies.append(update_policy_grads)
-                value_grads = tf.gradients(value_loss, variables)
-                clipped_value_grads = []
-                for grad in value_grads:
-                    if grad is not None:
-                        clipped_value_grads.append(tf.clip_by_norm(grad, 10))
-                    else:
-                        clipped_value_grads.append(None)
-                value_grad_vars = zip(clipped_value_grads, global_vars)
-                update_value_grads = optimiser.apply_gradients(value_grad_vars)
-                values.append(update_value_grads)
-                sync_vars = []
-                for (ref, val) in zip(variables, global_vars):
-                    sync_vars.append(tf.assign(ref, val))
-                variables_list.append(sync_vars)
+            envs.append(gym.make(ENV_NAME))
+            mm = model(i + 1)
+            models.append(mm)
+            (obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables) = mm
+            policy_grads = tf.gradients(policy_loss, variables)
+            clipped_policy_grads = []
+            for grad in policy_grads:
+                if grad is not None:
+                    clipped_policy_grads.append(tf.clip_by_norm(grad, 10))
+                else:
+                    clipped_policy_grads.append(None)
+            policy_grad_vars = zip(clipped_policy_grads, global_vars)
+            update_policy_grads = optimiser.apply_gradients(policy_grad_vars)
+            policies.append(update_policy_grads)
+            value_grads = tf.gradients(value_loss, variables)
+            clipped_value_grads = []
+            for grad in value_grads:
+                if grad is not None:
+                    clipped_value_grads.append(tf.clip_by_norm(grad, 10))
+                else:
+                    clipped_value_grads.append(None)
+            value_grad_vars = zip(clipped_value_grads, global_vars)
+            update_value_grads = optimiser.apply_gradients(value_grad_vars)
+            values.append(update_value_grads)
+            sync_vars = []
+            for (ref, val) in zip(variables, global_vars):
+                sync_vars.append(tf.assign(ref, val))
+            variables_list.append(sync_vars)
 
         sess.run(tf.initialize_all_variables())
 
-        tf.train.SummaryWriter("test_graph", graph=sess.graph)
+        writer = tf.train.SummaryWriter("test_graph", graph=sess.graph)
 
         # print(len(envs), len(models), len(policies), len(values), len(variables_list))
 
-        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 400, variables_list[i])) for i in range(THREADS)]
+        threads = [threading.Thread(target=actor, args=(envs[i], i, models[i], sess, policies[i], values[i], 300, variables_list[i])) for i in range(THREADS)]
+
+        print("T_MAX: {:,}".format(int(T_MAX)))
+
+        reward_tf = tf.placeholder(tf.float32)
+        reward_summary = tf.scalar_summary("AVg Reward", reward_tf)
+
+        # TODO: Use a checkpointed model or copy the weights when you start evaluating because they will change
+        def eval_policy():
+            env = gym.make(ENV_NAME)
+            # env.render()
+            TLast = -1e7
+            times = 3
+            while T < T_MAX:
+                if T - TLast > 1e4:
+                    returns = []
+                    for _ in range(times):
+                        R_t = 0
+                        s_t = env.reset()
+                        frames = start_frames(s_t)
+
+                        episode_finished = False
+                        t = 0
+                        while (not episode_finished) and (t < 500):
+                            # env.render()
+                            policy_distrib_sess = sess.run(policy, feed_dict={obs: frames[np.newaxis, :]})
+                            a_t_index = sample(policy_distrib_sess)
+
+                            s_t, r_t, episode_finished, _ = env.step(a_t_index)
+                            frames = add_frame(frames, s_t)
+                            R_t = r_t + R_t * GAMMA
+                            t += 1
+                        returns.append(R_t)
+                    avg_reward = sum(returns) / times
+                    rr = sess.run(reward_summary, feed_dict={reward_tf: avg_reward})
+                    writer.add_summary(rr)
+                    # print(avg_reward)
+                    TLast = T
+                time.sleep(1)
+
+        threads.append(threading.Thread(target=eval_policy))
 
         for t in threads:
             t.daemon = True
             t.start()
 
-        env = gym.make(ENV_NAME)
-
-        print("T_MAX: {:,}".format(int(T_MAX)))
-
-        # Evaluate policies
-        TLast = 0
-        times = 10
         start_time = time.time()
+
         while T < T_MAX:
             time_elapsed = time.time() - start_time
             time_left = time_elapsed * (T_MAX - T) / T
             # Just in case, 100 days is the upper limit
             time_left = min(time_left, 60 * 60 * 24 * 100)
-            print("T:", T, " Elapsed Time:", time_str(time_elapsed), " Left:", time_str(time_left), "     ", end="\r")
-            if T - TLast > 1e6:
-                returns = []
-                for _ in range(times):
-                    R_t = 0
-                    s_t = env.reset()
-                    frames = start_frames(s_t)
-
-                    episode_finished = False
-                    while not episode_finished:
-                        env.render()
-                        policy_distrib_sess = sess.run(policy, feed_dict={obs: frames[np.newaxis, :]})
-                        a_t_index = sample(policy_distrib_sess)
-
-                        s_t, r_t, episode_finished, _ = env.step(a_t_index)
-                        frames = add_frame(frames, s_t)
-                        R_t = r_t + R_t * GAMMA
-                    returns.append(R_t)
-                print(sum(returns) / times)
-                TLast = T
-            time.sleep(5)
-
-        while T < T_MAX:
+            print("\x1b[K", "T:", T, " Elapsed Time:", time_str(time_elapsed), " Left:", time_str(time_left), end="\r")
             time.sleep(1)
