@@ -149,7 +149,7 @@ with tf.Graph().as_default():
 
         # Shared optimisers for policy and value
         optimiser = tf.train.AdamOptimizer(LR, use_locking=False)
-        global_model = model(name="Global Model", actions=ACTIONS, beta=BETA)
+        global_model = model(name="Global_Model", actions=ACTIONS, beta=BETA)
 
         global_vars = global_model["Model_Variables"]
 
@@ -189,7 +189,7 @@ with tf.Graph().as_default():
             update_value_grads = optimiser.apply_gradients(value_grad_vars)
 
             update_global_model_op = tf.group(update_policy_grads, update_value_grads)
-            update_global_ops.append(update_global_ops)
+            update_global_ops.append(update_global_model_op)
 
             sync_vars = []
             for (ref, val) in zip(actor_variables, global_vars):
