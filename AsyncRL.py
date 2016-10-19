@@ -2,15 +2,19 @@ import numpy as np
 import gym
 # import gym_ple
 import tensorflow as tf
-import tflearn
 import threading
 import time
 from skimage.transform import resize
-import datetime
+from Models.A3C_Atari import model as model
+from Envs import AtariWrapper
 
-tf.app.flags.DEFINE_float("learning_rate", 0.01, "Initial Learning Rate")
-tf.app.flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
-FLAGS = tf.app.flags.FLAGS
+flags = tf.app.flags
+flags.DEFINE_float("learning_rate", 0.01, "Initial Learning Rate")
+flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
+flags.DEFINE_integer("gamma", 0.99, "Gamma, the discount rate for future rewards")
+flags.DEFINE_integer("t_max", 50e6, "Number of frames to run for")
+flags.DEFINE_string("")
+FLAGS = flags.FLAGS
 # Parameters
 # TODO: Use tf.flags to make cmd line configurable
 ENV_NAME = "Breakout-v0"
@@ -22,59 +26,6 @@ BETA = 0.01
 LR = FLAGS.learning_rate
 THREADS = FLAGS.actors
 
-print("LR: ", LR)
-
-
-def model(scope=0):
-    global ACTIONS, BETA
-    name = "ID_" + str(scope)
-    with tf.name_scope(name):
-        # Last 4 observed frames with all 3 colour channels
-        obs = tf.placeholder(tf.float32, shape=[None, 105, 80, 12], name="Observation_Input")
-        # net = tflearn.fully_connected(obs, 64, activation="relu", weights_init="xavier", name="FC")
-        net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu")
-        net = tflearn.conv_2d(net, 32, 4, 2, activation="relu")
-        net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier")
-        value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
-        policy = tflearn.fully_connected(net, ACTIONS, activation="softmax", weights_init="xavier", name="Policy")
-
-        # Clip to avoid NaNs
-        policy = tf.clip_by_value(policy, 1e-10, 1)
-
-        value_target = tf.placeholder(tf.float32, shape=[None, 1], name="Value_Target")
-        value_error = value_target - value
-        # Apparently they multiply by 0.5
-        value_loss = 0.5 * tf.reduce_sum(tf.square(value_error))
-
-        log_policy = tf.log(policy)
-        action_index = tf.placeholder(tf.float32, shape=[None, ACTIONS], name="Action_Taken")
-        # We have the Probability distribution for the actions, we want the probability of taking the
-        # action that was actually taken
-        # tf.mul is elementwise multiplication, hence then reduce_sum.
-        # reduction_index = 1 since dim 0 is for batches
-        log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
-
-        policy_entropy = -tf.reduce_sum(policy * log_policy)
-        # Maybe change this so that we dont computer the gradient of (value_target - value)
-        advantage_no_grad = tf.stop_gradient(value_target - value)
-        policy_loss = -log_probability_of_action * advantage_no_grad + BETA * policy_entropy
-
-        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-
-    return obs, action_index, value_target, value, policy, value_error, value_loss, policy_loss, variables
-
-
-def add_frame(frames, new_frame):
-    resized_frame = resize(new_frame, (105, 80))
-    new_frames = np.concatenate([frames[:, :, 3:], resized_frame], axis=2)
-    return new_frames
-
-
-def start_frames(frame):
-    resized_frame = resize(frame, (105, 80))
-    new_frames = np.concatenate([resized_frame for _ in range(4)], axis=2)
-    return new_frames
-
 
 def sample(sess_probs):
     # Probably don't need to try and normalise here since we are clipping the output of the softmax
@@ -85,8 +36,6 @@ def sample(sess_probs):
     p -= np.finfo(np.float32).eps
     one_hot_index = np.random.multinomial(1, p)
     index = np.where(one_hot_index > 0)
-    if index[0].size == 0:
-        print(sess_probs, p, one_hot_index)
     index = index[0][0]
     return index
 
