@@ -8,13 +8,14 @@ class AtariEnv(gym.Env):
     # Gotta include this to render
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(105, 80)):
+    def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(105, 80), action_repeat=4):
         # Deterministically skip 4 frames (3 for Space Invaders)
-        env_name = "{}Deterministic-v3".format(game_name)
+        env_name = "{}NoFrameskip-v3".format(game_name)
         self.env = gym.make(env_name)
         self.colours = colours
         self.resized_size = resized_size
         self.history_length = history_length
+        self.action_repeat = action_repeat
 
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -38,9 +39,16 @@ class AtariEnv(gym.Env):
     # Gym Env required methods:
 
     def _step(self, a):
-        s_t, r_t, episode_finished, info = self.env.step(a)
+        episode_finished = False
+        r = 0
+        for _ in range(self.action_repeat):
+            if not episode_finished:
+                s_t, r_t, episode_finished, info = self.env.step(a)
+                r += r_t
+            else:
+                break
         self.add_frame(s_t)
-        return self.frames, r_t, episode_finished, info
+        return self.frames, r, episode_finished, info
 
     def _reset(self):
         self.frames = self.start_frames(self.env.reset())
