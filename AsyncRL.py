@@ -17,7 +17,7 @@ flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the ent
 flags.DEFINE_float("grad_clip", 10, "Clips gradients to norm 10")
 flags.DEFINE_string("logdir", "Logs", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_integer("episode_t_max", 500, "Maximum number of frames an actor should act in an episode for")
-flags.DEFINE_integer("eval_interval", 1e4, "Rough number of timesteps to wait until evaluating the global model")
+flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 1000, "Max frames to run an episode for during evaluation")
 FLAGS = flags.FLAGS
@@ -77,6 +77,9 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
     value = model["Value"]
     policy = model["Policy"]
 
+    s_t = env.reset()
+    episode_finished = False
+
     while T < T_MAX:
 
         # Copy the parameters of the global model
@@ -88,9 +91,6 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
 
         t = 0
 
-        s_t = env.reset()
-
-        episode_finished = False
         while (not episode_finished) and t < t_max:
             # env.render()
             policy_distrib_sess = sess.run(policy, feed_dict={inputs: s_t[np.newaxis, :]})
@@ -124,6 +124,12 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
 
         # Update the central global model via our gradients
         sess.run(update_global_model, feed_dict={inputs: states, action_index: actions, value_target: targets})
+
+        if episode_finished:
+            # Reset the environment
+            s_t = env.reset()
+            episode_finished = False
+            # TODO: Keep track of episode stats like steps, reward, etc
 
 
 def time_str(s):
