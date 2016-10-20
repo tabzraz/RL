@@ -19,7 +19,7 @@ flags.DEFINE_string("logdir", "Logs", "Directory to put logs (including tensorbo
 flags.DEFINE_integer("episode_t_max", 5, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
-flags.DEFINE_integer("eval_t_max", 1000, "Max frames to run an episode for during evaluation")
+flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
 FLAGS = flags.FLAGS
 # Parameters
 # TODO: Use tf.flags to make cmd line configurable
@@ -204,7 +204,7 @@ with tf.Graph().as_default():
 
         sess.run(tf.initialize_all_variables())
 
-        writer = tf.train.SummaryWriter("{}/tblogs".format(LOGDIR), graph=sess.graph)
+        writer = tf.train.SummaryWriter("Logs/{}/tblogs".format(LOGDIR), graph=sess.graph)
 
         threads = [threading.Thread(target=actor, args=(envs[i], models[i], EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
 
@@ -218,7 +218,7 @@ with tf.Graph().as_default():
                 time_left = time_elapsed * (T_MAX - T) / T
                 # Just in case, 100 days is the upper limit
                 time_left = min(time_left, 60 * 60 * 24 * 100)
-                print("\x1b[K", "T:", T, " Elapsed Time:", time_str(time_elapsed), " Left:", time_str(time_left), end="\r")
+                print("\x1b[K", "T:", "{:,}".format(T), " Elapsed Time:", time_str(time_elapsed), " Left:", time_str(time_left), end="\r")
                 time.sleep(1)
 
         threads.append(threading.Thread(target=print_time))
@@ -258,7 +258,7 @@ with tf.Graph().as_default():
                         policy_distrib_sess = sess.run(eval_policy, feed_dict={eval_inputs: s_t[np.newaxis, :]})
                         a_t_index = sample(policy_distrib_sess)
                         s_t, r_t, episode_finished, _ = env.step(a_t_index)
-                        R_t = r_t + R_t * GAMMA
+                        R_t += r_t
                         t += 1
                     returns.append(R_t)
                 avg_reward = sum(returns) / EVAL_RUNS
