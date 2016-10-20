@@ -16,7 +16,7 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients to norm 10")
 flags.DEFINE_string("logdir", "Logs", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 500, "Maximum number of frames an actor should act in an episode for")
+flags.DEFINE_integer("episode_t_max", 5, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 1000, "Max frames to run an episode for during evaluation")
