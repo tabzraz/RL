@@ -51,7 +51,7 @@ else:
     LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 
 if not os.path.exists(LOGDIR):
-    os.makedirs(LOGDIR, exist_ok=True)
+    os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
 
 EPISODE_T_MAX = FLAGS.episode_t_max
 EVAL_INTERVAL = FLAGS.eval_interval
