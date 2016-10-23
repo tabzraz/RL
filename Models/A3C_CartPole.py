@@ -2,13 +2,11 @@ import tensorflow as tf
 import tflearn
 
 
-def model(name="Model", actions=1, beta=0.01):
+def model(name="Model", actions=2, beta=0.01):
     with tf.name_scope(name):
         # Last 4 observed frames with all 3 colour channels resized to 105x80 from 210x160
-        obs = tf.placeholder(tf.float32, shape=[None, 105, 80, 12], name="Observation_Input")
-        net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu", name="Conv1")
-        net = tflearn.conv_2d(net, 32, 4, 2, activation="relu", name="Conv2")
-        net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier", name="FC1")
+        obs = tf.placeholder(tf.float32, shape=[None, 4], name="Observation_Input")
+        net = tflearn.fully_connected(obs, 16, activation="relu", weights_init="xavier", name="FC1")
         value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
         policy = tflearn.fully_connected(net, actions, activation="softmax", weights_init="xavier", name="Policy")
 
@@ -22,19 +20,14 @@ def model(name="Model", actions=1, beta=0.01):
 
         log_policy = tf.log(policy)
         action_index = tf.placeholder(tf.float32, shape=[None, actions], name="Action_Taken")
-        # We have the Probability distribution for the actions, we want the probability of taking the
-        # action that was actually taken
-        # tf.mul is elementwise multiplication, hence then reduce_sum.
-        # reduction_index = 1 since dim 0 is for batches
+
         log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
 
         policy_entropy = -tf.reduce_sum(policy * log_policy)
 
-        # For a stochastic policy we don't want to backprop through the advantage function for the policy gradient
         advantage_no_grad = tf.stop_gradient(value_target - value)
 
-        # Wish to maximise log pi(a|s) * A(s,a) + beta * H(pi(_|s)), so we need -1 for gradient descent
-        policy_loss = -1 * (log_probability_of_action * advantage_no_grad + beta * policy_entropy)
+        policy_loss = -(log_probability_of_action * advantage_no_grad + beta * policy_entropy)
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
