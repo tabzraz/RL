@@ -17,7 +17,7 @@ flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
 flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
-flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_integer("episode_t_max", 32, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
@@ -50,7 +50,7 @@ if FLAGS.logdir != "":
 else:
     LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 
-if not os.path.exists(LOGDIR):
+if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
 
 EPISODE_T_MAX = FLAGS.episode_t_max
@@ -82,11 +82,11 @@ def sample(sess_probs):
     return index
 
 
-def actor(env, model, t_max, sess, update_global_model, sync_vars):
+def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     """
     The actor in the Async RL framework
     """
-    global T, T_MAX, GAMMA, ACTIONS
+    global T, T_MAX, GAMMA, ACTIONS, LOGDIR
 
     time.sleep(random.random() * 10)
 
@@ -96,9 +96,17 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
     value_target = model["Value_Target"]
     value = model["Value"]
     policy = model["Policy"]
+    policy_entropy = model["Policy_Entropy"]
+
+    # Summary statistics
+    writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
+    value_summary_op = tf.scalar_summary([["Value"]], value)
+    policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
 
     s_t = env.reset()
     episode_finished = False
+
+    episode_frames = 0
 
     while T < T_MAX:
 
@@ -113,7 +121,7 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
 
         while (not episode_finished) and t < t_max:
             # env.render()
-            policy_distrib_sess = sess.run(policy, feed_dict={inputs: s_t[np.newaxis, :]})
+            policy_distrib_sess, value_summary, entropy_summary = sess.run([policy, value_summary_op, policy_entropy_summary_op], feed_dict={inputs: s_t[np.newaxis, :]})
             a_t_index = sample(policy_distrib_sess)
 
             s_t, r_t, episode_finished, _ = env.step(a_t_index)
@@ -129,6 +137,10 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
             # TODO: Maybe do this with a lock for safe concurrent writes?
             T += 1
             t += 1
+            episode_frames += 1
+
+            writer.add_summary(value_summary, global_step=T)
+            writer.add_summary(entropy_summary, global_step=T)
 
         if episode_finished:
             R_t = 0
@@ -149,6 +161,7 @@ def actor(env, model, t_max, sess, update_global_model, sync_vars):
             # Reset the environment
             s_t = env.reset()
             episode_finished = False
+            episode_frames = 0
             # TODO: Keep track of episode stats like steps, reward, etc
 
 
@@ -231,9 +244,9 @@ with tf.Graph().as_default():
         sess.run(tf.initialize_all_variables())
 
         writer = tf.train.SummaryWriter("{}/tb_logs/eval".format(LOGDIR), graph=sess.graph)
-        saver = tf.train.Saver( max_to_keep=None, var_list=global_vars)
+        saver = tf.train.Saver(max_to_keep=None, var_list=global_vars)
 
-        threads = [threading.Thread(target=actor, args=(envs[i], models[i], EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
+        threads = [threading.Thread(target=actor, args=(envs[i], models[i], i+1, EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
 
         # TODO: Print some more params here as well
         print("T_MAX: {:,}".format(int(T_MAX)))
@@ -307,4 +320,4 @@ with tf.Graph().as_default():
         for t in threads:
             t.join()
 
-        saver.save(sess, NAME, global_step=T)
+        saver.save(sess=sess, save_path="{}/ckpts/global_vars".format(LOGDIR), global_step=T)

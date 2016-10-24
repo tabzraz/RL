@@ -6,9 +6,9 @@ def model(name="Model", actions=2, beta=0.01):
     with tf.name_scope(name):
         # Last 4 observed frames with all 3 colour channels resized to 105x80 from 210x160
         obs = tf.placeholder(tf.float32, shape=[None, 4], name="Observation_Input")
-        net = tflearn.fully_connected(obs, 16, activation="relu", weights_init="xavier", name="FC1")
-        value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
-        policy = tflearn.fully_connected(net, actions, activation="softmax", weights_init="xavier", name="Policy")
+        # net = tflearn.fully_connected(obs, 16, activation="relu", weights_init="xavier", name="FC1")
+        value = tflearn.fully_connected(obs, 1, activation="linear", weights_init="xavier", name="Value")
+        policy = tflearn.fully_connected(obs, actions, activation="softmax", weights_init="xavier", name="Policy")
 
         # Clip to avoid NaNs
         policy = tf.clip_by_value(policy, 1e-10, 1)
@@ -41,5 +41,6 @@ def model(name="Model", actions=2, beta=0.01):
     dict["Value_Loss"] = value_loss
     dict["Policy_Loss"] = policy_loss
     dict["Model_Variables"] = variables
+    dict["Policy_Entropy"] = policy_entropy
 
     return dict
