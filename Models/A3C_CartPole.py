@@ -25,9 +25,9 @@ def model(name="Model", actions=2, beta=0.01):
 
         policy_entropy = -tf.reduce_sum(policy * log_policy)
 
-        advantage_no_grad = tf.stop_gradient(value_target - value)
+        advantage_no_grad = (value_target - value)
 
-        policy_loss = -(log_probability_of_action * advantage_no_grad + beta * policy_entropy)
+        policy_loss = -tf.reduce_sum(log_probability_of_action * advantage_no_grad + beta * policy_entropy)
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
