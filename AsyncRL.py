@@ -164,7 +164,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
             episode_finished = False
             episode_frames = 0
             episodes_completed += 1
-            print("Completed episode {}".format(episodes_completed))
+            # print("Completed episode {}".format(episodes_completed))
             # TODO: Keep track of episode stats like steps, reward, etc
 
 
