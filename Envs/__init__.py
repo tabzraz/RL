@@ -1,5 +1,6 @@
 from gym.envs.registration import register
 
+# Atari Games with a deterministic frameskip
 for game in ['air_raid', 'alien', 'amidar', 'assault', 'asterix', 'asteroids', 'atlantis',
     'bank_heist', 'battle_zone', 'beam_rider', 'berzerk', 'bowling', 'boxing', 'breakout', 'carnival',
     'centipede', 'chopper_command', 'crazy_climber', 'demon_attack', 'double_dunk',
@@ -30,3 +31,12 @@ for game in ['air_raid', 'alien', 'amidar', 'assault', 'asterix', 'asteroids', '
             timestep_limit=100000,
             nondeterministic=nondeterministic,
         )
+
+# Grid world non slippery
+register(
+        id="FrozenLake4x4_NoSlip-v0",
+        entry_point='gym.envs.toy_text:FrozenLakeEnv',
+        kwargs={'map_name': '4x4', 'is_slippery': False},
+        timestep_limit=100,
+        reward_threshold=0.78, # optimum = .8196
+)

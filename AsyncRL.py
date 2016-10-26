@@ -19,7 +19,7 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 32, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 5, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
@@ -52,6 +52,7 @@ else:
 
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
+
 
 EPISODE_T_MAX = FLAGS.episode_t_max
 EVAL_INTERVAL = FLAGS.eval_interval
@@ -198,6 +199,8 @@ with tf.Graph().as_default():
         global_model = model(name="Global_Model", actions=ACTIONS, beta=BETA)
 
         global_vars = global_model["Model_Variables"]
+        global_policy_vars = global_model["Policy_Variables"]
+        global_value_vars = global_model["Value_Variables"]
 
         envs = []
         models = []
@@ -213,26 +216,28 @@ with tf.Graph().as_default():
             policy_loss = actor_model["Policy_Loss"]
             value_loss = actor_model["Value_Loss"]
             actor_variables = actor_model["Model_Variables"]
+            policy_variables = actor_model["Policy_Variables"]
+            value_variables = actor_model["Value_Variables"]
 
             with tf.name_scope("Update_Global_Model_" + str(i + 1)):
-                policy_grads = tf.gradients(policy_loss, actor_variables)
+                policy_grads = tf.gradients(policy_loss, policy_variables)
                 clipped_policy_grads = []
                 for grad in policy_grads:
                     if grad is not None:
                         clipped_policy_grads.append(tf.clip_by_norm(grad, CLIP_VALUE))
                     else:
                         clipped_policy_grads.append(None)
-                policy_grad_vars = zip(clipped_policy_grads, global_vars)
+                policy_grad_vars = zip(clipped_policy_grads, global_policy_vars)
                 update_policy_grads = optimiser.apply_gradients(policy_grad_vars)
 
-                value_grads = tf.gradients(value_loss, actor_variables)
+                value_grads = tf.gradients(value_loss, value_variables)
                 clipped_value_grads = []
                 for grad in value_grads:
                     if grad is not None:
                         clipped_value_grads.append(tf.clip_by_norm(grad, CLIP_VALUE))
                     else:
                         clipped_value_grads.append(None)
-                value_grad_vars = zip(clipped_value_grads, global_vars)
+                value_grad_vars = zip(clipped_value_grads, global_value_vars)
                 update_value_grads = optimiser.apply_gradients(value_grad_vars)
 
                 update_global_model_op = tf.group(update_policy_grads, update_value_grads)
@@ -253,6 +258,7 @@ with tf.Graph().as_default():
 
         # TODO: Print some more params here as well
         print("T_MAX: {:,}".format(int(T_MAX)))
+        print("Logdir:", LOGDIR)
 
         def print_time():
             start_time = time.time()
@@ -267,7 +273,7 @@ with tf.Graph().as_default():
 
         threads.insert(0, threading.Thread(target=print_time))
 
-        print("Starting Threads")
+        print("Starting Actor Threads")
         for t in threads:
             t.daemon = True
             t.start()
@@ -324,3 +330,5 @@ with tf.Graph().as_default():
             t.join()
 
         saver.save(sess=sess, save_path="{}/ckpts/global_vars".format(LOGDIR), global_step=T)
+
+        print("\nFinished")
