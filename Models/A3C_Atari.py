@@ -9,8 +9,10 @@ def model(name="Model", actions=1, beta=0.01):
         net = tflearn.conv_2d(obs, 16, 8, 4, activation="relu", name="Conv1")
         net = tflearn.conv_2d(net, 32, 4, 2, activation="relu", name="Conv2")
         net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier", name="FC1")
-        value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
-        policy = tflearn.fully_connected(net, actions, activation="softmax", weights_init="xavier", name="Policy")
+        with tf.name_scope("value"):
+            value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
+        with tf.name_scope("policy"):
+            policy = tflearn.fully_connected(net, actions, activation="softmax", weights_init="xavier", name="Policy")
 
         # Clip to avoid NaNs
         policy = tf.clip_by_value(policy, 1e-10, 1)
@@ -30,13 +32,15 @@ def model(name="Model", actions=1, beta=0.01):
 
         policy_entropy = -tf.reduce_sum(policy * log_policy)
 
-        # For a stochastic policy we don't want to backprop through the advantage function for the policy gradient
-        advantage_no_grad = tf.stop_gradient(value_target - value)
+        advantage_estimate = value_error
 
-        # Wish to maximise log pi(a|s) * A(s,a) + beta * H(pi(_|s)), so we need -1 for gradient descent
-        policy_loss = -1 * (log_probability_of_action * advantage_no_grad + beta * policy_entropy)
+        policy_loss = -tf.reduce_sum(log_probability_of_action * advantage_estimate + beta * policy_entropy)
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+        p_vs = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/policy".format(name))
+        v_vs = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/value".format(name))
+        policy_variables = [var for var in variables if var not in v_vs]
+        value_variables = [var for var in variables if var not in p_vs]
 
     # Create a dictionary to hold all these variables
     dict = {}
@@ -48,5 +52,8 @@ def model(name="Model", actions=1, beta=0.01):
     dict["Value_Loss"] = value_loss
     dict["Policy_Loss"] = policy_loss
     dict["Model_Variables"] = variables
+    dict["Value_Variables"] = value_variables
+    dict["Policy_Variables"] = policy_variables
+    dict["Policy_Entropy"] = policy_entropy
 
     return dict

@@ -6,15 +6,15 @@ import time
 import random
 import datetime
 import os
-from Models.A3C_CartPole import model as model
+from Models.A3C_Atari import model as model
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_float("learning_rate", 0.001, "Initial Learning Rate")
-flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
+flags.DEFINE_float("learning_rate", 0.0007, "Initial Learning Rate")
+flags.DEFINE_integer("actors", 64, "Number of actor threads to use")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
-flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
+flags.DEFINE_integer("t_max", 1e7, "Number of frames to run for")
+flags.DEFINE_string("env", "Tabz_Pong-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
@@ -60,6 +60,7 @@ EVAL_RUNS = FLAGS.eval_runs
 EVAL_T_MAX = FLAGS.eval_t_max
 SEED = FLAGS.seed
 CHECKPOINT_INTERVAL = FLAGS.checkpoint
+SUMMARY_UPDATE = 10
 
 # TODO: Dump hyperparameters to disk here
 
@@ -87,7 +88,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     """
     The actor in the Async RL framework
     """
-    global T, T_MAX, GAMMA, ACTIONS, LOGDIR
+    global T, T_MAX, GAMMA, ACTIONS, LOGDIR, SUMMARY_UPDATE
 
     time.sleep(random.random() * 10)
 
@@ -141,8 +142,9 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
             t += 1
             episode_frames += 1
 
-            writer.add_summary(value_summary, global_step=T)
-            writer.add_summary(entropy_summary, global_step=T)
+            if (t - 1) % SUMMARY_UPDATE == 0:
+                writer.add_summary(value_summary, global_step=T)
+                writer.add_summary(entropy_summary, global_step=T)
 
         if episode_finished:
             R_t = 0

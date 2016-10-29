@@ -12,12 +12,27 @@ import Envs
 flags = tf.app.flags
 flags.DEFINE_string("env", "CartPole-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_string("name", "nn", "The name of your model")
+flags.DEFINE_string("name", "nn", "The name of the model")
+flags.DEFINE_float("learning_rate", 0.001, "Initial Learning Rate")
+flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
+flags.DEFINE_integer("T", 1e6, "Number of frames to act for")
+flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
+flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
+flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
+flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
+flags.DEFINE_integer("xp", 1e5, "Size of the experience replay")
+flags.DEFINE_float("epsilon_start", 1, "Value of epsilon to start with")
+flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
+flags.DEFINE_integer("target", 1e3, "After how many steps to update the target network")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
 env = gym.make(ENV_NAME)
-ACTIONS = env.action_space.n
+
+if FLAGS.action_override > 0:
+    ACTIONS = FLAGS.action_override
+else:
+    ACTIONS = env.action_space.n
 SEED = 2
 LR = 0.0001
 NAME = FLAGS.name
