@@ -1,0 +1,150 @@
+import numpy as np
+import gym
+import tensorflow as tf
+import time
+import datetime
+import os
+from tqdm import tqdm
+from Replay.ExpReplay import ExperienceReplay
+from Models.DQN_CartPole import model
+import Envs
+
+flags = tf.app.flags
+flags.DEFINE_string("env", "CartPole-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
+flags.DEFINE_string("name", "nn", "The name of your model")
+
+FLAGS = flags.FLAGS
+ENV_NAME = FLAGS.env
+env = gym.make(ENV_NAME)
+ACTIONS = env.action_space.n
+SEED = 2
+LR = 0.0001
+NAME = FLAGS.name
+EPISODES = 50000
+EPSILON_FINISH = 0.01
+XP_SIZE = 100000
+GAMMA = 0.99
+BATCH_SIZE = 128
+TARGET_UPDATE = 1000
+SUMMARY_UPDATE = 5
+CLIP_VALUE = 5
+if FLAGS.logdir != "":
+    LOGDIR = FLAGS.logdir
+else:
+    LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+
+if not os.path.exists("{}/ckpts/".format(LOGDIR)):
+    os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
+
+replay = ExperienceReplay(XP_SIZE)
+
+with tf.Graph().as_default():
+    with tf.Session() as sess:
+
+        test_state = env.reset()
+
+        dqn = model(name="DQN", actions=ACTIONS)
+        target_dqn = model(name="Target_DQN", actions=ACTIONS)
+
+        dqn_inputs = dqn["Input"]
+        target_dqn_input = dqn["Input"]
+        dqn_qvals = dqn["Q_Values"]
+        target_dqn_qvals = dqn["Q_Values"]
+        dqn_vars = dqn["Variables"]
+        target_dqn_vars = target_dqn["Variables"]
+        dqn_targets = dqn["Targets"]
+        dqn_actions = dqn["Actions"]
+        dqn_summary_loss = dqn["Loss_Summary"]
+        dqn_summary_qvals = dqn["QVals_Summary"]
+
+        with tf.name_scope("Sync_Target_DQN"):
+            sync_vars = []
+            for (ref, val) in zip(target_dqn_vars, dqn_vars):
+                sync_vars.append(tf.assign(ref, val))
+
+        T = 0
+        qval_loss = dqn["Q_Loss"]
+
+        optimiser = tf.train.RMSPropOptimizer(LR)
+        grads_vars = optimiser.compute_gradients(qval_loss)
+        clipped = []
+        for grad, var in grads_vars:
+            if grad is not None:
+                clipped.append((tf.clip_by_norm(grad, CLIP_VALUE), var))
+            else:
+                clipped.append((None, var))
+        minimise_op = optimiser.apply_gradients(clipped)
+
+        episode_reward = tf.placeholder(tf.float32)
+        reward_summary = tf.scalar_summary("Episode Reward", episode_reward)
+        tf_epsilon = tf.placeholder(tf.float32)
+        epsilon_summary = tf.scalar_summary("Epsilon", tf_epsilon)
+
+        sess.run(tf.initialize_all_variables())
+        sess.run(sync_vars)
+
+        writer = tf.train.SummaryWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
+
+        np.random.seed(SEED)
+        tf.set_random_seed(SEED)
+
+        frames = 0
+
+        for episode in tqdm(range(1, EPISODES + 1)):
+
+            s_t = env.reset()
+            episode_finished = False
+
+            epsilon = EPSILON_FINISH + (1 - EPSILON_FINISH) * ((EPISODES - episode) / EPISODES)
+
+            ep_reward = 0
+            while not episode_finished:
+                # env.render()
+                # TODO: Exploratory phase
+                q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: s_t[np.newaxis, :]})
+                if np.random.random() < epsilon:
+                    action = env.action_space.sample()
+                else:
+                    action = np.argmax(q_vals[0, :])
+
+                s_new, r_t, episode_finished, _ = env.step(action)
+                ep_reward += r_t
+                replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
+                s_t = s_new
+                batch = replay.Sample(BATCH_SIZE)
+
+                # Create targets from the batch
+                old_states = list(map(lambda tups: tups[0], batch))
+                new_states = list(map(lambda tups: tups[3], batch))
+                current_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: old_states})
+                q_targets = []
+                actions = []
+                for batch_item, target_qval in zip(batch, target_qvals):
+                    st, at, rt, snew, terminal = batch_item
+                    target = np.zeros(ACTIONS)
+                    target[at] = rt
+                    if not terminal:
+                        target[at] += GAMMA * np.max(target_qval)
+                    q_targets.append(target)
+                    action_onehot = np.zeros(ACTIONS)
+                    action_onehot[at] = 1
+                    actions.append(action_onehot)
+
+                # Minimise
+                loss_summary, _ = sess.run([dqn_summary_loss, minimise_op], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+                frames += 1
+                T += 1
+
+                if frames % TARGET_UPDATE == 0:
+                    # print("Before", sess.run(target_dqn_qvals, feed_dict={target_dqn_input: test_state[np.newaxis, :]}))
+                    sess.run(sync_vars)
+                    # print("After", sess.run(target_dqn_qvals, feed_dict={target_dqn_input: test_state[np.newaxis, :]}))
+
+                if frames % SUMMARY_UPDATE == 0:
+                    writer.add_summary(loss_summary, global_step=T)
+                    writer.add_summary(qvals_summary, global_step=T)
+
+            r_summary, e_summary = sess.run([reward_summary, epsilon_summary], feed_dict={tf_epsilon: epsilon, episode_reward: ep_reward})
+            writer.add_summary(r_summary, global_step=episode)
+            writer.add_summary(e_summary, global_step=episode)
