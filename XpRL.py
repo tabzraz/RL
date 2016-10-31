@@ -6,23 +6,24 @@ import datetime
 import os
 from tqdm import tqdm
 from Replay.ExpReplay import ExperienceReplay
-from Models.DQN_CartPole import model
+from Models.DQN_FrozenLake import model
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "CartPole-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "FrozenLake4x4_NoSlip-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("learning_rate", 0.001, "Initial Learning Rate")
+flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("T", 1e6, "Number of frames to act for")
+flags.DEFINE_integer("episodes", 10000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", 1e5, "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
+flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 1e3, "After how many steps to update the target network")
 
 FLAGS = flags.FLAGS
@@ -33,15 +34,16 @@ if FLAGS.action_override > 0:
     ACTIONS = FLAGS.action_override
 else:
     ACTIONS = env.action_space.n
-SEED = 2
-LR = 0.0001
+SEED = FLAGS.seed
+LR = FLAGS.learning_rate
 NAME = FLAGS.name
-EPISODES = 50000
-EPSILON_FINISH = 0.01
-XP_SIZE = 100000
+EPISODES = FLAGS.episodes
+EPSILON_START = FLAGS.epsilon_start
+EPSILON_FINISH = FLAGS.epsilon_finish
+XP_SIZE = 10000
 GAMMA = 0.99
 BATCH_SIZE = 128
-TARGET_UPDATE = 1000
+TARGET_UPDATE = 100
 SUMMARY_UPDATE = 5
 CLIP_VALUE = 5
 if FLAGS.logdir != "":
@@ -52,10 +54,16 @@ else:
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
 
+print("Logdir:", LOGDIR)
+
 replay = ExperienceReplay(XP_SIZE)
 
 with tf.Graph().as_default():
     with tf.Session() as sess:
+
+        # Seed numpy and tensorflow
+        np.random.seed(SEED)
+        tf.set_random_seed(SEED)
 
         test_state = env.reset()
 
@@ -81,7 +89,7 @@ with tf.Graph().as_default():
         T = 0
         qval_loss = dqn["Q_Loss"]
 
-        optimiser = tf.train.RMSPropOptimizer(LR)
+        optimiser = tf.train.AdamOptimizer(LR)
         grads_vars = optimiser.compute_gradients(qval_loss)
         clipped = []
         for grad, var in grads_vars:
@@ -111,13 +119,13 @@ with tf.Graph().as_default():
             s_t = env.reset()
             episode_finished = False
 
-            epsilon = EPSILON_FINISH + (1 - EPSILON_FINISH) * ((EPISODES - episode) / EPISODES)
+            epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((EPISODES - episode) / EPISODES)
 
             ep_reward = 0
             while not episode_finished:
                 # env.render()
                 # TODO: Exploratory phase
-                q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: s_t[np.newaxis, :]})
+                q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
                 if np.random.random() < epsilon:
                     action = env.action_space.sample()
                 else:

@@ -2,10 +2,11 @@ import tensorflow as tf
 import tflearn
 
 
-def model(name="Model", actions=2):
+def model(name="Model", states=16, actions=4):
     with tf.name_scope(name):
-        inputs = tf.placeholder(tf.float32, shape=[None, 4], name="Obs_Input")
-        net = tflearn.fully_connected(inputs, 64, activation="relu")
+        inputs = tf.placeholder(tf.int32, shape=[None], name="Obs_Input")
+        input_onehot = tf.one_hot(inputs, states)
+        net = tflearn.fully_connected(input_onehot, 64, activation="relu")
         q_values = tflearn.fully_connected(net, actions, activation="linear")
 
         action_index = tf.placeholder(tf.float32, shape=[None, actions])
