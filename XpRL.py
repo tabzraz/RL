@@ -10,7 +10,7 @@ from Models.DQN_FrozenLake import model
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "FrozenLake4x4-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "FrozenLake-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
