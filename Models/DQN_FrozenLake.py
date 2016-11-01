@@ -2,12 +2,22 @@ import tensorflow as tf
 import tflearn
 
 
-def model(name="Model", states=16, actions=4):
+def model(name="Model", states=16, actions=4, dueling=True):
     with tf.name_scope(name):
         inputs = tf.placeholder(tf.int32, shape=[None], name="Obs_Input")
         input_onehot = tf.one_hot(inputs, states)
-        net = tflearn.fully_connected(input_onehot, 64, activation="relu")
-        q_values = tflearn.fully_connected(net, actions, activation="linear")
+        net = tflearn.fully_connected(input_onehot, 128, activation="relu")
+        if dueling:
+            v_stream = tflearn.fully_connected(net, 64, activation="relu")
+            v_stream = tflearn.fully_connected(v_stream, 1, activation="linear")
+
+            a_stream = tflearn.fully_connected(net, 64, activation="relu")
+            a_stream = tflearn.fully_connected(a_stream, actions, activation="linear")
+
+            q_values = v_stream + (a_stream - tf.reduce_mean(a_stream, reduction_indices=1, keep_dims=True))
+        else:
+            net = tflearn.fully_connected(net, 128, activation="relu")
+            q_values = tflearn.fully_connected(net, actions, activation="linear")
 
         action_index = tf.placeholder(tf.float32, shape=[None, actions])
         target_q = tf.placeholder(tf.float32, shape=[None, actions])
@@ -19,8 +29,8 @@ def model(name="Model", states=16, actions=4):
         # Summaries
         loss_summary = tf.scalar_summary("Q_Loss", q_loss)
         qval_summaries = []
-        for i in range(actions):
-            qval_summaries.append(tf.scalar_summary("Action {} QValue".format(i), q_values[0, i]))
+        # for i in range(actions):
+        #    qval_summaries.append(tf.scalar_summary("Action {} QValue".format(i), q_values[0, i]))
         average_qval = tf.reduce_mean(q_values)
         avg_qvals_summary = tf.scalar_summary("Average QValue", average_qval)
         qvals_histogram = tf.histogram_summary("Q Values", q_values)

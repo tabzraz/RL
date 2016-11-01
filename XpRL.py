@@ -18,13 +18,16 @@ flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("T", 1e6, "Number of frames to act for")
 flags.DEFINE_integer("episodes", 10000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", 1e5, "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("target", 1e3, "After how many steps to update the target network")
+flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
+flags.DEFINE_boolean("double", True, "Double DQN or not")
+flags.DEFINE_integer("batch", 64, "Minibatch size")
+flags.DEFINE_integer("summary", 5, "After how many steps to log summary info")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -34,18 +37,20 @@ if FLAGS.action_override > 0:
     ACTIONS = FLAGS.action_override
 else:
     ACTIONS = env.action_space.n
+DOUBLE_DQN = FLAGS.double
 SEED = FLAGS.seed
 LR = FLAGS.learning_rate
 NAME = FLAGS.name
 EPISODES = FLAGS.episodes
 EPSILON_START = FLAGS.epsilon_start
 EPSILON_FINISH = FLAGS.epsilon_finish
-XP_SIZE = 10000
-GAMMA = 0.99
-BATCH_SIZE = 128
-TARGET_UPDATE = 100
-SUMMARY_UPDATE = 5
-CLIP_VALUE = 5
+XP_SIZE = FLAGS.xp
+GAMMA = FLAGS.gamma
+BATCH_SIZE = FLAGS.batch
+TARGET_UPDATE = FLAGS.target
+SUMMARY_UPDATE = FLAGS.summary
+CLIP_VALUE = FLAGS.grad_clip
+CHECKPOINT_INTERVAL = FLAGS.checkpoint
 if FLAGS.logdir != "":
     LOGDIR = FLAGS.logdir
 else:
@@ -54,8 +59,11 @@ else:
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
 
+print("\n--------Info--------")
 print("Logdir:", LOGDIR)
+print("--------------------\n")
 
+# TODO: Prioritized experience replay
 replay = ExperienceReplay(XP_SIZE)
 
 with tf.Graph().as_default():
@@ -108,6 +116,7 @@ with tf.Graph().as_default():
         sess.run(sync_vars)
 
         writer = tf.train.SummaryWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
+        saver = tf.train.Saver(max_to_keep=None, var_list=dqn_vars)
 
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
@@ -135,20 +144,25 @@ with tf.Graph().as_default():
                 ep_reward += r_t
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
                 s_t = s_new
-                batch = replay.Sample(BATCH_SIZE)
 
+                batch = replay.Sample(BATCH_SIZE)
                 # Create targets from the batch
                 old_states = list(map(lambda tups: tups[0], batch))
                 new_states = list(map(lambda tups: tups[3], batch))
                 current_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: old_states})
+                if DOUBLE_DQN:
+                    new_state_qvals = sess.run(dqn_qvals, feed_dict={dqn_inputs: new_states})
                 q_targets = []
                 actions = []
-                for batch_item, target_qval in zip(batch, target_qvals):
+                for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
                     st, at, rt, snew, terminal = batch_item
                     target = np.zeros(ACTIONS)
                     target[at] = rt
                     if not terminal:
-                        target[at] += GAMMA * np.max(target_qval)
+                        if DOUBLE_DQN:
+                            target[at] += GAMMA * target_qval[np.argmax(double_qvals)]
+                        else:
+                            target[at] += GAMMA * np.max(target_qval)
                     q_targets.append(target)
                     action_onehot = np.zeros(ACTIONS)
                     action_onehot[at] = 1
@@ -168,6 +182,16 @@ with tf.Graph().as_default():
                     writer.add_summary(loss_summary, global_step=T)
                     writer.add_summary(qvals_summary, global_step=T)
 
+                if frames % CHECKPOINT_INTERVAL == 0:
+                    saver.save(sess=sess, save_path="{}/ckpts/dqn_vars".format(LOGDIR), global_step=T)
+
             r_summary, e_summary = sess.run([reward_summary, epsilon_summary], feed_dict={tf_epsilon: epsilon, episode_reward: ep_reward})
             writer.add_summary(r_summary, global_step=episode)
             writer.add_summary(e_summary, global_step=episode)
+
+            # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+
+        # Print information specific to Lake
+        for i in range(16):
+            qs = sess.run(dqn_qvals, feed_dict={dqn_inputs: [i]})
+            print("{}: {}".format(i, qs))
