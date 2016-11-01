@@ -10,11 +10,11 @@ from Models.DQN_FrozenLake import model
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "FrozenLake4x4_NoSlip-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "FrozenLake4x4-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
-flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
+flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("T", 1e6, "Number of frames to act for")
 flags.DEFINE_integer("episodes", 10000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
@@ -150,8 +150,7 @@ with tf.Graph().as_default():
                 old_states = list(map(lambda tups: tups[0], batch))
                 new_states = list(map(lambda tups: tups[3], batch))
                 current_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: old_states})
-                if DOUBLE_DQN:
-                    new_state_qvals = sess.run(dqn_qvals, feed_dict={dqn_inputs: new_states})
+                new_state_qvals = sess.run(dqn_qvals, feed_dict={dqn_inputs: new_states})
                 q_targets = []
                 actions = []
                 for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
