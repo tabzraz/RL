@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 import numpy as np
 import gym
 import tensorflow as tf
@@ -51,7 +52,7 @@ else:
     LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
-    os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
+    os.makedirs("{}/ckpts".format(LOGDIR))
 
 
 EPISODE_T_MAX = FLAGS.episode_t_max
