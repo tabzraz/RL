@@ -26,13 +26,19 @@ class AtariEnv(gym.Env):
         if not self.colours:
             new_frame = rgb2grey(new_frame)
         resized_frame = resize(new_frame, self.resized_size)
-        self.frames = np.concatenate([self.frames[:, :, (self.history_length - 1):], resized_frame], axis=2)
+        if self.colours:
+            self.frames = np.concatenate([self.frames[:, :, 3:], resized_frame], axis=2)
+        else:
+            self.frames = np.concatenate([self.frames[:, :, 1:], resized_frame[:, :, np.newaxis]], axis=2)
 
     def start_frames(self, frame):
         if not self.colours:
             frame = rgb2grey(frame)
         resized_frame = resize(frame, self.resized_size)
-        new_frames = np.concatenate([resized_frame for _ in range(self.history_length)], axis=2)
+        if self.colours:
+            new_frames = np.concatenate([resized_frame for _ in range(self.history_length)], axis=2)
+        else:
+            new_frames = np.stack([resized_frame for _ in range(self.history_length)], axis=-1)
         return new_frames
 
     # Gym Env required methods:

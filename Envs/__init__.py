@@ -27,7 +27,7 @@ for game in ['air_raid', 'alien', 'amidar', 'assault', 'asterix', 'asteroids', '
         register(
             id='Tabz_{}-v0'.format(name),
             entry_point='Envs.AtariWrapper:AtariEnv',
-            kwargs={'game_name': name},
+            kwargs={'game_name': name, 'colours': False},
             timestep_limit=100000,
             nondeterministic=nondeterministic,
         )

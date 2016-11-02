@@ -11,15 +11,15 @@ import Envs
 
 flags = tf.app.flags
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
-flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
-flags.DEFINE_float("gamma", 0.9, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
+flags.DEFINE_integer("actors", 32, "Number of actor threads to use")
+flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
+flags.DEFINE_integer("t_max", 1e7, "Number of frames to run for")
 flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 5, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 32, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
@@ -263,8 +263,8 @@ with tf.Graph().as_default():
         print("Logdir:", LOGDIR)
 
         def print_time():
-            start_time = time.time()
             time.sleep(10)
+            start_time = time.time()
             while T < T_MAX:
                 time_elapsed = time.time() - start_time
                 time_left = time_elapsed * (T_MAX - T) / T

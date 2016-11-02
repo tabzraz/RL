@@ -7,12 +7,12 @@ import datetime
 import os
 from tqdm import tqdm
 from Replay.ExpReplay import ExperienceReplay
-from Models.DQN_Malmo import model
-import gym_minecraft
+from Models.DQN_Atari import model
+# import gym_minecraft
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Tabz_Breakout-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
@@ -23,22 +23,24 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
-flags.DEFINE_integer("xp", 1e6, "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 1000, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 256, "Minibatch size")
+flags.DEFINE_integer("batch", 32, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
 env = gym.make(ENV_NAME)
 
+MALMO = False
 # Malmo stuff
-env.configure(allowDiscreteMovement=["move", "turn"])
-env.configure(videoResolution=[84, 84])
+if MALMO:
+    env.configure(allowDiscreteMovement=["move", "turn"])
+    env.configure(videoResolution=[84, 84])
 
 if FLAGS.action_override > 0:
     ACTIONS = FLAGS.action_override
@@ -68,9 +70,28 @@ else:
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR))
 
+
+def time_str(s):
+    """
+    Convert seconds to a nicer string showing days, hours, minutes and seconds
+    """
+    days, remainder = divmod(s, 60 * 60 * 24)
+    hours, remainder = divmod(remainder, 60 * 60)
+    minutes, seconds = divmod(remainder, 60)
+    string = ""
+    if days > 0:
+        string += "{:d} days, ".format(int(days))
+    if hours > 0:
+        string += "{:d} hours, ".format(int(hours))
+    if minutes > 0:
+        string += "{:d} minutes, ".format(int(minutes))
+    string += "{:d} seconds".format(int(seconds))
+    return string
+
+
 print("\n--------Info--------")
 print("Logdir:", LOGDIR)
-print("Episodes:", EPISODES)
+print("T:", T_MAX)
 print("Actions:", ACTIONS)
 print("Gamma", GAMMA)
 print("Learning Rate:", LR)
@@ -107,7 +128,7 @@ with tf.Graph().as_default():
             for (ref, val) in zip(target_dqn_vars, dqn_vars):
                 sync_vars.append(tf.assign(ref, val))
 
-        T = 0
+        T = 1
         episode = 1
         qval_loss = dqn["Q_Loss"]
 
@@ -126,7 +147,7 @@ with tf.Graph().as_default():
         tf_epsilon = tf.placeholder(tf.float32)
         epsilon_summary = tf.scalar_summary("Epsilon", tf_epsilon)
         episode_length = tf.placeholder(tf.int32)
-        length_summary = tf.scalar_summary("Episode Reward", episode_length)
+        length_summary = tf.scalar_summary("Episode Length", episode_length)
 
         sess.run(tf.initialize_all_variables())
         sess.run(sync_vars)
@@ -137,28 +158,36 @@ with tf.Graph().as_default():
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
 
-        while T < T_MAX:
-            print("Exploratory phase for {} steps".format(EXPLORATION_STEPS))
-            e_steps = 0
-            while e_steps < EXPLORATION_STEPS:
-                s = env.reset()
-                terminated = False
-                while not terminated:
-                    a = env.action_space.sample()
-                    sn, r, terminated, _ = env.step(a)
-                    replay.Add_Exp(s, a, r, sn, terminated)
-                    s = sn
+        print("Exploratory phase for {} steps".format(EXPLORATION_STEPS))
+        e_steps = 0
+        while e_steps < EXPLORATION_STEPS:
+            s = env.reset()
+            terminated = False
+            while not terminated:
+                print(e_steps, end="\r")
+                a = env.action_space.sample()
+                sn, r, terminated, _ = env.step(a)
+                replay.Add_Exp(s, a, r, sn, terminated)
+                s = sn
+                e_steps += 1
 
-            print("Exploratory phase finished, starting learning")
+        print("Exploratory phase finished, starting learning")
+        start_time = time.time()
+
+        while T < T_MAX:
 
             frames = 0
 
             s_t = env.reset()
             episode_finished = False
 
-            epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((EPISODES - episode) / EPISODES)
+            epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((T_MAX - T) / T_MAX)
+            time_elapsed = time.time() - start_time
+            time_left = time_elapsed * (T_MAX - T) / T
+            # Just in case, 100 days is the upper limit
+            time_left = min(time_left, 60 * 60 * 24 * 100)
 
-            print("Episode: {}, T: {}/{}, Epsilon: {}".format(episode, T, T_MAX, epsilon), end="\r")
+            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), end="\r")
 
             ep_reward = 0
             while not episode_finished:
@@ -217,7 +246,7 @@ with tf.Graph().as_default():
             r_summary, e_summary, l_summary = sess.run([reward_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
             writer.add_summary(r_summary, global_step=episode)
             writer.add_summary(e_summary, global_step=episode)
-            writer.add_summary(l_summary, globals=episode)
+            writer.add_summary(l_summary, global_step=episode)
 
             episode += 1
 
