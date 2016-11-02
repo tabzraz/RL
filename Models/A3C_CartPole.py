@@ -8,11 +8,11 @@ def model(name="Model", actions=2, beta=0):
         # net = tflearn.fully_connected(obs, 16, activation="relu", weights_init="xavier", name="FC1")
         with tf.name_scope("value"):
             v_net = tflearn.fully_connected(obs, 64, activation="relu")
-            v_net = tflearn.fully_connected(v_net, 64, activation="relu")
+            # v_net = tflearn.fully_connected(v_net, 64, activation="relu")
             value = tflearn.fully_connected(v_net, 1, activation="linear", name="Value")
         with tf.name_scope("policy"):
             p_net = tflearn.fully_connected(obs, 64, activation="relu")
-            p_net = tflearn.fully_connected(p_net, 64, activation="relu")
+            # p_net = tflearn.fully_connected(p_net, 64, activation="relu")
             policy = tflearn.fully_connected(p_net, actions, activation="softmax", name="Policy")
 
         # Clip to avoid NaNs
