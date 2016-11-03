@@ -2,10 +2,10 @@ import tensorflow as tf
 import tflearn
 
 
-def model(name="Model", actions=2, beta=0):
+def model(name="Model", actions=2, beta=0.01):
     with tf.name_scope(name):
         obs = tf.placeholder(tf.float32, shape=[None, 4], name="Observation_Input")
-        # net = tflearn.fully_connected(obs, 16, activation="relu", weights_init="xavier", name="FC1")
+        # net = tflearn.fully_connected(obs, 128, activation="relu", weights_init="xavier", name="FC1")
         with tf.name_scope("value"):
             v_net = tflearn.fully_connected(obs, 64, activation="relu")
             # v_net = tflearn.fully_connected(v_net, 64, activation="relu")
@@ -35,8 +35,10 @@ def model(name="Model", actions=2, beta=0):
         policy_loss = -tf.reduce_sum(log_probability_of_action * advantage_estimate + beta * policy_entropy)
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-        policy_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/policy".format(name))
-        value_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/value".format(name))
+        p_vs = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/policy".format(name))
+        v_vs = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}/value".format(name))
+        policy_variables = [var for var in variables if var not in v_vs]
+        value_variables = [var for var in variables if var not in p_vs]
 
     # Create a dictionary to hold all these variables
     dict = {}

@@ -12,15 +12,15 @@ import Envs
 
 flags = tf.app.flags
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
-flags.DEFINE_integer("actors", 32, "Number of actor threads to use")
+flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
 flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
 flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
-flags.DEFINE_float("grad_clip", 1, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 5, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 16, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
@@ -52,7 +52,7 @@ else:
     LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
-    os.makedirs("{}/ckpts".format(LOGDIR), exist_ok=True)
+    os.makedirs("{}/ckpts".format(LOGDIR))
 
 
 EPISODE_T_MAX = FLAGS.episode_t_max
@@ -190,14 +190,16 @@ def time_str(s):
     return string
 
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
-    with tf.Session() as sess:
+    with tf.Session(config=config) as sess:
 
         # Seed numpy and tensorflow
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
 
-        # Shared optimisers for policy and value
+        # Shared optimiser for policy and value
         optimiser = tf.train.AdamOptimizer(LR, use_locking=False)
         global_model = model(name="Global_Model", actions=ACTIONS, beta=BETA)
 
@@ -218,6 +220,7 @@ with tf.Graph().as_default():
         # policy_variables = actor_model["Policy_Variables"]
         # value_variables = actor_model["Value_Variables"]
 
+        # TODO: Gradient clipping
         policy_update = optimiser.minimize(global_policy_loss, var_list=global_policy_vars)
         value_update = optimiser.minimize(global_value_loss, var_list=global_value_vars)
         update_global_model_op = tf.group(policy_update, value_update)
