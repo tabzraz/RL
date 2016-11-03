@@ -7,17 +7,17 @@ import datetime
 import os
 from tqdm import tqdm
 from Replay.ExpReplay import ExperienceReplay
-from Models.DQN_Atari import model
+from Models.DQN_CartPole import model
 # import gym_minecraft
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "CartPole-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e7), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 1000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -26,11 +26,11 @@ flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("target", 1000, "After how many steps to update the target network")
+flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 32, "Minibatch size")
+flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(5e3), "Number of steps to randomly explore for")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -91,7 +91,7 @@ def time_str(s):
 
 print("\n--------Info--------")
 print("Logdir:", LOGDIR)
-print("T:", T_MAX)
+print("T:{:,)".format(T_MAX))
 print("Actions:", ACTIONS)
 print("Gamma", GAMMA)
 print("Learning Rate:", LR)
@@ -100,8 +100,10 @@ print("--------------------\n")
 # TODO: Prioritized experience replay
 replay = ExperienceReplay(XP_SIZE)
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
-    with tf.Session() as sess:
+    with tf.Session(config=config) as sess:
 
         # Seed numpy and tensorflow
         np.random.seed(SEED)
@@ -109,13 +111,13 @@ with tf.Graph().as_default():
 
         test_state = env.reset()
 
-        dqn = model(name="DDDQN", actions=ACTIONS)
+        dqn = model(name="DQN", actions=ACTIONS)
         target_dqn = model(name="Target_Network", actions=ACTIONS)
 
         dqn_inputs = dqn["Input"]
-        target_dqn_input = dqn["Input"]
+        target_dqn_input = target_dqn["Input"]
         dqn_qvals = dqn["Q_Values"]
-        target_dqn_qvals = dqn["Q_Values"]
+        target_dqn_qvals = target_dqn["Q_Values"]
         dqn_vars = dqn["Variables"]
         target_dqn_vars = target_dqn["Variables"]
         dqn_targets = dqn["Targets"]
@@ -251,3 +253,4 @@ with tf.Graph().as_default():
             episode += 1
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+        print("Finished")
