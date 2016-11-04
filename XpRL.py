@@ -25,12 +25,12 @@ flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
+flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e3), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -91,7 +91,7 @@ def time_str(s):
 
 print("\n--------Info--------")
 print("Logdir:", LOGDIR)
-print("T:{:,)".format(T_MAX))
+print("T: {:,}".format(T_MAX))
 print("Actions:", ACTIONS)
 print("Gamma", GAMMA)
 print("Learning Rate:", LR)
@@ -189,7 +189,7 @@ with tf.Graph().as_default():
             # Just in case, 100 days is the upper limit
             time_left = min(time_left, 60 * 60 * 24 * 100)
 
-            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), end="\r")
+            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), " " * 10, time_str(time_left)), end="\r")
 
             ep_reward = 0
             while not episode_finished:
@@ -253,4 +253,4 @@ with tf.Graph().as_default():
             episode += 1
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
-        print("Finished")
+        print("\nFinished")

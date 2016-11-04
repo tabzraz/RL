@@ -28,7 +28,7 @@ def model(name="Model", actions=2, beta=0.01):
 
         log_probability_of_action = tf.reduce_sum(log_policy * action_index, reduction_indices=1)
 
-        policy_entropy = -tf.reduce_sum(policy * log_policy)
+        policy_entropy = -tf.reduce_sum(policy * log_policy, reduction_indices=1)
 
         advantage_estimate = value_error
 

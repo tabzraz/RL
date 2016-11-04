@@ -40,3 +40,10 @@ register(
         timestep_limit=100,
         reward_threshold=0.78, # optimum = .8196
 )
+
+register(
+        id="Maze-v0",
+        entry_point="Envs.MazeEnv:MazeEnv",
+        kwargs={},
+        timestep_limit=1000
+)

@@ -20,7 +20,7 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 32, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 8, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
@@ -90,8 +90,9 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     The actor in the Async RL framework
     """
     global T, T_MAX, GAMMA, ACTIONS, LOGDIR, SUMMARY_UPDATE
+    internal_T = 0
 
-    time.sleep(random.random() * 10)
+    time.sleep(id)
 
     # Get useful values out from the model
     inputs = model["Input"]
@@ -102,9 +103,10 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     policy_entropy = model["Policy_Entropy"]
 
     # Summary statistics
-    writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
+    if id == 1:
+        writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
     value_summary_op = tf.scalar_summary([["Value"]], value)
-    policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
+    # policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
 
     s_t = env.reset()
     episode_finished = False
@@ -125,7 +127,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
 
         while (not episode_finished) and t < t_max:
             # env.render()
-            policy_distrib_sess, value_summary, entropy_summary = sess.run([policy, value_summary_op, policy_entropy_summary_op], feed_dict={inputs: s_t[np.newaxis, :]})
+            policy_distrib_sess, value_summary = sess.run([policy, value_summary_op], feed_dict={inputs: s_t[np.newaxis, :]})
             a_t_index = sample(policy_distrib_sess)
 
             s_t, r_t, episode_finished, _ = env.step(a_t_index)
@@ -140,12 +142,13 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
 
             # TODO: Maybe do this with a lock for safe concurrent writes?
             T += 1
+            internal_T += 1
             t += 1
             episode_frames += 1
 
-            if (t - 1) % SUMMARY_UPDATE == 0:
+            if id == 1 and (internal_T - 1) % SUMMARY_UPDATE == 0:
                 writer.add_summary(value_summary, global_step=T)
-                writer.add_summary(entropy_summary, global_step=T)
+                # writer.add_summary(entropy_summary, global_step=T)
 
         if episode_finished:
             R_t = 0
@@ -225,9 +228,10 @@ with tf.Graph().as_default():
             value_variables = actor_model["Value_Variables"]
 
             with tf.name_scope("Update_Global_Model_" + str(i + 1)):
-                policy_grads = tf.gradients(policy_loss, policy_variables)
+                # policy_grads = tf.gradients(policy_loss, policy_variables)
+                policy_grads = optimiser.compute_gradients(policy_loss, var_list=policy_variables)
                 clipped_policy_grads = []
-                for grad in policy_grads:
+                for (grad, var) in policy_grads:
                     if grad is not None:
                         clipped_policy_grads.append(tf.clip_by_norm(grad, CLIP_VALUE))
                     else:
@@ -235,9 +239,10 @@ with tf.Graph().as_default():
                 policy_grad_vars = zip(clipped_policy_grads, global_policy_vars)
                 update_policy_grads = optimiser.apply_gradients(policy_grad_vars)
 
-                value_grads = tf.gradients(value_loss, value_variables)
+                # value_grads = tf.gradients(value_loss, value_variables)
+                value_grads = optimiser.compute_gradients(value_loss, var_list=value_variables)
                 clipped_value_grads = []
-                for grad in value_grads:
+                for (grad, var) in value_grads:
                     if grad is not None:
                         clipped_value_grads.append(tf.clip_by_norm(grad, CLIP_VALUE))
                     else:
@@ -260,15 +265,15 @@ with tf.Graph().as_default():
         writer = tf.train.SummaryWriter("{}/tb_logs/eval".format(LOGDIR), graph=sess.graph)
         saver = tf.train.Saver(max_to_keep=None, var_list=global_vars)
 
-        threads = [threading.Thread(target=actor, args=(envs[i], models[i], i+1, EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
+        threads = [threading.Thread(target=actor, args=(envs[i], models[i], i + 1, EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
 
         # TODO: Print some more params here as well
         print("T_MAX: {:,}".format(int(T_MAX)))
         print("Logdir:", LOGDIR)
 
         def print_time():
-            time.sleep(10)
             start_time = time.time()
+            time.sleep(10)
             while T < T_MAX:
                 time_elapsed = time.time() - start_time
                 time_left = time_elapsed * (T_MAX - T) / T

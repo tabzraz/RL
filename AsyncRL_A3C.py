@@ -102,9 +102,10 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     policy_entropy = model["Policy_Entropy"]
 
     # Summary statistics
-    writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
-    value_summary_op = tf.scalar_summary([["Value"]], value)
-    policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
+    if id == 1:
+        writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
+        value_summary_op = tf.scalar_summary([["Value"]], value)
+        policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
 
     s_t = env.reset()
     episode_finished = False
@@ -143,7 +144,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
             t += 1
             episode_frames += 1
 
-            if (t - 1) % SUMMARY_UPDATE == 0:
+            if id == 1 and (t - 1) % SUMMARY_UPDATE == 0:
                 writer.add_summary(value_summary, global_step=T)
                 writer.add_summary(entropy_summary, global_step=T)
 
