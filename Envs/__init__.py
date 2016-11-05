@@ -45,5 +45,5 @@ register(
         id="Maze-v0",
         entry_point="Envs.MazeEnv:MazeEnv",
         kwargs={},
-        timestep_limit=1000
+        timestep_limit=500
 )

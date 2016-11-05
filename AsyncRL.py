@@ -7,15 +7,15 @@ import time
 import random
 import datetime
 import os
-from Models.A3C_CartPole import model as model
+from Models.A3C_Maze import model as model
 import Envs
 
 flags = tf.app.flags
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
 flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
-flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
+flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
-flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
+flags.DEFINE_string("env", "Maze-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -106,7 +106,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     if id == 1:
         writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
     value_summary_op = tf.scalar_summary([["Value"]], value)
-    # policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
+    policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
 
     s_t = env.reset()
     episode_finished = False
@@ -127,7 +127,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
 
         while (not episode_finished) and t < t_max:
             # env.render()
-            policy_distrib_sess, value_summary = sess.run([policy, value_summary_op], feed_dict={inputs: s_t[np.newaxis, :]})
+            policy_distrib_sess, value_summary, entropy_summary = sess.run([policy, value_summary_op, policy_entropy_summary_op], feed_dict={inputs: s_t[np.newaxis, :]})
             a_t_index = sample(policy_distrib_sess)
 
             s_t, r_t, episode_finished, _ = env.step(a_t_index)
@@ -148,7 +148,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
 
             if id == 1 and (internal_T - 1) % SUMMARY_UPDATE == 0:
                 writer.add_summary(value_summary, global_step=T)
-                # writer.add_summary(entropy_summary, global_step=T)
+                writer.add_summary(entropy_summary, global_step=T)
 
         if episode_finished:
             R_t = 0

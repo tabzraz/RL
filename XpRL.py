@@ -7,33 +7,36 @@ import datetime
 import os
 from tqdm import tqdm
 from Replay.ExpReplay import ExperienceReplay
-from Models.DQN_CartPole import model
+from Models.DQN_Maze import model
 # import gym_minecraft
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "CartPole-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
+flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 1000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
-flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
+flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
+flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
+flags.DEFINE_boolean("render", False, "Render environment or not")
+flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
+RENDER = FLAGS.render
 env = gym.make(ENV_NAME)
 
 MALMO = False
@@ -48,7 +51,7 @@ else:
     ACTIONS = env.action_space.n
 DOUBLE_DQN = FLAGS.double
 SEED = FLAGS.seed
-LR = FLAGS.learning_rate
+LR = FLAGS.lr
 NAME = FLAGS.name
 EPISODES = FLAGS.episodes
 T_MAX = FLAGS.t_max
@@ -60,7 +63,12 @@ BATCH_SIZE = FLAGS.batch
 TARGET_UPDATE = FLAGS.target
 SUMMARY_UPDATE = FLAGS.summary
 CLIP_VALUE = FLAGS.grad_clip
-CHECKPOINT_INTERVAL = FLAGS.checkpoint
+CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
+if FLAGS.ckpt != "":
+    RESTORE = True
+    CHECKPOINT = FLAGS.ckpt
+else:
+    RESTORE = False
 EXPLORATION_STEPS = FLAGS.exp_steps
 if FLAGS.logdir != "":
     LOGDIR = FLAGS.logdir
@@ -126,9 +134,10 @@ with tf.Graph().as_default():
         dqn_summary_qvals = dqn["QVals_Summary"]
 
         with tf.name_scope("Sync_Target_DQN"):
-            sync_vars = []
+            sync_vars_list = []
             for (ref, val) in zip(target_dqn_vars, dqn_vars):
-                sync_vars.append(tf.assign(ref, val))
+                sync_vars_list.append(tf.assign(ref, val))
+            sync_vars = tf.group(*sync_vars_list)
 
         T = 1
         episode = 1
@@ -154,8 +163,16 @@ with tf.Graph().as_default():
         sess.run(tf.initialize_all_variables())
         sess.run(sync_vars)
 
+        saver = tf.train.Saver(max_to_keep=None)
+
+        if RESTORE:
+            print("\n--RESTORING--\nFrom: {}\n".format(CHECKPOINT))
+            saver.restore(sess, save_path=CHECKPOINT)
+
         writer = tf.train.SummaryWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
-        saver = tf.train.Saver(max_to_keep=None, var_list=dqn_vars)
+        # Test writer for the maze
+        test_writer = tf.train.SummaryWriter("{}/tb_logs/maze_test".format(LOGDIR))
+        # ---
 
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
@@ -181,6 +198,8 @@ with tf.Graph().as_default():
             frames = 0
 
             s_t = env.reset()
+            if RENDER:
+                env.render()
             episode_finished = False
 
             epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((T_MAX - T) / T_MAX)
@@ -189,7 +208,12 @@ with tf.Graph().as_default():
             # Just in case, 100 days is the upper limit
             time_left = min(time_left, 60 * 60 * 24 * 100)
 
-            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), " " * 10, time_str(time_left)), end="\r")
+            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+
+            # Check Q Values for start state for testing
+            test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
+            test_writer.add_summary(test_qval_summaries, global_step=T)
+            # ----
 
             ep_reward = 0
             while not episode_finished:
@@ -202,6 +226,8 @@ with tf.Graph().as_default():
                     action = np.argmax(q_vals[0, :])
 
                 s_new, r_t, episode_finished, _ = env.step(action)
+                if RENDER:
+                    env.render()
                 ep_reward += r_t
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
                 s_t = s_new
@@ -210,12 +236,13 @@ with tf.Graph().as_default():
                 # Create targets from the batch
                 old_states = list(map(lambda tups: tups[0], batch))
                 new_states = list(map(lambda tups: tups[3], batch))
-                current_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: old_states})
-                new_state_qvals = sess.run(dqn_qvals, feed_dict={dqn_inputs: new_states})
+                new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: new_states})
                 q_targets = []
                 actions = []
                 for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
                     st, at, rt, snew, terminal = batch_item
+                    # Reward clipping
+                    rt = np.clip(rt, -1, 1)
                     target = np.zeros(ACTIONS)
                     target[at] = rt
                     if not terminal:
@@ -243,7 +270,7 @@ with tf.Graph().as_default():
                     writer.add_summary(qvals_summary, global_step=T)
 
                 if T % CHECKPOINT_INTERVAL == 0:
-                    saver.save(sess=sess, save_path="{}/ckpts/dqn_vars".format(LOGDIR), global_step=T)
+                    saver.save(sess=sess, save_path="{}/ckpts/dqn_vars-{}.ckpt".format(LOGDIR, T))
 
             r_summary, e_summary, l_summary = sess.run([reward_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
             writer.add_summary(r_summary, global_step=episode)
@@ -253,4 +280,6 @@ with tf.Graph().as_default():
             episode += 1
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+        if RENDER:
+            env.render(close=True)
         print("\nFinished")

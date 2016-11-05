@@ -12,26 +12,53 @@ class MazeEnv(gym.Env):
 
     def reset_maze(self):
         size = self.maze.shape
-        x_size = size[0] - 1
-        y_size = size[1] - 1
-        # Walls at the edge
-        self.maze[0, :] = 1
-        self.maze[x_size, :] = 1
-        self.maze[:, 0] = 1
-        self.maze[:, y_size] = 1
+        self.maze = np.zeros(shape=size)
+        self.limit = 500
+        # x_size = size[0] - 1
+        # y_size = size[1] - 1
+        # # Walls at the edge
+        # self.maze[0, :] = 1
+        # self.maze[x_size, :] = 1
+        # self.maze[:, 0] = 1
+        # self.maze[:, y_size] = 1
 
-        # Player starts at bottom left corner
-        self.maze[1, 1] = 3
+        # # Player starts at bottom left corner
+        # self.maze[1, 1] = 3
+        # self.player_pos = (1, 1)
+
+        # # Place 10 random pellets in the world
+        # np.random.seed(self.seed)
+        # vals = []
+        # gx = np.random.randint(1, x_size)
+        # gy = np.random.randint(1, y_size)
+        # for i in range(10):
+        #     while (gx, gy) in vals:
+        #         gx = np.random.randint(1, x_size)
+        #         gy = np.random.randint(1, y_size)
+        #     vals.append((gx, gy))
+        #     self.maze[gx, gy] = 2
+
+        self.maze = \
+        np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 3, 2, 2, 2, 0, 2, 0, 2, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+                  [1, 1, 1, 1, 2, 0, 0, 2, 0, 1],
+                  [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+                  [1, 0, 0, 2, 0, 1, 0, 0, 2, 1],
+                  [1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
+                  [1, 2, 0, 0, 0, 2, 1, 1, 0, 1],
+                  [1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+                  [1, 1, 1, 1, 1, 1, 2, 1, 1, 1]])
+
         self.player_pos = (1, 1)
-
-        # Goal in top right corner
-        self.maze[x_size - 1, y_size - 1] = 2
-
         self.made_screen = False
+        self.pellets = (self.maze == 2).sum()
 
-    def __init__(self, size=(10, 10)):
+    def __init__(self, size=(10, 10), seed=2):
         self.actions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
         self.maze = np.zeros(shape=size)
+        self.seed = seed
+        self.steps = 0
 
         self.reset_maze()
 
@@ -40,25 +67,32 @@ class MazeEnv(gym.Env):
         self.reward_range = (-1, 10)
 
     def _step(self, a):
+        self.steps += 1
         new_player_pos = (self.player_pos[0] + self.actions[a][0], self.player_pos[1] + self.actions[a][1])
-        r = 0
+        r = -1  # -1 on every step
         finished = False
         # Into a wall => negative reward
         if self.maze[new_player_pos] == 1:
-            r = -1
+            r += -5
             new_player_pos = self.player_pos
         elif self.maze[new_player_pos] == 2:
-            r = +10
-            finished = True
+            r += 10
+            self.pellets -= 1
+            if self.pellets == 0:
+                finished = True
         self.maze[self.player_pos] = 0
         self.maze[new_player_pos] = 3
         self.player_pos = new_player_pos
 
-        return self.maze, r, finished, {}
+        if self.steps >= self.limit:
+            finished = True
+
+        return self.maze[:, :, np.newaxis], r, finished, {}
 
     def _reset(self):
         self.reset_maze()
-        return self.maze
+        self.steps = 0
+        return self.maze[:, :, np.newaxis]
 
     def _render(self, mode="human", close=False):
         if close:

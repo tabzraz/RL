@@ -7,20 +7,20 @@ import time
 import random
 import datetime
 import os
-from Models.A3C_CartPole import model as model
+from Models.A3C_Maze import model as model
 import Envs
 
 flags = tf.app.flags
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
 flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
-flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
+flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
-flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
+flags.DEFINE_string("env", "Maze-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 16, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 8, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
