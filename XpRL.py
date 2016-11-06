@@ -282,4 +282,8 @@ with tf.Graph().as_default():
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
         if RENDER:
             env.render(close=True)
+
+        # Save the final model
+        saver.save(sess=sess, save_path="{}/ckpts/dqn_vars-{}-FINAL.ckpt".format(LOGDIR, T))
+
         print("\nFinished")

@@ -54,7 +54,7 @@ class MazeEnv(gym.Env):
         self.made_screen = False
         self.pellets = (self.maze == 2).sum()
 
-    def __init__(self, size=(10, 10), seed=2):
+    def __init__(self, size=(10, 10), seed=2, normalise=True):
         self.actions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
         self.maze = np.zeros(shape=size)
         self.seed = seed
@@ -64,7 +64,7 @@ class MazeEnv(gym.Env):
 
         self.action_space = spaces.Discrete(4)
         self.observation_space = spaces.Box(low=0, high=3, shape=size)
-        self.reward_range = (-1, 10)
+        self.reward_range = (-6, 9)
 
     def _step(self, a):
         self.steps += 1
@@ -87,12 +87,12 @@ class MazeEnv(gym.Env):
         if self.steps >= self.limit:
             finished = True
 
-        return self.maze[:, :, np.newaxis], r, finished, {}
+        return self.maze[:, :, np.newaxis] / 3, r / 9, finished, {}
 
     def _reset(self):
         self.reset_maze()
         self.steps = 0
-        return self.maze[:, :, np.newaxis]
+        return self.maze[:, :, np.newaxis] / 3
 
     def _render(self, mode="human", close=False):
         if close:

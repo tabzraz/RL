@@ -10,7 +10,8 @@ class ExperienceReplay:
     def Add_Exp(self, state_now, action, reward, state_after, terminal):
         if len(self.Exps) >= self.N:
             self.Exps.pop(0)
-        self.Exps.append((state_now, action, reward, state_after, terminal))
+        # Make copies just in case
+        self.Exps.append((np.copy(state_now), action, reward, np.copy(state_after), terminal))
 
     def Sample(self, size):
         assert(size <= self.N)

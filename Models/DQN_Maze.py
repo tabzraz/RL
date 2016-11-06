@@ -5,9 +5,11 @@ import tflearn
 def model(name="Model", actions=2):
     with tf.name_scope(name):
         inputs = tf.placeholder(tf.float32, shape=[None, 10, 10, 1], name="Observation_Input")
+
+        # Truncated normal (Defauly init for tflearn) is good enough
         net = tflearn.fully_connected(inputs, 256, activation="relu", name="FC1")
         net = tflearn.fully_connected(net, 128, activation="relu", name="FC2")
-        net = tflearn.fully_connected(net, 64, activation="relu", name="FC3")
+        # net = tflearn.fully_connected(net, 128, activation="relu", weights_init=w_init, bias_init=b_init, name="FC1")
         q_values = tflearn.fully_connected(net, actions, activation="linear")
 
         action_index = tf.placeholder(tf.float32, shape=[None, actions])
