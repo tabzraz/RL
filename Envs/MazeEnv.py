@@ -14,6 +14,7 @@ class MazeEnv(gym.Env):
         size = self.maze.shape
         self.maze = np.zeros(shape=size)
         self.limit = 500
+        self.steps = 0
         # x_size = size[0] - 1
         # y_size = size[1] - 1
         # # Walls at the edge
@@ -40,13 +41,13 @@ class MazeEnv(gym.Env):
 
         self.maze = \
         np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                  [1, 3, 2, 2, 2, 0, 2, 0, 2, 1],
+                  [1, 3, 0, 0, 0, 0, 0, 0, 0, 1],
                   [1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-                  [1, 1, 1, 1, 2, 0, 0, 2, 0, 1],
+                  [1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
                   [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-                  [1, 0, 0, 2, 0, 1, 0, 0, 2, 1],
+                  [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
                   [1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
-                  [1, 2, 0, 0, 0, 2, 1, 1, 0, 1],
+                  [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
                   [1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
                   [1, 1, 1, 1, 1, 1, 2, 1, 1, 1]])
 
@@ -91,7 +92,6 @@ class MazeEnv(gym.Env):
 
     def _reset(self):
         self.reset_maze()
-        self.steps = 0
         return self.maze[:, :, np.newaxis] / 3
 
     def _render(self, mode="human", close=False):

@@ -12,7 +12,7 @@ import Envs
 
 flags = tf.app.flags
 flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
-flags.DEFINE_integer("actors", 16, "Number of actor threads to use")
+flags.DEFINE_integer("actors", 8, "Number of actor threads to use")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
 flags.DEFINE_string("env", "Maze-v0", "Name of OpenAI gym environment to use")
@@ -20,13 +20,14 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 8, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 4, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
 flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
 flags.DEFINE_string("name", "nn", "The name of your model")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("checkpoint", 1e5, "How often to save the global model")
+flags.DEFINE_boolean("render", False, "Render env during eval")
 FLAGS = flags.FLAGS
 # Parameters
 # TODO: Use tf.flags to make cmd line configurable
@@ -46,6 +47,7 @@ LR = FLAGS.learning_rate
 THREADS = FLAGS.actors
 CLIP_VALUE = FLAGS.grad_clip
 NAME = FLAGS.name
+RENDER = FLAGS.render
 if FLAGS.logdir != "":
     LOGDIR = FLAGS.logdir
 else:
@@ -265,6 +267,7 @@ with tf.Graph().as_default():
         writer = tf.train.SummaryWriter("{}/tb_logs/eval".format(LOGDIR), graph=sess.graph)
         saver = tf.train.Saver(max_to_keep=None, var_list=global_vars)
 
+        # TODO: Use multiprocessing to make this actually parallelisable
         threads = [threading.Thread(target=actor, args=(envs[i], models[i], i + 1, EPISODE_T_MAX, sess, update_global_ops[i], sync_var_ops[i])) for i in range(THREADS)]
 
         # TODO: Print some more params here as well
@@ -314,6 +317,8 @@ with tf.Graph().as_default():
                 for _ in range(EVAL_RUNS):
                     R_t = 0
                     s_t = env.reset()
+                    if RENDER:
+                        env.render()
 
                     episode_finished = False
                     t = 0
@@ -322,6 +327,8 @@ with tf.Graph().as_default():
                         policy_distrib_sess = sess.run(eval_policy, feed_dict={eval_inputs: s_t[np.newaxis, :]})
                         a_t_index = sample(policy_distrib_sess)
                         s_t, r_t, episode_finished, _ = env.step(a_t_index)
+                        if RENDER:
+                            env.render()
                         R_t += r_t
                         t += 1
                     returns.append(R_t)
@@ -340,6 +347,6 @@ with tf.Graph().as_default():
         for t in threads:
             t.join()
 
-        saver.save(sess=sess, save_path="{}/ckpts/global_vars".format(LOGDIR), global_step=T)
+        saver.save(sess=sess, save_path="{}/ckpts/global_vars-FINAL".format(LOGDIR), global_step=T)
 
         print("\nFinished")

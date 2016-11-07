@@ -7,7 +7,7 @@ def model(name="Model", actions=4):
         inputs = tf.placeholder(tf.float32, shape=[None, 105, 80, 4], name="Obs_Input")
         net = tflearn.conv_2d(inputs, 16, 8, 4, activation="relu", name="Conv1")
         net = tflearn.conv_2d(net, 32, 4, 2, activation="relu", name="Conv2")
-        net = tflearn.fully_connected(net, 256, activation="relu", weights_init="xavier", name="FC1")
+        net = tflearn.fully_connected(net, 256, activation="relu", name="FC1")
 
         v_stream = tflearn.fully_connected(net, 64, activation="relu")
         v_stream = tflearn.fully_connected(v_stream, 1, activation="linear")

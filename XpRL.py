@@ -5,32 +5,31 @@ import tensorflow as tf
 import time
 import datetime
 import os
-from tqdm import tqdm
 from Replay.ExpReplay import ExperienceReplay
-from Models.DQN_Maze import model
+from Models.DQN_Atari import model
 # import gym_minecraft
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
-flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
+flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 1000, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(3e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 256, "Minibatch size")
+flags.DEFINE_integer("batch", 32, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(3e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 
@@ -170,9 +169,6 @@ with tf.Graph().as_default():
             saver.restore(sess, save_path=CHECKPOINT)
 
         writer = tf.train.SummaryWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
-        # Test writer for the maze
-        test_writer = tf.train.SummaryWriter("{}/tb_logs/maze_test".format(LOGDIR))
-        # ---
 
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
@@ -209,11 +205,6 @@ with tf.Graph().as_default():
             time_left = min(time_left, 60 * 60 * 24 * 100)
 
             print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
-
-            # Check Q Values for start state for testing
-            test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
-            test_writer.add_summary(test_qval_summaries, global_step=T)
-            # ----
 
             ep_reward = 0
             while not episode_finished:

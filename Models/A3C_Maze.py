@@ -6,8 +6,8 @@ def model(name="Model", actions=1, beta=0.01):
     with tf.name_scope(name):
         # Last 4 observed frames with all 3 colour channels resized to 105x80 from 210x160
         obs = tf.placeholder(tf.float32, shape=[None, 10, 10, 1], name="Observation_Input")
-        net = tflearn.conv_2d(obs, 16, 3, strides=1, activation="relu", name="Conv1")
-        net = tflearn.fully_connected(net, 128, activation="relu", weights_init="xavier", name="FC1")
+        net = tflearn.fully_connected(obs, 256, activation="relu", name="FC1")
+        net = tflearn.fully_connected(net, 128, activation="relu", name="FC2")
         with tf.name_scope("value"):
             value = tflearn.fully_connected(net, 1, activation="linear", weights_init="xavier", name="Value")
         with tf.name_scope("policy"):
