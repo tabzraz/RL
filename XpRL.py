@@ -10,6 +10,16 @@ from Models.DQN_Atari import model
 # import gym_minecraft
 import Envs
 
+# STILL TODO:
+# Learning to play in a day constraints
+# Eligibility traces
+# DRQN
+# ACtion gap increasing operator
+# Parallel actors
+# PGQ
+# Prioritized xp replay
+# PopART
+
 flags = tf.app.flags
 flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
