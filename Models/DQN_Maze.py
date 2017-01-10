@@ -20,16 +20,16 @@ def model(name="Model", actions=2):
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
         # Summaries
-        loss_summary = tf.scalar_summary("Q_Loss", q_loss)
+        loss_summary = tf.summary.scalar("Q_Loss", q_loss)
         qval_summaries = []
         for i in range(actions):
-            qval_summaries.append(tf.scalar_summary("Action {} QValue".format(i), q_values[0, i]))
+            qval_summaries.append(tf.summary.scalar("Action {} QValue".format(i), q_values[0, i]))
         average_qval = tf.reduce_mean(q_values)
-        avg_qvals_summary = tf.scalar_summary("Average QValue", average_qval)
-        qvals_histogram = tf.histogram_summary("Q Values", q_values)
+        avg_qvals_summary = tf.summary.scalar("Average QValue", average_qval)
+        qvals_histogram = tf.summary.histogram("Q Values", q_values)
         qval_summaries.append(qvals_histogram)
         qval_summaries.append(avg_qvals_summary)
-        qvals_summary = tf.merge_summary(qval_summaries)
+        qvals_summary = tf.summary.merge(qval_summaries)
 
     dict = {}
     dict["Input"] = inputs
