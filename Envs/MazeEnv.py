@@ -11,73 +11,59 @@ class MazeEnv(gym.Env):
     ACTIONS = ["W", "S", "E", "N"]
 
     def reset_maze(self):
-        size = self.maze.shape
-        self.maze = np.zeros(shape=size)
-        self.limit = 500
         self.steps = 0
-        # x_size = size[0] - 1
-        # y_size = size[1] - 1
-        # # Walls at the edge
-        # self.maze[0, :] = 1
-        # self.maze[x_size, :] = 1
-        # self.maze[:, 0] = 1
-        # self.maze[:, y_size] = 1
 
-        # # Player starts at bottom left corner
-        # self.maze[1, 1] = 3
-        # self.player_pos = (1, 1)
+        # 0 = Nothing
+        # 1 = Wall
+        # 2 = Goal
+        # 3 = Player
+        self.tile = \
+        np.array([[1, 1, 1, 0, 1, 1, 1,],
+                  [1, 0, 0, 0, 0, 0, 1,],
+                  [1, 0, 1, 1, 0, 1, 1,],
+                  [0, 0, 0, 1, 0, 0, 0,],
+                  [1, 1, 0, 1, 1, 0, 1,],
+                  [1, 0, 0, 0, 0, 0, 1,],
+                  [1, 1, 1, 0, 1, 1, 1,],
+                  ])
 
-        # # Place 10 random pellets in the world
-        # np.random.seed(self.seed)
-        # vals = []
-        # gx = np.random.randint(1, x_size)
-        # gy = np.random.randint(1, y_size)
-        # for i in range(10):
-        #     while (gx, gy) in vals:
-        #         gx = np.random.randint(1, x_size)
-        #         gy = np.random.randint(1, y_size)
-        #     vals.append((gx, gy))
-        #     self.maze[gx, gy] = 2
+        self.maze = np.tile(self.tile, self.shape)
+        # Player
+        self.maze[0,3] = 3
+        # Goal
+        self.maze[-1, -4] = 2
 
-        self.maze = \
-        np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                  [1, 3, 0, 0, 0, 0, 0, 0, 0, 1],
-                  [1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-                  [1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-                  [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-                  [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-                  [1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
-                  [1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
-                  [1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
-                  [1, 1, 1, 1, 1, 1, 2, 1, 1, 1]])
-
-        self.player_pos = (1, 1)
+        self.player_pos = (3, 0)
         self.made_screen = False
         self.pellets = (self.maze == 2).sum()
 
-    def __init__(self, size=(10, 10), seed=2, normalise=True):
+    def __init__(self, size=(1, 1), seed=2, normalise=True):
         self.actions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        self.maze = np.zeros(shape=size)
+        self.shape = size
+        self.maze = np.zeros(shape=(size[0]*7, size[1]*7))
         self.seed = seed
         self.steps = 0
+        self.limit = self.maze.size * 3
+        self.negative_reward = -1 / self.limit
+        self.positive_reward = +1
 
         self.reset_maze()
 
         self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Box(low=0, high=3, shape=size)
-        self.reward_range = (-6, 9)
+        self.observation_space = spaces.Box(low=0, high=3, shape=self.maze.shape)
+        self.reward_range = (-1, 1)
 
     def _step(self, a):
         self.steps += 1
         new_player_pos = (self.player_pos[0] + self.actions[a][0], self.player_pos[1] + self.actions[a][1])
-        r = -1  # -1 on every step
+        r = self.negative_reward  # -1 on every step normalizedish
         finished = False
         # Into a wall => negative reward
         if self.maze[new_player_pos] == 1:
-            r += -5
+            # r += -5
             new_player_pos = self.player_pos
         elif self.maze[new_player_pos] == 2:
-            r += 10
+            r += self.positive_reward
             self.pellets -= 1
             if self.pellets == 0:
                 finished = True
@@ -88,7 +74,7 @@ class MazeEnv(gym.Env):
         if self.steps >= self.limit:
             finished = True
 
-        return self.maze[:, :, np.newaxis] / 3, r / 9, finished, {}
+        return self.maze[:, :, np.newaxis] / 3, r, finished, {}
 
     def _reset(self):
         self.reset_maze()

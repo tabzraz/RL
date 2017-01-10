@@ -33,6 +33,7 @@ flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
 flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
+flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -63,6 +64,7 @@ BATCH_SIZE = FLAGS.batch
 TARGET_UPDATE = FLAGS.target
 SUMMARY_UPDATE = FLAGS.summary
 CLIP_VALUE = FLAGS.grad_clip
+VIME = FLAGS.vime
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
 if FLAGS.ckpt != "":
     RESTORE = True
@@ -103,6 +105,7 @@ print("T: {:,}".format(T_MAX))
 print("Actions:", ACTIONS)
 print("Gamma", GAMMA)
 print("Learning Rate:", LR)
+print("VIME bonuses:", VIME)
 print("--------------------\n")
 
 # TODO: Prioritized experience replay

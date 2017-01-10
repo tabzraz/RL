@@ -41,9 +41,11 @@ register(
         reward_threshold=0.78, # optimum = .8196
 )
 
-register(
-        id="Maze-v0",
-        entry_point="Envs.MazeEnv:MazeEnv",
-        kwargs={},
-        timestep_limit=500
-)
+for s in [1,2,3,4,5]:
+
+    register(
+            id="Maze-{}-v0".format(s),
+            entry_point="Envs.MazeEnv:MazeEnv",
+            kwargs={'size': (s, s)},
+            timestep_limit=s*s*7*7*3,
+    )
