@@ -6,34 +6,42 @@ import time
 import datetime
 import os
 from tqdm import tqdm
+from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
+# Todo: Make this friendlier
 from Models.DQN_Maze import model
+from Models.VIME_Maze import model as exploration_model
 # import gym_minecraft
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
+flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
-flags.DEFINE_integer("episodes", 1000, "Number of episodes to act for")
+flags.DEFINE_integer("t_max", int(1e3), "Number of frames to act for")
+flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e2), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
+flags.DEFINE_integer("posterior_iters", 16, "Number of times to run gradient descent for calculating new posterior from old posterior")
+flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
+flags.DEFINE_integer("vime_epochs", 500, "Number of epochs to optimise the variational baseline for VIME")
+flags.DEFINE_integer("vime_batch", 128, "Size of minibatch for VIME")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -53,6 +61,10 @@ else:
 DOUBLE_DQN = FLAGS.double
 SEED = FLAGS.seed
 LR = FLAGS.lr
+VIME_LR = FLAGS.vime_lr
+ETA = FLAGS.eta
+VIME_BATCH_SIZE = FLAGS.vime_batch
+VIME_EPOCHS = FLAGS.vime_epochs
 NAME = FLAGS.name
 EPISODES = FLAGS.episodes
 T_MAX = FLAGS.t_max
@@ -65,6 +77,7 @@ TARGET_UPDATE = FLAGS.target
 SUMMARY_UPDATE = FLAGS.summary
 CLIP_VALUE = FLAGS.grad_clip
 VIME = FLAGS.vime
+VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
 if FLAGS.ckpt != "":
     RESTORE = True
@@ -122,6 +135,7 @@ with tf.Graph().as_default():
 
         test_state = env.reset()
 
+        # DQN
         dqn = model(name="DQN", actions=ACTIONS)
         target_dqn = model(name="Target_Network", actions=ACTIONS)
 
@@ -142,18 +156,37 @@ with tf.Graph().as_default():
                 sync_vars_list.append(tf.assign(ref, val))
             sync_vars = tf.group(*sync_vars_list)
 
+        # VIME
+        if VIME:
+            vime_net = exploration_model(name="VIME_Model", size=env.shape[0], actions=ACTIONS)
+            vime_input = vime_net["Input"]
+            vime_action = vime_net["Action"]
+            vime_target = vime_net["Target"]
+            vime_loss = vime_net["Loss"]
+            vime_posterior_loss = vime_net["Posterior_Loss"]
+            vime_set_variational_params = vime_net["Set_Params"]
+            vime_kldiv = vime_net["KL_Div"]
+            vime_set_baseline = vime_net["Set_Baseline"]
+            vime_revert_to_baseline = vime_net["Revert_Baseline"]
+            vime_kl_scaling = vime_net["KL_Scaling"]
+
+            vime_optimizer = tf.train.AdamOptimizer(VIME_LR)
+
+            vime_grad_vars = vime_optimizer.compute_gradients(vime_loss)
+            vime_clipped = clip_grads(vime_grad_vars, CLIP_VALUE)
+            vime_minimise_op = vime_optimizer.apply_gradients(vime_clipped)
+
+            vime_posterior_grads = vime_optimizer.compute_gradients(vime_posterior_loss)
+            vime_posterior_clipped = clip_grads(vime_posterior_grads, CLIP_VALUE)
+            vime_posterior_minimise_op = vime_optimizer.apply_gradients(vime_posterior_clipped)
+
         T = 1
         episode = 1
         qval_loss = dqn["Q_Loss"]
 
         optimiser = tf.train.AdamOptimizer(LR)
         grads_vars = optimiser.compute_gradients(qval_loss)
-        clipped = []
-        for grad, var in grads_vars:
-            if grad is not None:
-                clipped.append((tf.clip_by_norm(grad, CLIP_VALUE), var))
-            else:
-                clipped.append((None, var))
+        clipped = clip_grads(grads_vars, CLIP_VALUE)
         minimise_op = optimiser.apply_gradients(clipped)
 
         episode_reward = tf.placeholder(tf.float32)
@@ -214,9 +247,12 @@ with tf.Graph().as_default():
             print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
             # Check Q Values for start state for testing
-            test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
-            test_writer.add_summary(test_qval_summaries, global_step=T)
+            # test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
+            # test_writer.add_summary(test_qval_summaries, global_step=T)
             # ----
+
+            if VIME:
+                sess.run(vime_set_baseline)
 
             ep_reward = 0
             while not episode_finished:
@@ -232,6 +268,15 @@ with tf.Graph().as_default():
                 if RENDER:
                     env.render()
                 ep_reward += r_t
+
+                if VIME:
+                    sess.run(vime_set_variational_params)
+                    # Compute posterior
+                    for _ in range(VIME_POSTERIOR_ITERS):
+                        _ = sess.run(vime_posterior_minimise_op, feed_dict={vime_input: [s_t], vime_action: [action], vime_target: [s_new], vime_kl_scaling: 1.0})
+                    kldiv = sess.run(vime_kldiv)
+                    r_t += ETA * kldiv
+
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
                 s_t = s_new
 
@@ -245,7 +290,7 @@ with tf.Graph().as_default():
                 for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
                     st, at, rt, snew, terminal = batch_item
                     # Reward clipping
-                    rt = np.clip(rt, -1, 1)
+                    # rt = np.clip(rt, -1, 1)
                     target = np.zeros(ACTIONS)
                     target[at] = rt
                     if not terminal:
@@ -281,6 +326,18 @@ with tf.Graph().as_default():
             writer.add_summary(l_summary, global_step=episode)
 
             episode += 1
+
+            if VIME:
+                sess.run(vime_revert_to_baseline)
+                for _ in range(VIME_EPOCHS//VIME_BATCH_SIZE):
+                    batch = replay.Sample(VIME_BATCH_SIZE)
+                    old_states = list(map(lambda tups: tups[0], batch))
+                    new_states = list(map(lambda tups: tups[3], batch))
+                    action_indices = list(map(lambda tups: tups[1], batch))
+                    actions = np.zeros((VIME_BATCH_SIZE, ACTIONS))
+                    np.put(actions, action_indices, 1)
+                    sess.run(vime_minimise_op, feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
+
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
         if RENDER:

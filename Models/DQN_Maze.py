@@ -2,7 +2,7 @@ import tensorflow as tf
 import tflearn
 
 
-def model(name="Model", actions=2):
+def model(name="Model", size=1, actions=4):
     with tf.name_scope(name):
         inputs = tf.placeholder(tf.float32, shape=[None, 10, 10, 1], name="Observation_Input")
 

@@ -33,7 +33,7 @@ class MazeEnv(gym.Env):
         # Goal
         self.maze[-1, -4] = 2
 
-        self.player_pos = (3, 0)
+        self.player_pos = (0, 3)
         self.made_screen = False
         self.pellets = (self.maze == 2).sum()
 
@@ -56,6 +56,11 @@ class MazeEnv(gym.Env):
     def _step(self, a):
         self.steps += 1
         new_player_pos = (self.player_pos[0] + self.actions[a][0], self.player_pos[1] + self.actions[a][1])
+        # Clip
+        if new_player_pos[0] < 0 or new_player_pos[0] >= self.maze.shape[0]\
+        or new_player_pos[1] < 0 or new_player_pos[1] >= self.maze.shape[1]:
+            new_player_pos = self.player_pos
+
         r = self.negative_reward  # -1 on every step normalizedish
         finished = False
         # Into a wall => negative reward
