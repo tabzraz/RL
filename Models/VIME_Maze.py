@@ -1,10 +1,44 @@
 import tensorflow as tf
-import tflearn
+from Bayesian.Bayesian_Conv_Layer import Bayesian_Conv
+from Bayesian.Bayesian_DeConv_Layer import Bayesian_DeConv
+from Bayesian.Bayesian_FC_Layer import Bayesian_FC
+from Bayesian.Bayesian_Net import Bayesian_Net
+from math import ceil
 
 
-def model(name="Model", actions=2):
+def model(name="Exploration_Model", size=1, actions=4):
     with tf.name_scope(name):
-        inputs = tf.placeholder(tf.float32, shape=[None, 10, 10, 1], name="Observation_Input")
+        inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
+        action = tf.placeholder(tf.float32, shape=[None, actions])
+        img_size = 7 * size
+
+        l1 = Bayesian_Conv(1, 8, filter_height=3, filter_width=3, filter_stride=2)
+        img_size = tf_conv_size(img_size, 3, 2)
+        img_size_after_l1 = img_size
+
+        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=2)
+        img_size = tf_conv_size(img_size, 3, 2)
+
+        flattened_image_size = img_size * img_size * 8
+        l3 = Bayesian_FC(flattened_image_size + actions, flattened_image_size)
+
+        l4 = Bayesian_DeConv((img_size, img_size), 8, 8, filter_height=3, filter_width=3, filter_stride=2)
+
+        l5 = Bayesian_DeConv((img_size_after_l1, img_size_after_l1), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
+
+        def sample(local_reparam_trick=False):
+            net = l1.sample(inputs, local_reparam_trick)
+            net = l2.sample(net, local_reparam_trick)
+            # Flatten image to put through fc layer
+            net = tf.reshape(net, shape=[-1, flattened_image_size])
+            net = tf.concat(1, [net, action])
+            net = l3.sample(net, local_reparam_trick)
+            # Unflatten to deconv
+            net = tf.reshape(net, shape=[-1, img_size, img_size, 8])
+            net = l4.sample(net, local_reparam_trick)
+            net = l5.sample(net, local_reparam_trick)
+            return net
+
 
         # Truncated normal (Defauly init for tflearn) is good enough
         net = tflearn.fully_connected(inputs, 256, activation="relu", name="FC1")
@@ -42,3 +76,7 @@ def model(name="Model", actions=2):
     dict["QVals_Summary"] = qvals_summary
 
     return dict
+
+
+def tf_conv_size(W, f, s):
+    return ceil((W - f + 1) / s)
