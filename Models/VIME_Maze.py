@@ -8,9 +8,9 @@ from math import ceil
 
 def model(name="Exploration_Model", size=1, actions=4):
     with tf.name_scope(name):
-        inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
-        action = tf.placeholder(tf.float32, shape=[None, actions])
-        target = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
+        inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="State")
+        action = tf.placeholder(tf.float32, shape=[None, actions], name="Action")
+        target = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Next_State")
         kl_scaling = tf.placeholder(tf.float32, shape=[])
         img_size = 7 * size
 
