@@ -34,7 +34,7 @@ flags.DEFINE_integer("target", 500, "After how many steps to update the target n
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e3), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(5e3), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
