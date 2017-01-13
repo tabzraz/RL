@@ -9,19 +9,20 @@ from tqdm import tqdm
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
 # Todo: Make this friendlier
-from Models.DQN_Maze import model
+from Models.DQN_Atari import model
 from Models.VIME_Maze import model as exploration_model
 # import gym_minecraft
 import Envs
+import scipy as sp
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e4), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e6), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -34,7 +35,7 @@ flags.DEFINE_integer("target", 500, "After how many steps to update the target n
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e3), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
@@ -229,6 +230,19 @@ with tf.Graph().as_default():
         print("Exploratory phase finished, starting learning")
         start_time = time.time()
 
+        def softmax(l,beta):
+            p = np.exp(beta*l)
+            p = p / np.sum(p)
+            return p
+            
+        def bolzman_average(beta, epsilon,q_vals ):
+            p = softmax(q_vals, beta)
+            average = np.sum(p*q_vals)
+            q_bar = np.argmax(q_vals[0, :])*( 1 - epsilon ) + np.mean(q_vals[0, :]) * epsilon
+            error = (average-q_bar)**2 
+            return error
+
+
         while T < T_MAX:
 
             frames = 0
@@ -261,10 +275,23 @@ with tf.Graph().as_default():
                 # env.render()
                 # TODO: Exploratory phase
                 q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
-                if np.random.random() < epsilon:
-                    action = env.action_space.sample()
-                else:
-                    action = np.argmax(q_vals[0, :])
+
+                # --Jakob stuff
+                # q_vals = np.array([[0,1,2,3]])  #fake arguments 
+                # epsilon =0.1 #fake arguments 
+                arguments = (epsilon, q_vals)   
+                # print bolzman_average(1,epsilon,q_vals )
+                beta = sp.optimize.brent(bolzman_average, arguments )
+                # print beta
+                probs = softmax(q_vals, beta)
+                action = np.random.choice(len(probs[0,:]), p=probs[0])
+                # print action
+                # --End Jakob stuff
+
+                # if np.random.random() < epsilon:
+                #     action = env.action_space.sample()
+                # else:
+                #     action = np.argmax(q_vals[0, :])
 
                 s_new, r_t, episode_finished, _ = env.step(action)
                 if RENDER:
