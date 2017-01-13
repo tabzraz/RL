@@ -4,6 +4,7 @@ from Bayesian.Bayesian_DeConv_Layer import Bayesian_DeConv
 from Bayesian.Bayesian_FC_Layer import Bayesian_FC
 from Bayesian.Bayesian_Net import Bayesian_Net, log_gaussian_pdf
 from math import ceil
+from Misc.Misc import tf_conv_size
 
 
 def model(name="Exploration_Model", size=1, actions=4):
@@ -70,7 +71,3 @@ def model(name="Exploration_Model", size=1, actions=4):
     dict["KL_Scaling"] = kl_scaling
 
     return dict
-
-
-def tf_conv_size(W, f, s):
-    return ceil((W - f + 1) / s)

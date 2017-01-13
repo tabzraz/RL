@@ -1,3 +1,4 @@
+from __future__ import division
 import gym
 from gym import spaces
 import pygame

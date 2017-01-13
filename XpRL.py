@@ -20,8 +20,8 @@ flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard 
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
-flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e3), "Number of frames to act for")
+flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
+flags.DEFINE_integer("t_max", int(1e4), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -34,14 +34,14 @@ flags.DEFINE_integer("target", 500, "After how many steps to update the target n
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 256, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e2), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e3), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
-flags.DEFINE_integer("posterior_iters", 16, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
-flags.DEFINE_integer("vime_epochs", 500, "Number of epochs to optimise the variational baseline for VIME")
-flags.DEFINE_integer("vime_batch", 128, "Size of minibatch for VIME")
+flags.DEFINE_integer("posterior_iters", 8, "Number of times to run gradient descent for calculating new posterior from old posterior")
+flags.DEFINE_float("eta", 0.01, "How much to scale the VIME rewards")
+flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
+flags.DEFINE_integer("vime_batch", 64, "Size of minibatch for VIME")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -136,8 +136,8 @@ with tf.Graph().as_default():
         test_state = env.reset()
 
         # DQN
-        dqn = model(name="DQN", actions=ACTIONS)
-        target_dqn = model(name="Target_Network", actions=ACTIONS)
+        dqn = model(name="DQN", actions=ACTIONS, size=env.shape[0])
+        target_dqn = model(name="Target_Network", actions=ACTIONS, size=env.shape[0])
 
         dqn_inputs = dqn["Input"]
         target_dqn_input = target_dqn["Input"]
@@ -239,6 +239,8 @@ with tf.Graph().as_default():
             episode_finished = False
 
             epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((T_MAX - T) / T_MAX)
+            if VIME:
+                epsilon = 0
             time_elapsed = time.time() - start_time
             time_left = time_elapsed * (T_MAX - T) / T
             # Just in case, 100 days is the upper limit
@@ -272,8 +274,10 @@ with tf.Graph().as_default():
                 if VIME:
                     sess.run(vime_set_variational_params)
                     # Compute posterior
+                    one_hot_action = np.zeros(ACTIONS)
+                    one_hot_action[action] = 1
                     for _ in range(VIME_POSTERIOR_ITERS):
-                        _ = sess.run(vime_posterior_minimise_op, feed_dict={vime_input: [s_t], vime_action: [action], vime_target: [s_new], vime_kl_scaling: 1.0})
+                        _ = sess.run(vime_posterior_minimise_op, feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
                     kldiv = sess.run(vime_kldiv)
                     r_t += ETA * kldiv
 

@@ -1,16 +1,31 @@
 import tensorflow as tf
 import tflearn
-
+from Misc.Misc import tf_conv_size
+from math import ceil
 
 def model(name="Model", size=1, actions=4):
     with tf.name_scope(name):
-        inputs = tf.placeholder(tf.float32, shape=[None, 10, 10, 1], name="Observation_Input")
+        inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
+        img_size = size * 7
 
-        # Truncated normal (Defauly init for tflearn) is good enough
-        net = tflearn.fully_connected(inputs, 256, activation="relu", name="FC1")
-        net = tflearn.fully_connected(net, 128, activation="relu", name="FC2")
-        # net = tflearn.fully_connected(net, 128, activation="relu", weights_init=w_init, bias_init=b_init, name="FC1")
+        net = tflearn.conv_2d(inputs, 8, 3, 2, activation="relu", padding="valid", name="Conv1")
+        img_size = tf_conv_size(img_size, 3, 2)
+
+        net = tflearn.conv_2d(net, 8, 3, 2, activation="relu", padding="valid", name="Conv2")
+        img_size = tf_conv_size(img_size, 3, 2)
+
+        net = tflearn.fully_connected(net, img_size*4, activation="relu")
+
         q_values = tflearn.fully_connected(net, actions, activation="linear")
+
+        # Dont need dueling yet 
+        # v_stream = tflearn.fully_connected(net, ceil(img_size/2), activation="relu")
+        # v_stream = tflearn.fully_connected(v_stream, 1, activation="linear")
+
+        # a_stream = tflearn.fully_connected(net, ceil(img_size/2), activation="relu")
+        # a_stream = tflearn.fully_connected(a_stream, actions, activation="linear")
+
+        # q_values = v_stream + (a_stream - tf.reduce_mean(a_stream, reduction_indices=1, keep_dims=True))
 
         action_index = tf.placeholder(tf.float32, shape=[None, actions])
         target_q = tf.placeholder(tf.float32, shape=[None, actions])

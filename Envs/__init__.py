@@ -28,7 +28,7 @@ for game in ['air_raid', 'alien', 'amidar', 'assault', 'asterix', 'asteroids', '
             id='Tabz_{}-v0'.format(name),
             entry_point='Envs.AtariWrapper:AtariEnv',
             kwargs={'game_name': name, 'colours': False},
-            timestep_limit=100000,
+            tags={'wrapper_config.TimeLimit.max_episode_steps': 100000},
             nondeterministic=nondeterministic,
         )
 
@@ -37,7 +37,7 @@ register(
         id="FrozenLake4x4_NoSlip-v0",
         entry_point='gym.envs.toy_text:FrozenLakeEnv',
         kwargs={'map_name': '4x4', 'is_slippery': False},
-        timestep_limit=100,
+        tags={'wrapper_config.TimeLimit.max_episode_steps': 100},
         reward_threshold=0.78, # optimum = .8196
 )
 
@@ -47,5 +47,5 @@ for s in [1,2,3,4,5]:
             id="Maze-{}-v0".format(s),
             entry_point="Envs.MazeEnv:MazeEnv",
             kwargs={'size': (s, s)},
-            timestep_limit=s*s*7*7*3,
+            tags={'wrapper_config.TimeLimit.max_episode_steps': s*s*7*7*3},
     )
