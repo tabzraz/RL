@@ -16,7 +16,7 @@ import Envs
 import scipy as sp
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Tabz_Pong-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Tabz_SpaceInvaders-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
@@ -137,8 +137,8 @@ with tf.Graph().as_default():
         test_state = env.reset()
 
         # DQN
-        dqn = model(name="DQN", actions=ACTIONS, size=env.shape[0])
-        target_dqn = model(name="Target_Network", actions=ACTIONS, size=env.shape[0])
+        dqn = model(name="DQN", actions=ACTIONS)
+        target_dqn = model(name="Target_Network", actions=ACTIONS)
 
         dqn_inputs = dqn["Input"]
         target_dqn_input = target_dqn["Input"]
@@ -237,7 +237,7 @@ with tf.Graph().as_default():
             
         def bolzman_average(beta, epsilon,q_vals ):
             p = softmax(q_vals, beta)
-            average = np.sum(p*q_vals)
+            average = np.sum(p*q_vals[0,:])
             q_bar = np.argmax(q_vals[0, :])*( 1 - epsilon ) + np.mean(q_vals[0, :]) * epsilon
             error = (average-q_bar)**2 
             return error
@@ -280,12 +280,14 @@ with tf.Graph().as_default():
                 # q_vals = np.array([[0,1,2,3]])  #fake arguments 
                 # epsilon =0.1 #fake arguments 
                 arguments = (epsilon, q_vals)   
-                # print bolzman_average(1,epsilon,q_vals )
+                # print("---")
+                # print(bolzman_average(1,epsilon,q_vals ))
                 beta = sp.optimize.brent(bolzman_average, arguments )
-                # print beta
+                # print(beta)
                 probs = softmax(q_vals, beta)
                 action = np.random.choice(len(probs[0,:]), p=probs[0])
-                # print action
+                # print(action)
+                # print("---")
                 # --End Jakob stuff
 
                 # if np.random.random() < epsilon:
