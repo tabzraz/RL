@@ -22,7 +22,7 @@ flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e6), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -231,7 +231,11 @@ with tf.Graph().as_default():
         start_time = time.time()
 
         def softmax(l,beta):
-            p = np.exp(beta*l)
+            # Hack
+            aa = beta * l
+            # print(aa)
+            aa = np.clip(aa, -10, 10)
+            p = np.exp(aa)
             p = p / np.sum(p)
             return p
             
@@ -282,7 +286,9 @@ with tf.Graph().as_default():
                 arguments = (epsilon, q_vals)   
                 # print("---")
                 # print(bolzman_average(1,epsilon,q_vals ))
-                beta = sp.optimize.brent(bolzman_average, arguments )
+                # beta = sp.optimize.brent(bolzman_average, arguments, brack=(0, 100))
+                beta = sp.optimize.minimize_scalar(bolzman_average, args=arguments, bounds=(0,100), method="bounded")
+                beta = beta.x
                 # print(beta)
                 probs = softmax(q_vals, beta)
                 action = np.random.choice(len(probs[0,:]), p=probs[0])
