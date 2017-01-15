@@ -31,9 +31,9 @@ flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
+flags.DEFINE_integer("target", 2000, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 256, "Minibatch size")
+flags.DEFINE_integer("batch", 32, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
 flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
@@ -231,14 +231,11 @@ with tf.Graph().as_default():
         start_time = time.time()
 
         def softmax(l,beta):
-            # Hack
-            aa = beta * l
-            # print(aa)
-            aa = np.clip(aa, -10, 10)
-            p = np.exp(aa)
+            x = beta*l
+            p = np.exp(x - np.max(x))
             p = p / np.sum(p)
             return p
-            
+
         def bolzman_average(beta, epsilon,q_vals ):
             p = softmax(q_vals, beta)
             average = np.sum(p*q_vals[0,:])
@@ -281,25 +278,17 @@ with tf.Graph().as_default():
                 q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
 
                 # --Jakob stuff
-                # q_vals = np.array([[0,1,2,3]])  #fake arguments 
-                # epsilon =0.1 #fake arguments 
-                arguments = (epsilon, q_vals)   
-                # print("---")
-                # print(bolzman_average(1,epsilon,q_vals ))
-                # beta = sp.optimize.brent(bolzman_average, arguments, brack=(0, 100))
-                beta = sp.optimize.minimize_scalar(bolzman_average, args=arguments, bounds=(0,100), method="bounded")
-                beta = beta.x
-                # print(beta)
-                probs = softmax(q_vals, beta)
-                action = np.random.choice(len(probs[0,:]), p=probs[0])
-                # print(action)
-                # print("---")
+                # arguments = (epsilon, q_vals)   
+                # beta = sp.optimize.minimize_scalar(bolzman_average, args=arguments, bounds=(0,10), method="bounded")
+                # beta = beta.x
+                # probs = softmax(q_vals, beta)
+                # action = np.random.choice(len(probs[0,:]), p=probs[0])
                 # --End Jakob stuff
 
-                # if np.random.random() < epsilon:
-                #     action = env.action_space.sample()
-                # else:
-                #     action = np.argmax(q_vals[0, :])
+                if np.random.random() < epsilon:
+                    action = env.action_space.sample()
+                else:
+                    action = np.argmax(q_vals[0, :])
 
                 s_new, r_t, episode_finished, _ = env.step(action)
                 if RENDER:
