@@ -332,9 +332,9 @@ with tf.Graph().as_default():
                     saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))
 
             r_summary, e_summary, l_summary = sess.run([reward_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
-            writer.add_summary(r_summary, global_step=episode)
-            writer.add_summary(e_summary, global_step=episode)
-            writer.add_summary(l_summary, global_step=episode)
+            writer.add_summary(r_summary, global_step=T)
+            writer.add_summary(e_summary, global_step=T)
+            writer.add_summary(l_summary, global_step=T)
 
             episode += 1
 
@@ -349,7 +349,7 @@ with tf.Graph().as_default():
                     np.put(actions, action_indices, 1)
                     _, vime_loss_summary_val = sess.run([vime_minimise_op, vime_loss_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
 
-                    writer.add_summary(vime_loss_summary_val, global_step=episode)
+                    writer.add_summary(vime_loss_summary_val, global_step=T)
 
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
