@@ -1,24 +1,30 @@
 import tensorflow as tf
 import tflearn
 from Misc.Misc import tf_conv_size
-from math import ceil
+
 
 def model(name="Model", size=1, actions=4):
     with tf.name_scope(name):
+        print("Model {}".format(name))
         inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
         img_size = size * 7
+        print("Input: {0}x{0}x{1}".format(size * 7, 1))
 
         net = tflearn.conv_2d(inputs, 8, 3, 2, activation="relu", padding="valid", name="Conv1")
         img_size = tf_conv_size(img_size, 3, 2)
+        print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.conv_2d(net, 8, 3, 2, activation="relu", padding="valid", name="Conv2")
-        img_size = tf_conv_size(img_size, 3, 2)
+        net = tflearn.conv_2d(net, 8, 3, 1, activation="relu", padding="valid", name="Conv2")
+        img_size = tf_conv_size(img_size, 3, 1)
+        print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.fully_connected(net, img_size*4, activation="relu")
+        net = tflearn.fully_connected(net, img_size * img_size, activation="relu")
+        print("FC: {0} -> {1}".format(img_size * img_size * 8, img_size * img_size))
 
         q_values = tflearn.fully_connected(net, actions, activation="linear")
-
-        # Dont need dueling yet 
+        print("FC: {0} -> {1}".format(img_size * 4, actions))
+        print()
+        # Dont need dueling yet
         # v_stream = tflearn.fully_connected(net, ceil(img_size/2), activation="relu")
         # v_stream = tflearn.fully_connected(v_stream, 1, activation="linear")
 

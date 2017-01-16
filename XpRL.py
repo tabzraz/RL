@@ -28,20 +28,20 @@ flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
-flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
+flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
+flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 256, "Minibatch size")
+flags.DEFINE_integer("batch", 32, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e3), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
-flags.DEFINE_integer("posterior_iters", 8, "Number of times to run gradient descent for calculating new posterior from old posterior")
+flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
 flags.DEFINE_float("eta", 0.01, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
-flags.DEFINE_integer("vime_batch", 64, "Size of minibatch for VIME")
+flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -135,6 +135,7 @@ with tf.Graph().as_default():
 
         test_state = env.reset()
 
+        print()
         # DQN
         dqn = model(name="DQN", actions=ACTIONS, size=env.shape[0])
         target_dqn = model(name="Target_Network", actions=ACTIONS, size=env.shape[0])
@@ -239,8 +240,7 @@ with tf.Graph().as_default():
             episode_finished = False
 
             epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((T_MAX - T) / T_MAX)
-            if VIME:
-                epsilon = 0
+
             time_elapsed = time.time() - start_time
             time_left = time_elapsed * (T_MAX - T) / T
             # Just in case, 100 days is the upper limit

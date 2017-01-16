@@ -19,13 +19,13 @@ def model(name="Exploration_Model", size=1, actions=4):
         img_size = tf_conv_size(img_size, 3, 2)
         img_size_after_l1 = img_size
 
-        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=2)
-        img_size = tf_conv_size(img_size, 3, 2)
+        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        img_size = tf_conv_size(img_size, 3, 1)
 
         flattened_image_size = img_size * img_size * 8
         l3 = Bayesian_FC(int(flattened_image_size + actions), int(flattened_image_size))
 
-        l4 = Bayesian_DeConv((int(img_size), int(img_size)), 8, 8, filter_height=3, filter_width=3, filter_stride=2)
+        l4 = Bayesian_DeConv((int(img_size), int(img_size)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
 
         l5 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
 
