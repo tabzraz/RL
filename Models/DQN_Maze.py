@@ -5,7 +5,7 @@ from Misc.Misc import tf_conv_size
 
 def model(name="Model", size=1, actions=4):
     with tf.name_scope(name):
-        print("Model {}".format(name))
+        print("Model: {}".format(name))
         inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Observation_Input")
         img_size = size * 7
         print("Input: {0}x{0}x{1}".format(size * 7, 1))
