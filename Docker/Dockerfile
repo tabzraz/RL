@@ -18,6 +18,8 @@ RUN pip install pygame
 
 RUN pip install h5py
 
+RUN pip install scikit-image
+
 WORKDIR "/home"
 
 RUN git clone https://github.com/tabzraz/RL.git
