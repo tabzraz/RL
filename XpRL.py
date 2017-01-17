@@ -197,6 +197,8 @@ with tf.Graph().as_default():
         length_summary = tf.summary.scalar("Episode Length", episode_length)
 
         if VIME:
+            vime_reward = tf.placeholder(tf.float32)
+            vime_reward_summary = tf.summary.scalar("Episode Reward with VIME", vime_reward)
             vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
             vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_kldiv * ETA)
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
@@ -259,6 +261,8 @@ with tf.Graph().as_default():
                 sess.run(vime_set_baseline)
 
             ep_reward = 0
+            if VIME:
+                vime_ep_reward = 0
             while not episode_finished:
                 # env.render()
                 # TODO: Exploratory phase
@@ -282,6 +286,7 @@ with tf.Graph().as_default():
                         _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
                     kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
                     r_t += ETA * kldiv
+                    vime_ep_reward += r_t
 
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
                 s_t = s_new
@@ -336,6 +341,9 @@ with tf.Graph().as_default():
             writer.add_summary(r_summary, global_step=T)
             writer.add_summary(e_summary, global_step=T)
             writer.add_summary(l_summary, global_step=T)
+            if VIME:
+                vr_summary = sess.run(vime_reward_summary, feed_dict={vime_reward: vime_ep_reward})
+                writer.add_summary(vr_summary, global_step=T)
 
             episode += 1
 
