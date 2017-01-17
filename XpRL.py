@@ -14,12 +14,14 @@ from Models.VIME_Maze import model as exploration_model
 # import gym_minecraft
 import Envs
 
+# Things still to implement
+
 flags = tf.app.flags
 flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
-flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
+flags.DEFINE_float("lr", 0.001, "Initial Learning Rate")
+flags.DEFINE_float("vime_lr", 0.001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
@@ -39,7 +41,7 @@ flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 0.01, "How much to scale the VIME rewards")
+flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 
@@ -47,12 +49,6 @@ FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
 RENDER = FLAGS.render
 env = gym.make(ENV_NAME)
-
-MALMO = False
-# Malmo stuff
-if MALMO:
-    env.configure(allowDiscreteMovement=["move", "turn"])
-    env.configure(videoResolution=[84, 84])
 
 if FLAGS.action_override > 0:
     ACTIONS = FLAGS.action_override
@@ -136,7 +132,7 @@ with tf.Graph().as_default():
 
         test_state = env.reset()
 
-        print()
+        print("-------Models-------")
         # DQN
         dqn = model(name="DQN", actions=ACTIONS, size=env.shape[0])
         target_dqn = model(name="Target_Network", actions=ACTIONS, size=env.shape[0])
@@ -175,11 +171,12 @@ with tf.Graph().as_default():
             vime_optimizer = tf.train.AdamOptimizer(VIME_LR)
 
             vime_grad_vars = vime_optimizer.compute_gradients(vime_loss)
-            vime_clipped = clip_grads(vime_grad_vars, CLIP_VALUE)
+            vime_clipped, vime_grad_norm = clip_grads(vime_grad_vars, CLIP_VALUE)
+            vime_grad_norm_summary = tf.summary.scalar("VIME Gradients Norm", vime_grad_norm)
             vime_minimise_op = vime_optimizer.apply_gradients(vime_clipped)
 
             vime_posterior_grads = vime_optimizer.compute_gradients(vime_posterior_loss)
-            vime_posterior_clipped = clip_grads(vime_posterior_grads, CLIP_VALUE)
+            vime_posterior_clipped, vime_posterior_grad_norm = clip_grads(vime_posterior_grads, CLIP_VALUE)
             vime_posterior_minimise_op = vime_optimizer.apply_gradients(vime_posterior_clipped)
 
         T = 1
@@ -188,8 +185,9 @@ with tf.Graph().as_default():
 
         optimiser = tf.train.AdamOptimizer(LR)
         grads_vars = optimiser.compute_gradients(qval_loss)
-        clipped = clip_grads(grads_vars, CLIP_VALUE)
-        minimise_op = optimiser.apply_gradients(clipped)
+        clipped_grads_vars, dqn_grad_norm = clip_grads(grads_vars, CLIP_VALUE)
+        dqn_grad_norm_summary = tf.summary.scalar("DQN Gradients Norm", dqn_grad_norm)
+        minimise_op = optimiser.apply_gradients(clipped_grads_vars)
 
         episode_reward = tf.placeholder(tf.float32)
         reward_summary = tf.summary.scalar("Episode Reward", episode_reward)
@@ -200,6 +198,7 @@ with tf.Graph().as_default():
 
         if VIME:
             vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
+            vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_kldiv * ETA)
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
             vime_posterior_loss_summary = tf.summary.scalar("Vime Posterior Loss", vime_posterior_loss)
 
@@ -281,7 +280,7 @@ with tf.Graph().as_default():
                     one_hot_action[action] = 1
                     for _ in range(VIME_POSTERIOR_ITERS):
                         _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
-                    kldiv, kldiv_summary = sess.run([vime_kldiv, vime_kldiv_summary])
+                    kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
                     r_t += ETA * kldiv
 
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
@@ -311,7 +310,7 @@ with tf.Graph().as_default():
                     actions.append(action_onehot)
 
                 # Minimise
-                loss_summary, _ = sess.run([dqn_summary_loss, minimise_op], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+                loss_summary, dqn_norm_summary, _ = sess.run([dqn_summary_loss, dqn_grad_norm_summary, minimise_op], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
                 frames += 1
                 T += 1
 
@@ -323,10 +322,12 @@ with tf.Graph().as_default():
                 if T % SUMMARY_UPDATE == 0:
                     writer.add_summary(loss_summary, global_step=T)
                     writer.add_summary(qvals_summary, global_step=T)
+                    writer.add_summary(dqn_norm_summary, global_step=T)
 
                     if VIME:
                         writer.add_summary(vime_posterior_loss_summary_value, global_step=T)
                         writer.add_summary(kldiv_summary, global_step=T)
+                        writer.add_summary(vime_reward_summary, global_step=T)
 
                 if T % CHECKPOINT_INTERVAL == 0:
                     saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))
@@ -347,9 +348,10 @@ with tf.Graph().as_default():
                     action_indices = list(map(lambda tups: tups[1], batch))
                     actions = np.zeros((VIME_BATCH_SIZE, ACTIONS))
                     np.put(actions, action_indices, 1)
-                    _, vime_loss_summary_val = sess.run([vime_minimise_op, vime_loss_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
+                    _, vime_loss_summary_val, vime_norm_summary_val = sess.run([vime_minimise_op, vime_loss_summary, vime_grad_norm_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
 
                     writer.add_summary(vime_loss_summary_val, global_step=T)
+                    writer.add_summary(vime_norm_summary_val, global_step=T)
 
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
