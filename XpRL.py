@@ -21,12 +21,12 @@ flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e4), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
-flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
+flags.DEFINE_integer("ckpt_interval", 2e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
@@ -118,6 +118,7 @@ print("T: {:,}".format(T_MAX))
 print("Actions:", ACTIONS)
 print("Gamma", GAMMA)
 print("Learning Rate:", LR)
+print("Batch Size:", BATCH_SIZE)
 print("VIME bonuses:", VIME)
 print("--------------------\n")
 
@@ -197,6 +198,11 @@ with tf.Graph().as_default():
         episode_length = tf.placeholder(tf.int32)
         length_summary = tf.summary.scalar("Episode Length", episode_length)
 
+        if VIME:
+            vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
+            vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
+            vime_posterior_loss_summary = tf.summary.scalar("Vime Posterior Loss", vime_posterior_loss)
+
         sess.run(tf.global_variables_initializer())
         sess.run(sync_vars)
 
@@ -207,9 +213,6 @@ with tf.Graph().as_default():
             saver.restore(sess, save_path=CHECKPOINT)
 
         writer = tf.summary.FileWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
-        # Test writer for the maze
-        test_writer = tf.summary.FileWriter("{}/tb_logs/maze_test".format(LOGDIR))
-        # ---
 
         np.random.seed(SEED)
         tf.set_random_seed(SEED)
@@ -246,7 +249,7 @@ with tf.Graph().as_default():
             # Just in case, 100 days is the upper limit
             time_left = min(time_left, 60 * 60 * 24 * 100)
 
-            print("Episode: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+            print("Ep: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
             # Check Q Values for start state for testing
             # test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
@@ -277,8 +280,8 @@ with tf.Graph().as_default():
                     one_hot_action = np.zeros(ACTIONS)
                     one_hot_action[action] = 1
                     for _ in range(VIME_POSTERIOR_ITERS):
-                        _ = sess.run(vime_posterior_minimise_op, feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
-                    kldiv = sess.run(vime_kldiv)
+                        _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
+                    kldiv, kldiv_summary = sess.run([vime_kldiv, vime_kldiv_summary])
                     r_t += ETA * kldiv
 
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
@@ -321,13 +324,17 @@ with tf.Graph().as_default():
                     writer.add_summary(loss_summary, global_step=T)
                     writer.add_summary(qvals_summary, global_step=T)
 
+                    if VIME:
+                        writer.add_summary(vime_posterior_loss_summary_value, global_step=T)
+                        writer.add_summary(kldiv_summary, global_step=T)
+
                 if T % CHECKPOINT_INTERVAL == 0:
-                    saver.save(sess=sess, save_path="{}/ckpts/dqn_vars-{}.ckpt".format(LOGDIR, T))
+                    saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))
 
             r_summary, e_summary, l_summary = sess.run([reward_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
-            writer.add_summary(r_summary, global_step=episode)
-            writer.add_summary(e_summary, global_step=episode)
-            writer.add_summary(l_summary, global_step=episode)
+            writer.add_summary(r_summary, global_step=T)
+            writer.add_summary(e_summary, global_step=T)
+            writer.add_summary(l_summary, global_step=T)
 
             episode += 1
 
@@ -340,7 +347,9 @@ with tf.Graph().as_default():
                     action_indices = list(map(lambda tups: tups[1], batch))
                     actions = np.zeros((VIME_BATCH_SIZE, ACTIONS))
                     np.put(actions, action_indices, 1)
-                    sess.run(vime_minimise_op, feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
+                    _, vime_loss_summary_val = sess.run([vime_minimise_op, vime_loss_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
+
+                    writer.add_summary(vime_loss_summary_val, global_step=T)
 
 
             # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
@@ -348,6 +357,6 @@ with tf.Graph().as_default():
             env.render(close=True)
 
         # Save the final model
-        saver.save(sess=sess, save_path="{}/ckpts/dqn_vars-{}-FINAL.ckpt".format(LOGDIR, T))
+        saver.save(sess=sess, save_path="{}/ckpts/vars-{}-FINAL.ckpt".format(LOGDIR, T))
 
         print("\nFinished")

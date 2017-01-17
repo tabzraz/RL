@@ -9,25 +9,35 @@ from Misc.Misc import tf_conv_size
 
 def model(name="Exploration_Model", size=1, actions=4):
     with tf.name_scope(name):
+        print("Model: {}".format(name))
         inputs = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="State")
         action = tf.placeholder(tf.float32, shape=[None, actions], name="Action")
         target = tf.placeholder(tf.float32, shape=[None, size * 7, size * 7, 1], name="Next_State")
         kl_scaling = tf.placeholder(tf.float32, shape=[])
         img_size = 7 * size
 
+        print("Input: {0}x{0}x{1}".format(img_size, 1))
+
         l1 = Bayesian_Conv(1, 8, filter_height=3, filter_width=3, filter_stride=2)
         img_size = tf_conv_size(img_size, 3, 2)
         img_size_after_l1 = img_size
 
+        print("Conv: {0}x{0}x{1}".format(img_size, 8))
+
         l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=1)
         img_size = tf_conv_size(img_size, 3, 1)
+        print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
         flattened_image_size = img_size * img_size * 8
         l3 = Bayesian_FC(int(flattened_image_size + actions), int(flattened_image_size))
+        print("FC: {0} -> {1}".format(flattened_image_size + actions, flattened_image_size))
 
         l4 = Bayesian_DeConv((int(img_size), int(img_size)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        print("DeConv: {0}x{0}x{1}".format(img_size_after_l1, 8))
 
         l5 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
+        print("DeConv: {0}x{0}x{1}".format(size * 7, 1))
+        print()
 
         def sample(local_reparam_trick=False):
             net = l1.sample(inputs, local_reparam_trick)
