@@ -16,26 +16,26 @@ import Envs
 import scipy as sp
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Tabz_SpaceInvaders-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Tabz_Qbert-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(2e6), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 1e5, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
-flags.DEFINE_float("epsilon_start", 0.8, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
+flags.DEFINE_integer("xp", int(1e5), "Size of the experience replay")
+flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
+flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 2000, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 32, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
@@ -43,6 +43,7 @@ flags.DEFINE_integer("posterior_iters", 8, "Number of times to run gradient desc
 flags.DEFINE_float("eta", 0.01, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 64, "Size of minibatch for VIME")
+flags.DEFINE_boolean("boltzman", False, "Grounded Boltzman")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -79,6 +80,7 @@ SUMMARY_UPDATE = FLAGS.summary
 CLIP_VALUE = FLAGS.grad_clip
 VIME = FLAGS.vime
 VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
+BOLTZMAN = FLAGS.boltzman
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
 if FLAGS.ckpt != "":
     RESTORE = True
@@ -243,6 +245,12 @@ with tf.Graph().as_default():
             error = (average-q_bar)**2 
             return error
 
+        def stable_boltzman_average(beta, epsilon,q_vals ):
+            q_bar = np.max(q_vals[0, :])*( 1 - epsilon ) + np.mean(q_vals[0, :]) * epsilon
+            z = np.sum(np.exp(beta*(q_vals-q_bar)))
+            error = ((z-1)**2)
+            return error
+
 
         while T < T_MAX:
 
@@ -277,18 +285,20 @@ with tf.Graph().as_default():
                 # TODO: Exploratory phase
                 q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
 
-                # --Jakob stuff
-                # arguments = (epsilon, q_vals)   
-                # beta = sp.optimize.minimize_scalar(bolzman_average, args=arguments, bounds=(0,10), method="bounded")
-                # beta = beta.x
-                # probs = softmax(q_vals, beta)
-                # action = np.random.choice(len(probs[0,:]), p=probs[0])
-                # --End Jakob stuff
-
-                if np.random.random() < epsilon:
-                    action = env.action_space.sample()
+                if BOLTZMAN:
+                    # --Jakob stuff
+                    arguments = (epsilon, q_vals)
+                    beta = sp.optimize.minimize_scalar(stable_boltzman_average, args=arguments, bounds=(0,100), method="bounded")
+                    # beta = sp.optimize.minimize_scalar(bolzman_average, args=arguments, bounds=(0,10), method="bounded")
+                    beta = beta.x
+                    probs = softmax(q_vals, beta)
+                    action = np.random.choice(len(probs[0,:]), p=probs[0])
+                    # --End Jakob stuff
                 else:
-                    action = np.argmax(q_vals[0, :])
+                    if np.random.random() < epsilon:
+                        action = env.action_space.sample()
+                    else:
+                        action = np.argmax(q_vals[0, :])
 
                 s_new, r_t, episode_finished, _ = env.step(action)
                 if RENDER:
