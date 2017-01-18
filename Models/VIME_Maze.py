@@ -32,10 +32,10 @@ def model(name="Exploration_Model", size=1, actions=4):
         l3 = Bayesian_FC(int(flattened_image_size + actions), int(flattened_image_size))
         print("FC: {0} -> {1}".format(flattened_image_size + actions, flattened_image_size))
 
-        l4 = Bayesian_DeConv((int(img_size), int(img_size)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        l4 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
         print("DeConv: {0}x{0}x{1}".format(img_size_after_l1, 8))
 
-        l5 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
+        l5 = Bayesian_DeConv((int(size * 7), int(size * 7)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
         print("DeConv: {0}x{0}x{1}".format(size * 7, 1))
         print()
 

@@ -17,16 +17,16 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 2e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
@@ -41,7 +41,7 @@ flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
+flags.DEFINE_float("eta", 0.0001, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 
@@ -132,7 +132,7 @@ with tf.Graph().as_default():
 
         test_state = env.reset()
 
-        print("-------Models-------")
+        print("\n-------Models-------")
         # DQN
         dqn = model(name="DQN", actions=ACTIONS, size=env.shape[0])
         target_dqn = model(name="Target_Network", actions=ACTIONS, size=env.shape[0])
@@ -197,8 +197,8 @@ with tf.Graph().as_default():
         length_summary = tf.summary.scalar("Episode Length", episode_length)
 
         if VIME:
-            vime_reward = tf.placeholder(tf.float32)
-            vime_reward_summary = tf.summary.scalar("Episode Reward with VIME", vime_reward)
+            vime_episode_reward = tf.placeholder(tf.float32)
+            vime_episode_reward_summary = tf.summary.scalar("Episode Reward with VIME", vime_episode_reward)
             vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
             vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_kldiv * ETA)
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
@@ -342,21 +342,21 @@ with tf.Graph().as_default():
             writer.add_summary(e_summary, global_step=T)
             writer.add_summary(l_summary, global_step=T)
             if VIME:
-                vr_summary = sess.run(vime_reward_summary, feed_dict={vime_reward: vime_ep_reward})
+                vr_summary = sess.run(vime_episode_reward_summary, feed_dict={vime_episode_reward: vime_ep_reward})
                 writer.add_summary(vr_summary, global_step=T)
 
             episode += 1
 
             if VIME:
                 sess.run(vime_revert_to_baseline)
-                for _ in range(VIME_EPOCHS//VIME_BATCH_SIZE):
+                for _ in range(VIME_EPOCHS // VIME_BATCH_SIZE):
                     batch = replay.Sample(VIME_BATCH_SIZE)
                     old_states = list(map(lambda tups: tups[0], batch))
                     new_states = list(map(lambda tups: tups[3], batch))
                     action_indices = list(map(lambda tups: tups[1], batch))
                     actions = np.zeros((VIME_BATCH_SIZE, ACTIONS))
                     np.put(actions, action_indices, 1)
-                    _, vime_loss_summary_val, vime_norm_summary_val = sess.run([vime_minimise_op, vime_loss_summary, vime_grad_norm_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE/VIME_BATCH_SIZE})
+                    _, vime_loss_summary_val, vime_norm_summary_val = sess.run([vime_minimise_op, vime_loss_summary, vime_grad_norm_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE / VIME_BATCH_SIZE})
 
                     writer.add_summary(vime_loss_summary_val, global_step=T)
                     writer.add_summary(vime_norm_summary_val, global_step=T)
