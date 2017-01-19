@@ -17,11 +17,11 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-3-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.001, "Initial Learning Rate")
-flags.DEFINE_float("vime_lr", 0.001, "Initial Learning Rate for VIME model")
+flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
+flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
@@ -29,21 +29,23 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 2e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
-flags.DEFINE_integer("batch", 32, "Minibatch size")
+flags.DEFINE_integer("batch", 64, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
 flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 0.0001, "How much to scale the VIME rewards")
-flags.DEFINE_integer("vime_epochs", 100, "Number of epochs to optimise the variational baseline for VIME")
+flags.DEFINE_float("eta", 1.0, "How much to scale the VIME rewards")
+flags.DEFINE_integer("vime_iters", 50, "Number of iterations to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
+flags.DEFINE_boolean("rnd", False, "Random Agent")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -60,12 +62,13 @@ LR = FLAGS.lr
 VIME_LR = FLAGS.vime_lr
 ETA = FLAGS.eta
 VIME_BATCH_SIZE = FLAGS.vime_batch
-VIME_EPOCHS = FLAGS.vime_epochs
+VIME_ITERS = FLAGS.vime_iters
 NAME = FLAGS.name
 EPISODES = FLAGS.episodes
 T_MAX = FLAGS.t_max
 EPSILON_START = FLAGS.epsilon_start
 EPSILON_FINISH = FLAGS.epsilon_finish
+EPSILON_STEPS = FLAGS.epsilon_steps
 XP_SIZE = FLAGS.xp
 GAMMA = FLAGS.gamma
 BATCH_SIZE = FLAGS.batch
@@ -74,6 +77,7 @@ SUMMARY_UPDATE = FLAGS.summary
 CLIP_VALUE = FLAGS.grad_clip
 VIME = FLAGS.vime
 VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
+RANDOM_AGENT = FLAGS.rnd
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
 if FLAGS.ckpt != "":
     RESTORE = True
@@ -245,7 +249,7 @@ with tf.Graph().as_default():
                 env.render()
             episode_finished = False
 
-            epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * ((T_MAX - T) / T_MAX)
+            epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * max(((EPSILON_STEPS - T) / EPSILON_STEPS), 0)
 
             time_elapsed = time.time() - start_time
             time_left = time_elapsed * (T_MAX - T) / T
@@ -266,8 +270,15 @@ with tf.Graph().as_default():
             if VIME:
                 vime_ep_reward = 0
             while not episode_finished:
-                # env.render()
-                # TODO: Exploratory phase
+
+                # Random agent
+                if RANDOM_AGENT:
+                    action = env.action_space.sample()
+                    _, r_t, episode_finished, _ = env.step(action)
+                    ep_reward += r_t
+                    T += 1
+                    continue
+
                 q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
                 if np.random.random() < epsilon:
                     action = env.action_space.sample()
@@ -351,7 +362,7 @@ with tf.Graph().as_default():
 
             if VIME:
                 sess.run(vime_revert_to_baseline)
-                for _ in range(VIME_EPOCHS // VIME_BATCH_SIZE):
+                for _ in range(VIME_ITERS):
                     batch = replay.Sample(VIME_BATCH_SIZE)
                     old_states = list(map(lambda tups: tups[0], batch))
                     new_states = list(map(lambda tups: tups[3], batch))

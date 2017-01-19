@@ -50,6 +50,8 @@ def model(name="Exploration_Model", size=1, actions=4):
             net = tf.reshape(net, shape=[-1, int(img_size), int(img_size), 8])
             net = l4.sample(net, local_reparam_trick)
             net = l5.sample(net, local_reparam_trick)
+            # Model learns S_{t+1} - S_{t}, the difference between states
+            # return net + inputs
             return net
 
         def bnet_prob(pred, target):
