@@ -5,7 +5,7 @@ import tensorflow as tf
 import time
 import datetime
 import os
-from tqdm import tqdm
+import json
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
 # Todo: Make this friendlier
@@ -17,7 +17,7 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-3-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.001, "Initial Learning Rate")
@@ -88,6 +88,11 @@ else:
 
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR))
+
+# Print all the hyperparams
+hyperparams = FLAGS.__dict__["__flags"]
+with open("{}/info.json".format(LOGDIR), "w") as fp:
+    json.dump(hyperparams, fp)
 
 
 def time_str(s):
@@ -172,7 +177,7 @@ with tf.Graph().as_default():
 
             vime_grad_vars = vime_optimizer.compute_gradients(vime_loss)
             vime_clipped, vime_grad_norm = clip_grads(vime_grad_vars, CLIP_VALUE)
-            vime_grad_norm_summary = tf.summary.scalar("VIME Gradients Norm", vime_grad_norm)
+            vime_grad_norm_summary = tf.summary.scalar("Vime Gradients Norm", vime_grad_norm)
             vime_minimise_op = vime_optimizer.apply_gradients(vime_clipped)
 
             vime_posterior_grads = vime_optimizer.compute_gradients(vime_posterior_loss)
@@ -198,7 +203,7 @@ with tf.Graph().as_default():
 
         if VIME:
             vime_episode_reward = tf.placeholder(tf.float32)
-            vime_episode_reward_summary = tf.summary.scalar("Episode Reward with VIME", vime_episode_reward)
+            vime_episode_reward_summary = tf.summary.scalar("Vime Episode Reward", vime_episode_reward)
             vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
             vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_kldiv * ETA)
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
