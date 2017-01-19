@@ -220,9 +220,6 @@ with tf.Graph().as_default():
 
         writer = tf.summary.FileWriter("{}/tb_logs/dqn_agent".format(LOGDIR), graph=sess.graph)
 
-        np.random.seed(SEED)
-        tf.set_random_seed(SEED)
-
         print("Exploratory phase for {} steps".format(EXPLORATION_STEPS))
         e_steps = 0
         while e_steps < EXPLORATION_STEPS:
