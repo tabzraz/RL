@@ -13,10 +13,10 @@ class MazeOptions:
         self.steps = 0
 
         # Hard coding is best
-        U = 2
+        U = 5
         D = 3
-        L = 4
-        R = 5
+        L = 2
+        R = 4
         self.action_0 = \
         np.array([[1, 1, 1, D, 1, 1, 1,],
                   [1, D, L, L, L, L, 1,],
@@ -37,7 +37,7 @@ class MazeOptions:
                   ])
         self.action_2 = \
         np.array([[1, 1, 1, D, 1, 1, 1,],
-                  [1, R, R, R, R, L, 1,],
+                  [1, R, R, R, D, L, 1,],
                   [1, U, 1, 1, D, 1, 1,],
                   [R, R, D, 1, R, R, R,],
                   [1, 1, D, 1, 1, U, 1,],
@@ -61,11 +61,11 @@ class MazeOptions:
 
     def act(self):
         self.steps += 1
-        player_pos = self.maze_env
-        player_pos[0] = player_pos[0] % 7
-        player_pos[1] = player_pos[1] % 7
+        player_pos = self.maze_env.player_pos
+        player_pos = (player_pos[0] % 7, player_pos[1] % 7)
         action_to_take = self.actions[self.action][player_pos] - 2
         beta = 0.0
+        # print(action_to_take, " ", player_pos[0], " ", player_pos[1])
         if action_to_take == 0 and player_pos[1] == 0:
             beta = 1.0
         elif action_to_take == 1 and player_pos[0] == 6:

@@ -6,12 +6,13 @@ import time
 import datetime
 import os
 import json
+import time
 from Misc.Gradients import clip_grads
-from Replay.ExpReplay import ExperienceReplay
+from Replay.ExpReplay_Options import ExperienceReplay_Options as ExperienceReplay
 # Todo: Make this friendlier
 from Models.DQN_Maze import model
 from Models.VIME_Maze import model as exploration_model
-# import gym_minecraft
+from Hierarchical.MazeOptions import MazeOptions
 import Envs
 
 # Things still to implement
@@ -23,7 +24,7 @@ flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
@@ -46,10 +47,12 @@ flags.DEFINE_float("eta", 1.0, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_iters", 50, "Number of iterations to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
+flags.DEFINE_boolean("slow", False, "Slow down the loop")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
 RENDER = FLAGS.render
+SLOW = FLAGS.slow
 env = gym.make(ENV_NAME)
 
 if FLAGS.action_override > 0:
@@ -163,6 +166,10 @@ with tf.Graph().as_default():
                 sync_vars_list.append(tf.assign(ref, val))
             sync_vars = tf.group(*sync_vars_list)
 
+        # Pre-defined options for the maze (aka cheating)
+        MAZE_OPTIONS = MazeOptions(env)
+        NUM_OPTIONS = 4
+
         # VIME
         if VIME:
             vime_net = exploration_model(name="VIME_Model", size=env.shape[0], actions=ACTIONS)
@@ -228,13 +235,37 @@ with tf.Graph().as_default():
         e_steps = 0
         while e_steps < EXPLORATION_STEPS:
             s = env.reset()
+            option_state = s
             terminated = False
+            option_chosen = False
+            option_reward = 0
+            option_steps = 0
+            option_action = 0
             while not terminated:
                 print(e_steps, end="\r")
-                a = env.action_space.sample()
+                # Pick an option if none is chosen
+                if not option_chosen:
+                    option_action = np.random.choice(NUM_OPTIONS)
+                    MAZE_OPTIONS.choose_option(option_action)
+                    option_steps = 0
+                    option_reward = 0
+                    option_chosen = True
+
+                # Act with respect to that option
+                a, beta = MAZE_OPTIONS.act()
                 sn, r, terminated, _ = env.step(a)
-                replay.Add_Exp(s, a, r, sn, terminated)
-                s = sn
+                option_steps += 1
+                option_reward += r
+                option_chosen = np.random.binomial(1, p=1 - beta) == 1
+                # print(option_chosen, " ", beta)
+
+                # If that option terminated, then record in the replay
+                if not option_chosen:
+                    replay.Add_Exp(option_state, option_action, option_reward, sn, option_steps, terminated)
+                    # print("Replay")
+                    option_state = sn
+
+                # s = sn
                 e_steps += 1
 
         print("Exploratory phase finished, starting learning")
@@ -245,8 +276,15 @@ with tf.Graph().as_default():
             frames = 0
 
             s_t = env.reset()
+            option_state = s_t
+            option_chosen = False
+            option_reward = 0
+            option_steps = 0
+            option_action = 0
             if RENDER:
                 env.render()
+                if SLOW:
+                    time.sleep(1)
             episode_finished = False
 
             epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * max(((EPSILON_STEPS - T) / EPSILON_STEPS), 0)
@@ -279,15 +317,28 @@ with tf.Graph().as_default():
                     T += 1
                     continue
 
-                q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s_t]})
-                if np.random.random() < epsilon:
-                    action = env.action_space.sample()
-                else:
-                    action = np.argmax(q_vals[0, :])
+                # Choose an option if it is not chosen
+                if not option_chosen:
+                    q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [option_state]})
+                    if np.random.random() < epsilon:
+                        option_action = np.random.choice(NUM_OPTIONS)
+                    else:
+                        option_action = np.argmax(q_vals[0, :])
+                    MAZE_OPTIONS.choose_option(option_action)
+                    option_reward = 0
+                    option_steps = 1
+                    option_chosen = True
 
+                # Act wrt option
+                action, beta = MAZE_OPTIONS.act()
                 s_new, r_t, episode_finished, _ = env.step(action)
+                option_steps += 1
+                option_reward += r_t
+                option_chosen = np.random.binomial(1, p=1 - beta) == 1
                 if RENDER:
                     env.render()
+                    if SLOW:
+                        time.sleep(1)
                 ep_reward += r_t
 
                 if VIME:
@@ -304,7 +355,10 @@ with tf.Graph().as_default():
                     r_t += ETA * kldiv
                     vime_ep_reward += r_t
 
-                replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
+                if not option_chosen or episode_finished:
+                    replay.Add_Exp(option_state, option_action, option_reward, s_new, option_steps, episode_finished)
+                    option_state = s_new
+
                 s_t = s_new
 
                 batch = replay.Sample(BATCH_SIZE)
@@ -315,16 +369,16 @@ with tf.Graph().as_default():
                 q_targets = []
                 actions = []
                 for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
-                    st, at, rt, snew, terminal = batch_item
+                    st, at, rt, snew, steps, terminal = batch_item
                     # Reward clipping
                     # rt = np.clip(rt, -1, 1)
                     target = np.zeros(ACTIONS)
                     target[at] = rt
                     if not terminal:
                         if DOUBLE_DQN:
-                            target[at] += GAMMA * target_qval[np.argmax(double_qvals)]
+                            target[at] += GAMMA**steps * target_qval[np.argmax(double_qvals)]
                         else:
-                            target[at] += GAMMA * np.max(target_qval)
+                            target[at] += GAMMA**steps * np.max(target_qval)
                     q_targets.append(target)
                     action_onehot = np.zeros(ACTIONS)
                     action_onehot[at] = 1
