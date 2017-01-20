@@ -295,8 +295,11 @@ with tf.Graph().as_default():
                     # Compute posterior
                     one_hot_action = np.zeros(ACTIONS)
                     one_hot_action[action] = 1
-                    for _ in range(VIME_POSTERIOR_ITERS):
-                        _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: [s_t], vime_action: [one_hot_action], vime_target: [s_new], vime_kl_scaling: 1.0})
+                    # TODO: Use Hessian
+                    states = [s_t for _ in range(VIME_POSTERIOR_ITERS)]
+                    actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
+                    targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
+                    _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
                     kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
                     r_t += ETA * kldiv
                     vime_ep_reward += r_t

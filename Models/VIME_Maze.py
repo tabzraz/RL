@@ -60,7 +60,7 @@ def model(name="Exploration_Model", size=1, actions=4):
         bayesian_net = Bayesian_Net([l1, l2, l3, l4, l5], bnet_prob)
 
         bnet_loss, kl_loss, data_loss = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=8)
-        bnet_loss_posterior, _, _ = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=8, original_prior=False)
+        bnet_loss_posterior, _, _ = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=2, original_prior=False)
         bnet_output = sample(local_reparam_trick=False)
         set_params = bayesian_net.copy_variational_parameters()
         kl_div = bayesian_net.kl_new_and_old()
