@@ -21,8 +21,8 @@ flags = tf.app.flags
 flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
-flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
+flags.DEFINE_float("lr", 0.00001, "Initial Learning Rate")
+flags.DEFINE_float("vime_lr", 0.00001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
@@ -207,6 +207,7 @@ with tf.Graph().as_default():
 
         episode_reward = tf.placeholder(tf.float32)
         reward_summary = tf.summary.scalar("Episode Reward", episode_reward)
+        reward_episode_summary = tf.summary.scalar("Per Episode Reward", episode_reward)
         tf_epsilon = tf.placeholder(tf.float32)
         epsilon_summary = tf.summary.scalar("Epsilon", tf_epsilon)
         episode_length = tf.placeholder(tf.int32)
@@ -341,21 +342,26 @@ with tf.Graph().as_default():
                         time.sleep(1)
                 ep_reward += r_t
 
-                if VIME:
-                    sess.run(vime_set_variational_params)
-                    # Compute posterior
-                    one_hot_action = np.zeros(ACTIONS)
-                    one_hot_action[action] = 1
-                    # TODO: Use Hessian
-                    states = [s_t for _ in range(VIME_POSTERIOR_ITERS)]
-                    actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
-                    targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
-                    _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
-                    kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
-                    r_t += ETA * kldiv
-                    vime_ep_reward += r_t
-
                 if not option_chosen or episode_finished:
+
+                    if VIME:
+                        sess.run(vime_set_variational_params)
+                        # Compute posterior
+                        one_hot_action = np.zeros(NUM_OPTIONS)
+                        one_hot_action[option_action] = 1
+                        # TODO: Use Hessian
+                        states = [option_state for _ in range(VIME_POSTERIOR_ITERS)]
+                        actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
+                        targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
+                        _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
+                        kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
+                        r_t += ETA * kldiv
+                        vime_ep_reward += r_t
+
+                        writer.add_summary(vime_posterior_loss_summary_value, global_step=T)
+                        writer.add_summary(kldiv_summary, global_step=T)
+                        writer.add_summary(vime_reward_summary, global_step=T)
+
                     replay.Add_Exp(option_state, option_action, option_reward, s_new, option_steps, episode_finished)
                     option_state = s_new
 
@@ -399,16 +405,13 @@ with tf.Graph().as_default():
                     writer.add_summary(qvals_summary, global_step=T)
                     writer.add_summary(dqn_norm_summary, global_step=T)
 
-                    if VIME:
-                        writer.add_summary(vime_posterior_loss_summary_value, global_step=T)
-                        writer.add_summary(kldiv_summary, global_step=T)
-                        writer.add_summary(vime_reward_summary, global_step=T)
 
                 if T % CHECKPOINT_INTERVAL == 0:
                     saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))
 
-            r_summary, e_summary, l_summary = sess.run([reward_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
+            r_summary, r_eps_summary, e_summary, l_summary = sess.run([reward_summary, reward_episode_summary, epsilon_summary, length_summary], feed_dict={episode_length: frames, tf_epsilon: epsilon, episode_reward: ep_reward})
             writer.add_summary(r_summary, global_step=T)
+            writer.add_summary(r_eps_summary, global_step=episode)
             writer.add_summary(e_summary, global_step=T)
             writer.add_summary(l_summary, global_step=T)
             if VIME:
@@ -424,7 +427,7 @@ with tf.Graph().as_default():
                     old_states = list(map(lambda tups: tups[0], batch))
                     new_states = list(map(lambda tups: tups[3], batch))
                     action_indices = list(map(lambda tups: tups[1], batch))
-                    actions = np.zeros((VIME_BATCH_SIZE, ACTIONS))
+                    actions = np.zeros((min(len(action_indices), VIME_BATCH_SIZE), ACTIONS))
                     np.put(actions, action_indices, 1)
                     _, vime_loss_summary_val, vime_norm_summary_val = sess.run([vime_minimise_op, vime_loss_summary, vime_grad_norm_summary], feed_dict={vime_input: old_states, vime_action: actions, vime_target: new_states, vime_kl_scaling: XP_SIZE / VIME_BATCH_SIZE})
 

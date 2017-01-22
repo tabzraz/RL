@@ -41,7 +41,7 @@ register(
         reward_threshold=0.78, # optimum = .8196
 )
 
-for s in [1,2,3,4,5]:
+for s in range(15):
 
     register(
             id="Maze-{}-v0".format(s),

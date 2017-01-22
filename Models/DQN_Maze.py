@@ -14,15 +14,15 @@ def model(name="Model", size=1, actions=4):
         img_size = tf_conv_size(img_size, 3, 2)
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.conv_2d(net, 8, 3, 1, activation="relu", padding="valid", name="Conv2")
-        img_size = tf_conv_size(img_size, 3, 1)
+        net = tflearn.conv_2d(net, 8, 3, 2, activation="relu", padding="valid", name="Conv2")
+        img_size = tf_conv_size(img_size, 3, 2)
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.fully_connected(net, img_size * img_size, activation="relu")
-        print("FC: {0} -> {1}".format(img_size * img_size * 8, img_size * img_size))
+        net = tflearn.fully_connected(net, img_size * img_size * 4, activation="relu")
+        print("FC: {0} -> {1}".format(img_size * img_size * 8, img_size * img_size * 4))
 
         q_values = tflearn.fully_connected(net, actions, activation="linear")
-        print("FC: {0} -> {1}".format(img_size * 4, actions))
+        print("FC: {0} -> {1}".format(img_size * img_size * 4, actions))
         print()
         # Dont need dueling yet
         # v_stream = tflearn.fully_connected(net, ceil(img_size/2), activation="relu")

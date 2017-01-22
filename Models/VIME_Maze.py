@@ -24,15 +24,16 @@ def model(name="Exploration_Model", size=1, actions=4):
 
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=1)
-        img_size = tf_conv_size(img_size, 3, 1)
+        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=2)
+        img_size = tf_conv_size(img_size, 3, 2)
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
         flattened_image_size = img_size * img_size * 8
         l3 = Bayesian_FC(int(flattened_image_size + actions), int(flattened_image_size))
         print("FC: {0} -> {1}".format(flattened_image_size + actions, flattened_image_size))
+        print("Reshape: {0} -> {1}x{1}x{2}".format(flattened_image_size, img_size, 8))
 
-        l4 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        l4 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 8, filter_height=3, filter_width=3, filter_stride=2)
         print("DeConv: {0}x{0}x{1}".format(img_size_after_l1, 8))
 
         l5 = Bayesian_DeConv((int(size * 7), int(size * 7)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
