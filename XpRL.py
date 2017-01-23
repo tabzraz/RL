@@ -17,7 +17,7 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-2-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
@@ -32,12 +32,12 @@ flags.DEFINE_integer("ckpt_interval", 2e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
+flags.DEFINE_integer("epsilon_steps", int(15e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
-flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
