@@ -6,7 +6,6 @@ import time
 import datetime
 import os
 import json
-import time
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay_Options import ExperienceReplay_Options as ExperienceReplay
 # Todo: Make this friendlier
