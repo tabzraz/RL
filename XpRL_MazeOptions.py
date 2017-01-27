@@ -28,11 +28,11 @@ flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
-flags.DEFINE_integer("ckpt_interval", 2e4, "How often to save the global model")
+flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(15e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
@@ -403,7 +403,6 @@ with tf.Graph().as_default():
                     writer.add_summary(loss_summary, global_step=T)
                     writer.add_summary(qvals_summary, global_step=T)
                     writer.add_summary(dqn_norm_summary, global_step=T)
-
 
                 if T % CHECKPOINT_INTERVAL == 0:
                     saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))

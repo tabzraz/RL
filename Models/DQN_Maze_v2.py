@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tflearn
 from Misc.Misc import tf_conv_size
+from math import ceil
 
 
 def model(name="Model", size=1, actions=4):
@@ -10,13 +11,27 @@ def model(name="Model", size=1, actions=4):
         img_size = size * 7
         print("Input: {0}x{0}x{1}".format(size * 7, 1))
 
-        net = tflearn.conv_2d(inputs, 8, 3, 2, activation="relu", padding="valid", name="Conv1")
-        img_size = tf_conv_size(img_size, 3, 2)
+        net = tflearn.conv_2d(inputs, 8, 5, 2, activation="relu", padding="valid", name="Conv1")
+        img_size = tf_conv_size(img_size, 5, 2)
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.conv_2d(net, 8, 3, 1, activation="relu", padding="valid", name="Conv2")
-        img_size = tf_conv_size(img_size, 3, 1)
-        print("Conv: {0}x{0}x{1}".format(img_size, 8))
+        # repeats = ceil(size / 4)
+        repeats = 1
+
+        for r in range(repeats):
+            # print("<- Skip Connection")
+            branch = tflearn.conv_2d(net, 8, 3, 1, activation="relu", padding="valid", name="Conv_{}_1".format(r + 1))
+            img_size = tf_conv_size(img_size, 3, 1)
+            print("Conv: {0}x{0}x{1}".format(img_size, 8))
+
+            branch = tflearn.conv_2d(branch, 8, 3, 2, activation="relu", padding="valid", name="Conv_{}_2".format(r + 1))
+            img_size = tf_conv_size(img_size, 3, 2)
+            print("Conv: {0}x{0}x{1}".format(img_size, 8))
+
+            net = branch
+            # Residual connection
+            # print("-> Skip connection")
+            # net = branch + net
 
         net = tflearn.fully_connected(net, img_size * img_size * 4, activation="relu")
         print("FC: {0} -> {1}".format(img_size * img_size * 8, img_size * img_size * 4))
