@@ -10,17 +10,17 @@ from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
 # Todo: Make this friendlier
 from Models.DQN_Maze_v2 import model
-from Models.VIME_Maze import model as exploration_model
+from Models.VIME_Maze_v2 import model as exploration_model
 # import gym_minecraft
 import Envs
 
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-3-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.00001, "Initial Learning Rate")
+flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")

@@ -9,8 +9,8 @@ import json
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay_Options import ExperienceReplay_Options as ExperienceReplay
 # Todo: Make this friendlier
-from Models.DQN_Maze import model
-from Models.VIME_Maze import model as exploration_model
+from Models.DQN_Maze_v2 import model
+from Models.VIME_Maze_v2 import model as exploration_model
 from Hierarchical.MazeOptions import MazeOptions
 import Envs
 
@@ -32,8 +32,8 @@ flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
-flags.DEFINE_integer("target", 500, "After how many steps to update the target network")
+flags.DEFINE_integer("epsilon_steps", int(16e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
 flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
@@ -132,16 +132,14 @@ print("--------------------\n")
 # TODO: Prioritized experience replay
 replay = ExperienceReplay(XP_SIZE)
 
+# Seed numpy and tensorflow
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
     with tf.Session(config=config) as sess:
-
-        # Seed numpy and tensorflow
-        np.random.seed(SEED)
-        tf.set_random_seed(SEED)
-
-        test_state = env.reset()
 
         print("\n-------Models-------")
         # DQN
@@ -158,6 +156,12 @@ with tf.Graph().as_default():
         dqn_actions = dqn["Actions"]
         dqn_summary_loss = dqn["Loss_Summary"]
         dqn_summary_qvals = dqn["QVals_Summary"]
+
+        with tf.name_scope("Start_State"):
+            start_qvals = []
+            for i in range(ACTIONS):
+                start_qvals.append(tf.summary.scalar("Start State Action {} QValue".format(i), dqn_qvals[0, i]))
+            dqn_start_state_qvals_summary = tf.summary.merge(start_qvals)
 
         with tf.name_scope("Sync_Target_DQN"):
             sync_vars_list = []
@@ -295,6 +299,9 @@ with tf.Graph().as_default():
             time_left = min(time_left, 60 * 60 * 24 * 100)
 
             print("Ep: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, T_MAX, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+
+            _, start_qvals_summary = sess.run([dqn_qvals, dqn_start_state_qvals_summary], feed_dict={dqn_inputs: [s_t]})
+            writer.add_summary(start_qvals_summary, global_step=episode)
 
             # Check Q Values for start state for testing
             # test_qval_summaries = sess.run(dqn_summary_qvals, feed_dict={dqn_inputs: [test_state]})
