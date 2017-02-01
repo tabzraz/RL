@@ -6,6 +6,7 @@ import time
 import datetime
 import os
 import json
+from collections import deque
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
 # Todo: Make this friendlier
@@ -17,13 +18,13 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-3-v0", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
@@ -32,7 +33,7 @@ flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(16e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
@@ -85,11 +86,10 @@ if FLAGS.ckpt != "":
 else:
     RESTORE = False
 EXPLORATION_STEPS = FLAGS.exp_steps
+LOGNAME = "Logs"
 if FLAGS.logdir != "":
-    LOGDIR = FLAGS.logdir
-else:
-    LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-
+    LOGNAME = FLAGS.logdir
+LOGDIR = "{}/{}_{}".format(LOGNAME, NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR))
 
@@ -137,7 +137,8 @@ tf.set_random_seed(SEED)
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
-    with tf.Session(config=config) as sess:
+        sess = tf.Session(config=config)
+    # with tf.Session(config=config) as sess:
 
         print("\n-------Models-------")
         # DQN
@@ -214,9 +215,11 @@ with tf.Graph().as_default():
             vime_episode_reward = tf.placeholder(tf.float32)
             vime_episode_reward_summary = tf.summary.scalar("Vime Episode Reward", vime_episode_reward)
             vime_kldiv_summary = tf.summary.scalar("KL", vime_kldiv)
-            vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_kldiv * ETA)
+            vime_reward = tf.placeholder(tf.float32)
+            vime_rewards_summary = tf.summary.scalar("Vime Rewards", vime_reward)
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
             vime_posterior_loss_summary = tf.summary.scalar("Vime Posterior Loss", vime_posterior_loss)
+            vime_kls = deque()
 
         sess.run(tf.global_variables_initializer())
         sess.run(sync_vars)
@@ -307,8 +310,15 @@ with tf.Graph().as_default():
                     actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
                     targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
                     _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
-                    kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
-                    r_t += ETA * kldiv
+                    kldiv = sess.run(vime_kldiv)
+                    reward_to_give = kldiv
+                    vime_kls.append(reward_to_give)
+                    if len(vime_kls) > 1000:
+                        vime_kls.popleft()
+                    reward_to_give *= ETA
+                    reward_to_give /= np.median(vime_kls)
+                    kldiv_summary, vime_reward_summary = sess.run([vime_kldiv_summary, vime_rewards_summary], feed_dict={vime_reward: reward_to_give})
+                    r_t += reward_to_give
                     vime_ep_reward += r_t
 
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
