@@ -18,38 +18,38 @@ def model(name="Exploration_Model", size=1, actions=4):
 
         print("Input: {0}x{0}x{1}".format(img_size, 1))
 
-        l1 = Bayesian_Conv(1, 8, filter_height=3, filter_width=3, filter_stride=2)
+        l1 = Bayesian_Conv(1, 4, filter_height=3, filter_width=3, filter_stride=2)
         img_size = tf_conv_size(img_size, 3, 2)
         img_size_after_l1 = img_size
 
-        print("Conv: {0}x{0}x{1}".format(img_size, 8))
+        print("Conv: {0}x{0}x{1}".format(img_size, 4))
 
-        l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=1)
-        img_size = tf_conv_size(img_size, 3, 1)
-        print("Conv: {0}x{0}x{1}".format(img_size, 8))
+        # l2 = Bayesian_Conv(8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        # img_size = tf_conv_size(img_size, 3, 1)
+        # print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        flattened_image_size = img_size * img_size * 8
+        flattened_image_size = img_size * img_size * 4
         l3 = Bayesian_FC(int(flattened_image_size + actions), int(flattened_image_size))
         print("FC: {0} -> {1}".format(flattened_image_size + actions, flattened_image_size))
-        print("Reshape: {0} -> {1}x{1}x{2}".format(flattened_image_size, img_size, 8))
+        print("Reshape: {0} -> {1}x{1}x{2}".format(flattened_image_size, img_size, 4))
 
-        l4 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
-        print("DeConv: {0}x{0}x{1}".format(img_size_after_l1, 8))
+        # l4 = Bayesian_DeConv((int(img_size_after_l1), int(img_size_after_l1)), 8, 8, filter_height=3, filter_width=3, filter_stride=1)
+        # print("DeConv: {0}x{0}x{1}".format(img_size_after_l1, 8))
 
-        l5 = Bayesian_DeConv((int(size * 7), int(size * 7)), 8, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
+        l5 = Bayesian_DeConv((int(size * 7), int(size * 7)), 4, 1, filter_height=3, filter_width=3, filter_stride=2, activation=tf.nn.sigmoid)
         print("DeConv: {0}x{0}x{1}".format(size * 7, 1))
         print()
 
         def sample(local_reparam_trick=False):
             net = l1.sample(inputs, local_reparam_trick)
-            net = l2.sample(net, local_reparam_trick)
+            # net = l2.sample(net, local_reparam_trick)
             # Flatten image to put through fc layer
             net = tf.reshape(net, shape=[-1, int(flattened_image_size)])
             net = tf.concat_v2([net, action], 1)
             net = l3.sample(net, local_reparam_trick)
             # Unflatten to deconv
-            net = tf.reshape(net, shape=[-1, int(img_size), int(img_size), 8])
-            net = l4.sample(net, local_reparam_trick)
+            net = tf.reshape(net, shape=[-1, int(img_size), int(img_size), 4])
+            # net = l4.sample(net, local_reparam_trick)
             net = l5.sample(net, local_reparam_trick)
             # Model learns S_{t+1} - S_{t}, the difference between states
             # return net + inputs
@@ -58,9 +58,9 @@ def model(name="Exploration_Model", size=1, actions=4):
         def bnet_prob(pred, target):
             return log_gaussian_pdf(pred, target, 0.1)
 
-        bayesian_net = Bayesian_Net([l1, l2, l3, l4, l5], bnet_prob)
+        bayesian_net = Bayesian_Net([l1, l3, l5], bnet_prob)
 
-        bnet_loss, kl_loss, data_loss = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=8)
+        bnet_loss, kl_loss, data_loss = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=4)
         bnet_loss_posterior, _, _ = bayesian_net.loss(sample, target, kl_scaling=kl_scaling, N=2, original_prior=False)
         bnet_output = sample(local_reparam_trick=False)
         set_params = bayesian_net.copy_variational_parameters()

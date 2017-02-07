@@ -7,38 +7,39 @@ import datetime
 import os
 import json
 from collections import deque
+from math import sqrt
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
 # Todo: Make this friendlier
-from Models.DQN_Maze_v2 import model
-from Models.VIME_Maze_v2 import model as exploration_model
+from Models.DQN_Maze import model
+from Models.VIME_Maze import model as exploration_model
 # import gym_minecraft
 import Envs
 
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-3-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-3-v1", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
+flags.DEFINE_float("lr", 0.00001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(8e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
+flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
-flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("summary", 1, "After how many steps to log summary info")
+flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
@@ -47,6 +48,9 @@ flags.DEFINE_float("eta", 1.0, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_iters", 50, "Number of iterations to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
+flags.DEFINE_boolean("pseudo", False, "PseudoCount bonuses or not")
+flags.DEFINE_integer("n", 10, "Number of steps for n-step Q-Learning")
+flags.DEFINE_float("beta", 0.05, "Beta for pseudocounts")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -80,6 +84,9 @@ VIME = FLAGS.vime
 VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
 RANDOM_AGENT = FLAGS.rnd
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
+N_STEPS = FLAGS.n
+PSEDUOCOUNT = FLAGS.pseudo
+BETA = FLAGS.beta
 if FLAGS.ckpt != "":
     RESTORE = True
     CHECKPOINT = FLAGS.ckpt
@@ -186,12 +193,20 @@ with tf.Graph().as_default():
 
             vime_grad_vars = vime_optimizer.compute_gradients(vime_loss)
             vime_clipped, vime_grad_norm = clip_grads(vime_grad_vars, CLIP_VALUE)
-            vime_grad_norm_summary = tf.summary.scalar("Vime Gradients Norm", vime_grad_norm)
+            vime_grad_norm_summary = tf.summary.scalar("Vime_Gradients_Norm", vime_grad_norm)
             vime_minimise_op = vime_optimizer.apply_gradients(vime_clipped)
 
             vime_posterior_grads = vime_optimizer.compute_gradients(vime_posterior_loss)
             vime_posterior_clipped, vime_posterior_grad_norm = clip_grads(vime_posterior_grads, CLIP_VALUE)
             vime_posterior_minimise_op = vime_optimizer.apply_gradients(vime_posterior_clipped)
+
+        if PSEDUOCOUNT:
+            # We will cheat a bit and use tabular counting to begin with
+            state_counter = {}
+            count_bonus = tf.placeholder(tf.float32)
+            count_bonus_summary = tf.summary.scalar("Pseudocount_Bonus", count_bonus)
+            count_episode = tf.placeholder(tf.float32)
+            count_episode_summary = tf.summary.scalar("Count Episode Reward", count_episode)
 
         T = 1
         episode = 1
@@ -220,6 +235,7 @@ with tf.Graph().as_default():
             vime_loss_summary = tf.summary.scalar("Vime Loss", vime_loss)
             vime_posterior_loss_summary = tf.summary.scalar("Vime Posterior Loss", vime_posterior_loss)
             vime_kls = deque()
+            # vime_kls.append(1.0)
 
         sess.run(tf.global_variables_initializer())
         sess.run(sync_vars)
@@ -279,6 +295,8 @@ with tf.Graph().as_default():
             ep_reward = 0
             if VIME:
                 vime_ep_reward = 0
+            if PSEDUOCOUNT:
+                count_ep_reward = 0
             while not episode_finished:
 
                 # Random agent
@@ -316,10 +334,30 @@ with tf.Graph().as_default():
                     if len(vime_kls) > 1000:
                         vime_kls.popleft()
                     reward_to_give *= ETA
-                    reward_to_give /= np.median(vime_kls)
+                    reward_to_give /= max(np.median(vime_kls), 1e-4)
                     kldiv_summary, vime_reward_summary = sess.run([vime_kldiv_summary, vime_rewards_summary], feed_dict={vime_reward: reward_to_give})
                     r_t += reward_to_give
                     vime_ep_reward += r_t
+
+                if PSEDUOCOUNT:
+                    # Super hard-coded for the maze
+                    # s_t_3 = s_t * 3
+                    # s_t_3 = np.rint(s_t_3)
+                    # s_t_3 = np.array(s_t_3, dtype=np.int8)
+                    # s_t_3_list = [element[0] for columns in s_t_3 for element in columns]
+                    player_pos = np.argwhere(s_t>0.9)[0]
+                    goals_left = (abs(s_t - 0.6666) < 0.1).sum()
+                    state_str = (player_pos[0], player_pos[1], goals_left)
+                    # print(state_str)
+                    if state_str not in state_counter:
+                        state_counter[state_str] = 1
+                    else:
+                        state_counter[state_str] += 1
+
+                    bonus = BETA / sqrt(state_counter[state_str])
+                    r_t += bonus
+                    count_ep_reward += r_t
+                    count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
 
                 replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
                 s_t = s_new
@@ -367,6 +405,9 @@ with tf.Graph().as_default():
                         writer.add_summary(kldiv_summary, global_step=T)
                         writer.add_summary(vime_reward_summary, global_step=T)
 
+                    if PSEDUOCOUNT:
+                        writer.add_summary(count_bonus_summary_val, global_step=T)
+
                 if T % CHECKPOINT_INTERVAL == 0:
                     saver.save(sess=sess, save_path="{}/ckpts/vars-{}.ckpt".format(LOGDIR, T))
 
@@ -378,8 +419,14 @@ with tf.Graph().as_default():
             if VIME:
                 vr_summary = sess.run(vime_episode_reward_summary, feed_dict={vime_episode_reward: vime_ep_reward})
                 writer.add_summary(vr_summary, global_step=T)
+            if PSEDUOCOUNT:
+                c_summary = sess.run(count_episode_summary, feed_dict={count_episode: count_ep_reward})
+                writer.add_summary(c_summary, global_step=T)
 
             episode += 1
+
+            if PSEDUOCOUNT:
+                print("Size of state counter: {}____".format(len(state_counter)))
 
             if VIME:
                 sess.run(vime_revert_to_baseline)

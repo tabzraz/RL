@@ -10,19 +10,23 @@ def model(name="Model", size=1, actions=4):
         img_size = size * 7
         print("Input: {0}x{0}x{1}".format(size * 7, 1))
 
-        net = tflearn.conv_2d(inputs, 8, 3, 2, activation="relu", padding="valid", name="Conv1")
+        net = tflearn.conv_2d(inputs, nb_filter=8, filter_size=3, strides=2, activation="relu", padding="same", name="Conv_1")
         img_size = tf_conv_size(img_size, 3, 2)
         print("Conv: {0}x{0}x{1}".format(img_size, 8))
 
-        net = tflearn.conv_2d(net, 8, 3, 1, activation="relu", padding="valid", name="Conv2")
+        net = tflearn.conv_2d(inputs, nb_filter=4, filter_size=3, strides=1, activation="relu", padding="same", name="Conv_2")
         img_size = tf_conv_size(img_size, 3, 1)
-        print("Conv: {0}x{0}x{1}".format(img_size, 8))
+        print("Conv: {0}x{0}x{1}".format(img_size, 4))
 
-        net = tflearn.fully_connected(net, img_size * img_size * 4, activation="relu")
-        print("FC: {0} -> {1}".format(img_size * img_size * 8, img_size * img_size * 4))
+        # net = tflearn.conv_2d(inputs, nb_filter=4, filter_size=3, strides=1, activation="relu", padding="same", name="Conv_3")
+        # img_size = tf_conv_size(img_size, 3, 1)
+        # print("Conv: {0}x{0}x{1}".format(img_size, 4))
+
+        net = tflearn.fully_connected(net, img_size * img_size * 2, activation="relu")
+        print("FC: {0} -> {1}".format(img_size * img_size * 4, img_size * img_size * 2))
 
         q_values = tflearn.fully_connected(net, actions, activation="linear")
-        print("FC: {0} -> {1}".format(img_size * img_size * 4, actions))
+        print("FC: {0} -> {1}".format(img_size * img_size * 2, actions))
         print()
         # Dont need dueling yet
         # v_stream = tflearn.fully_connected(net, ceil(img_size/2), activation="relu")

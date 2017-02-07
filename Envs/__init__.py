@@ -42,7 +42,12 @@ register(
 )
 
 for s in range(15):
-
+    register(
+            id="Maze-{}-v1".format(s),
+            entry_point="Envs.MazeEnv_Corners:MazeEnv",
+            kwargs={'size': (s, s)},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': s*s*7*7*3},
+    )
     register(
             id="Maze-{}-v0".format(s),
             entry_point="Envs.MazeEnv:MazeEnv",
