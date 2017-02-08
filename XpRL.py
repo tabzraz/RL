@@ -31,20 +31,20 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
-flags.DEFINE_integer("summary", 1, "After how many steps to log summary info")
+flags.DEFINE_integer("summary", 5, "After how many steps to log summary info")
 flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 1.0, "How much to scale the VIME rewards")
+flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_iters", 50, "Number of iterations to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
@@ -345,8 +345,9 @@ with tf.Graph().as_default():
                     # s_t_3 = np.rint(s_t_3)
                     # s_t_3 = np.array(s_t_3, dtype=np.int8)
                     # s_t_3_list = [element[0] for columns in s_t_3 for element in columns]
-                    player_pos = np.argwhere(s_t>0.9)[0]
-                    goals_left = (abs(s_t - 0.6666) < 0.1).sum()
+                    count_state = s_new
+                    player_pos = np.argwhere(count_state > 0.9)[0]
+                    goals_left = (abs(count_state - 0.6666) < 0.1).sum()
                     state_str = (player_pos[0], player_pos[1], goals_left)
                     # print(state_str)
                     if state_str not in state_counter:
@@ -426,6 +427,7 @@ with tf.Graph().as_default():
             episode += 1
 
             if PSEDUOCOUNT:
+                # TODO: Log this if possible
                 print("Size of state counter: {}____".format(len(state_counter)))
 
             if VIME:
