@@ -19,22 +19,22 @@ import Envs
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-3-v1", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-2-v1", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.00001, "Initial Learning Rate")
+flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(6e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
@@ -442,8 +442,28 @@ with tf.Graph().as_default():
                     writer.add_summary(vime_loss_summary_val, global_step=T)
                     writer.add_summary(vime_norm_summary_val, global_step=T)
 
+        # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+        print("Running final episode evaluation")
+        eval_writer = tf.summary.FileWriter("{}/tb_logs/dqn_eval".format(LOGDIR), graph=sess.graph)
+        s = env.reset()
+        steps = 0
+        cumulative_reward = 0
+        reward_tensor = tf.placeholder(tf.float32)
+        c_reward_summay = tf.summary.scalar("Reward Over Episode", reward_tensor)
+        terminated = False
+        while not terminated:
+            q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s]})
+            a = np.argmax(q_vals[0, :])
+            sn, r, terminated, _ = env.step(a)
+            s = sn
+            steps += 1
+            cumulative_reward += r
+            c_r_s_v = sess.run(c_reward_summay, {reward_tensor: cumulative_reward})
+            eval_writer.add_summary(qvals_summary, global_step=steps)
+            eval_writer.add_summary(c_r_s_v, global_step=steps)
 
-            # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+
+
         if RENDER:
             env.render(close=True)
 
