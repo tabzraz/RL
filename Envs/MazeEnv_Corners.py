@@ -108,12 +108,19 @@ class MazeEnv(gym.Env):
         for x in range(maze.shape[0]):
             for y in range(maze.shape[1]):
                 if maze[x, y] != 0:
-                    if maze[x, y] == 1:
-                        colour = (255, 0, 0)
-                    elif maze[x, y] == 2:
-                        colour = (0, 255, 0)
-                    elif maze[x, y] == 3:
-                        colour = (0, 0, 255)
+                    colour = (255 * maze[x, y] / 3, 255 * maze[x, y] / 3, 255 * maze[x, y] / 3)
+                    # colour = (255 - colour[0], 255 - colour[1], 255 - colour[2])
                     pygame.draw.rect(self.screen, colour, (y * 20, x * 20, 20, 20))
+
+        # for x in range(maze.shape[0]):
+        #     for y in range(maze.shape[1]):
+        #         if maze[x, y] != 0:
+        #             if maze[x, y] == 1:
+        #                 colour = (255, 0, 0)
+        #             elif maze[x, y] == 2:
+        #                 colour = (0, 255, 0)
+        #             elif maze[x, y] == 3:
+        #                 colour = (0, 0, 255)
+        #             pygame.draw.rect(self.screen, colour, (y * 20, x * 20, 20, 20))
 
         pygame.display.update()

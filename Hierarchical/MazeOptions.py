@@ -72,7 +72,7 @@ class MazeOptions:
             beta = 1.0
         elif action_to_take == 2 and player_pos[1] == 6:
             beta = 1.0
-        elif action_to_take == 3 and player_pos[1] == 0:
+        elif action_to_take == 3 and player_pos[0] == 0:
             beta = 1.0
 
         return action_to_take, beta

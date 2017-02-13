@@ -6,18 +6,19 @@ import time
 import datetime
 import os
 import json
+from math import sqrt
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay_Options import ExperienceReplay_Options as ExperienceReplay
 # Todo: Make this friendlier
-from Models.DQN_Maze_v2 import model
-from Models.VIME_Maze_v2 import model as exploration_model
+from Models.DQN_Maze import model
+from Models.VIME_Maze import model as exploration_model
 from Hierarchical.MazeOptions import MazeOptions
 import Envs
 
 # Things still to implement
 
 flags = tf.app.flags
-flags.DEFINE_string("env", "Maze-4-v0", "Environment name for OpenAI gym")
+flags.DEFINE_string("env", "Maze-2-v1", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
@@ -26,26 +27,29 @@ flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("grad_clip", 50, "Clips gradients by their norm")
+flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
-flags.DEFINE_float("epsilon_finish", 0.01, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(16e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
+flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
-flags.DEFINE_integer("summary", 10, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(5e4), "Number of steps to randomly explore for")
+flags.DEFINE_integer("summary", 5, "After how many steps to log summary info")
+flags.DEFINE_integer("exp_steps", int(10e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
 flags.DEFINE_integer("posterior_iters", 1, "Number of times to run gradient descent for calculating new posterior from old posterior")
-flags.DEFINE_float("eta", 1.0, "How much to scale the VIME rewards")
+flags.DEFINE_float("eta", 0.1, "How much to scale the VIME rewards")
 flags.DEFINE_integer("vime_iters", 50, "Number of iterations to optimise the variational baseline for VIME")
 flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
+flags.DEFINE_boolean("pseudo", False, "PseudoCount bonuses or not")
+flags.DEFINE_integer("n", 10, "Number of steps for n-step Q-Learning")
+flags.DEFINE_float("beta", 0.05, "Beta for pseudocounts")
 flags.DEFINE_boolean("slow", False, "Slow down the loop")
 
 FLAGS = flags.FLAGS
@@ -81,17 +85,20 @@ VIME = FLAGS.vime
 VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
 RANDOM_AGENT = FLAGS.rnd
 CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
+N_STEPS = FLAGS.n
+PSEDUOCOUNT = FLAGS.pseudo
+BETA = FLAGS.beta
+SLOW = FLAGS.slow
 if FLAGS.ckpt != "":
     RESTORE = True
     CHECKPOINT = FLAGS.ckpt
 else:
     RESTORE = False
 EXPLORATION_STEPS = FLAGS.exp_steps
+LOGNAME = "Logs"
 if FLAGS.logdir != "":
-    LOGDIR = FLAGS.logdir
-else:
-    LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-
+    LOGNAME = FLAGS.logdir
+LOGDIR = "{}/{}_{}".format(LOGNAME, NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 if not os.path.exists("{}/ckpts/".format(LOGDIR)):
     os.makedirs("{}/ckpts".format(LOGDIR))
 
@@ -139,7 +146,8 @@ tf.set_random_seed(SEED)
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
-    with tf.Session(config=config) as sess:
+        sess = tf.Session(config=config)
+    # with tf.Session(config=config) as sess:
 
         print("\n-------Models-------")
         # DQN
@@ -197,6 +205,14 @@ with tf.Graph().as_default():
             vime_posterior_grads = vime_optimizer.compute_gradients(vime_posterior_loss)
             vime_posterior_clipped, vime_posterior_grad_norm = clip_grads(vime_posterior_grads, CLIP_VALUE)
             vime_posterior_minimise_op = vime_optimizer.apply_gradients(vime_posterior_clipped)
+
+        if PSEDUOCOUNT:
+            # We will cheat a bit and use tabular counting to begin with
+            state_counter = {}
+            count_bonus = tf.placeholder(tf.float32)
+            count_bonus_summary = tf.summary.scalar("Pseudocount_Bonus", count_bonus)
+            count_episode = tf.placeholder(tf.float32)
+            count_episode_summary = tf.summary.scalar("Count Episode Reward", count_episode)
 
         T = 1
         episode = 1
@@ -288,7 +304,7 @@ with tf.Graph().as_default():
             if RENDER:
                 env.render()
                 if SLOW:
-                    time.sleep(1)
+                    time.sleep(0.1)
             episode_finished = False
 
             epsilon = EPSILON_FINISH + (EPSILON_START - EPSILON_FINISH) * max(((EPSILON_STEPS - T) / EPSILON_STEPS), 0)
@@ -314,6 +330,8 @@ with tf.Graph().as_default():
             ep_reward = 0
             if VIME:
                 vime_ep_reward = 0
+            if PSEDUOCOUNT:
+                count_ep_reward = 0
             while not episode_finished:
 
                 # Random agent
@@ -333,7 +351,7 @@ with tf.Graph().as_default():
                         option_action = np.argmax(q_vals[0, :])
                     MAZE_OPTIONS.choose_option(option_action)
                     option_reward = 0
-                    option_steps = 1
+                    option_steps = 0
                     option_chosen = True
 
                 # Act wrt option
@@ -345,7 +363,7 @@ with tf.Graph().as_default():
                 if RENDER:
                     env.render()
                     if SLOW:
-                        time.sleep(1)
+                        time.sleep(0.1)
                 ep_reward += r_t
 
                 if not option_chosen or episode_finished:
@@ -361,12 +379,34 @@ with tf.Graph().as_default():
                         targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
                         _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
                         kldiv, kldiv_summary, vime_reward_summary = sess.run([vime_kldiv, vime_kldiv_summary, vime_rewards_summary])
-                        r_t += ETA * kldiv
-                        vime_ep_reward += r_t
+                        option_reward += ETA * kldiv
+                        vime_ep_reward += option_reward
 
                         writer.add_summary(vime_posterior_loss_summary_value, global_step=T)
                         writer.add_summary(kldiv_summary, global_step=T)
                         writer.add_summary(vime_reward_summary, global_step=T)
+
+                    if PSEDUOCOUNT:
+                        # Super hard-coded for the maze
+                        # s_t_3 = s_t * 3
+                        # s_t_3 = np.rint(s_t_3)
+                        # s_t_3 = np.array(s_t_3, dtype=np.int8)
+                        # s_t_3_list = [element[0] for columns in s_t_3 for element in columns]
+                        count_state = s_t
+                        player_pos = np.argwhere(count_state > 0.9)[0]
+                        goals_left = (abs(count_state - 0.6666) < 0.1).sum()
+                        state_str = (player_pos[0], player_pos[1], goals_left)
+                        # print(state_str)
+                        if state_str not in state_counter:
+                            state_counter[state_str] = 1
+                        else:
+                            state_counter[state_str] += 1
+
+                        bonus = BETA / sqrt(state_counter[state_str])
+                        option_reward += bonus
+                        count_ep_reward += option_reward
+                        count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
+                        writer.add_summary(count_bonus_summary_val, global_step=T)
 
                     replay.Add_Exp(option_state, option_action, option_reward, s_new, option_steps, episode_finished)
                     option_state = s_new
@@ -422,6 +462,9 @@ with tf.Graph().as_default():
             if VIME:
                 vr_summary = sess.run(vime_episode_reward_summary, feed_dict={vime_episode_reward: vime_ep_reward})
                 writer.add_summary(vr_summary, global_step=T)
+            if PSEDUOCOUNT:
+                c_summary = sess.run(count_episode_summary, feed_dict={count_episode: count_ep_reward})
+                writer.add_summary(c_summary, global_step=T)
 
             episode += 1
 
@@ -439,8 +482,51 @@ with tf.Graph().as_default():
                     writer.add_summary(vime_loss_summary_val, global_step=T)
                     writer.add_summary(vime_norm_summary_val, global_step=T)
 
+        # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+        print("\nRunning final episode evaluation")
+        eval_writer = tf.summary.FileWriter("{}/tb_logs/dqn_eval".format(LOGDIR), graph=sess.graph)
+        option_state = env.reset()
+        steps = 0
+        cumulative_reward = 0
+        reward_tensor = tf.placeholder(tf.float32)
+        c_reward_summay = tf.summary.scalar("Reward Over Episode", reward_tensor)
+        terminated = False
+        states_to_save = [option_state]
+        option_chosen = False
+        while not terminated:
 
-            # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
+            if not option_chosen:
+                q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [option_state]})
+                option_action = np.argmax(q_vals[0, :])
+                MAZE_OPTIONS.choose_option(option_action)
+                # option_reward = 0
+                # option_steps = 1
+                option_chosen = True
+
+            # Act wrt option
+            action, beta = MAZE_OPTIONS.act()
+            s_new, r_t, terminated, _ = env.step(action)
+            # option_steps += 1
+            steps += 1
+            cumulative_reward += r_t
+            option_chosen = np.random.binomial(1, p=1 - beta) == 1
+
+            if not option_chosen:
+                option_state = s_new
+                states_to_save.append(s_new)
+                # if s_new == states_to_save[-2]:
+                    # Same state again => repeat behaviour
+                    # terminated = True
+
+            c_r_s_v = sess.run(c_reward_summay, {reward_tensor: cumulative_reward})
+            eval_writer.add_summary(qvals_summary, global_step=steps)
+            eval_writer.add_summary(c_r_s_v, global_step=steps)
+
+        states_to_save_tensor = tf.placeholder(tf.float32, shape=[len(states_to_save), env.shape[0] * 7, env.shape[0] * 7, 1])
+        states_summary = tf.summary.image("States", states_to_save_tensor, max_outputs=len(states_to_save))
+        states_summary_value = sess.run(states_summary, {states_to_save_tensor: states_to_save})
+        eval_writer.add_summary(states_summary_value)
+
         if RENDER:
             env.render(close=True)
 

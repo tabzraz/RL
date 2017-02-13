@@ -2,6 +2,7 @@ from __future__ import division, print_function
 import numpy as np
 import gym
 import tensorflow as tf
+import tflearn
 import time
 import datetime
 import os
@@ -25,7 +26,7 @@ flags.DEFINE_string("name", "nn", "The name of the model")
 flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", int(1e5), "Number of frames to act for")
+flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
 flags.DEFINE_integer("episodes", 100, "Number of episodes to act for")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
@@ -34,12 +35,12 @@ flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(6e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
 flags.DEFINE_integer("summary", 5, "After how many steps to log summary info")
-flags.DEFINE_integer("exp_steps", int(1e5), "Number of steps to randomly explore for")
+flags.DEFINE_integer("exp_steps", int(1e4), "Number of steps to randomly explore for")
 flags.DEFINE_boolean("render", False, "Render environment or not")
 flags.DEFINE_string("ckpt", "", "Model checkpoint to restore")
 flags.DEFINE_boolean("vime", False, "Whether to add VIME style exploration bonuses")
@@ -137,13 +138,14 @@ print("--------------------\n")
 # TODO: Prioritized experience replay
 replay = ExperienceReplay(XP_SIZE)
 
-# Seed numpy and tensorflow
-np.random.seed(SEED)
-tf.set_random_seed(SEED)
-
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 with tf.Graph().as_default():
+        # Seed numpy and tensorflow
+        np.random.seed(SEED)
+        tf.set_random_seed(SEED)
+        # tflearn.config.init_graph(seed=SEED)
+
         sess = tf.Session(config=config)
     # with tf.Session(config=config) as sess:
 
@@ -162,6 +164,7 @@ with tf.Graph().as_default():
         dqn_actions = dqn["Actions"]
         dqn_summary_loss = dqn["Loss_Summary"]
         dqn_summary_qvals = dqn["QVals_Summary"]
+
 
         with tf.name_scope("Start_State"):
             start_qvals = []
@@ -239,6 +242,9 @@ with tf.Graph().as_default():
 
         sess.run(tf.global_variables_initializer())
         sess.run(sync_vars)
+        #Testing init
+        # weights = sess.run(dqn_vars)
+        # print(weights)
 
         saver = tf.train.Saver(max_to_keep=None)
 
@@ -345,7 +351,7 @@ with tf.Graph().as_default():
                     # s_t_3 = np.rint(s_t_3)
                     # s_t_3 = np.array(s_t_3, dtype=np.int8)
                     # s_t_3_list = [element[0] for columns in s_t_3 for element in columns]
-                    count_state = s_new
+                    count_state = s_t
                     player_pos = np.argwhere(count_state > 0.9)[0]
                     goals_left = (abs(count_state - 0.6666) < 0.1).sum()
                     state_str = (player_pos[0], player_pos[1], goals_left)
@@ -426,9 +432,9 @@ with tf.Graph().as_default():
 
             episode += 1
 
-            if PSEDUOCOUNT:
-                # TODO: Log this if possible
-                print("Size of state counter: {}____".format(len(state_counter)))
+            # if PSEDUOCOUNT:
+                # # TODO: Log this if possible
+                # print("Size of state counter: {}____".format(len(state_counter)))
 
             if VIME:
                 sess.run(vime_revert_to_baseline)
@@ -445,7 +451,7 @@ with tf.Graph().as_default():
                     writer.add_summary(vime_norm_summary_val, global_step=T)
 
         # TODO: Evaluation episodes with just greedy policy, track qvalues over the episode
-        print("Running final episode evaluation")
+        print("\nRunning final episode evaluation")
         eval_writer = tf.summary.FileWriter("{}/tb_logs/dqn_eval".format(LOGDIR), graph=sess.graph)
         s = env.reset()
         steps = 0
@@ -453,18 +459,26 @@ with tf.Graph().as_default():
         reward_tensor = tf.placeholder(tf.float32)
         c_reward_summay = tf.summary.scalar("Reward Over Episode", reward_tensor)
         terminated = False
+        states_to_save = [s]
         while not terminated:
             q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s]})
             a = np.argmax(q_vals[0, :])
             sn, r, terminated, _ = env.step(a)
+            states_to_save.append(sn)
             s = sn
+            # if sn == states_to_save[-2]:
+                # Same state again => repeat behaviour
+                # terminated = True
             steps += 1
             cumulative_reward += r
             c_r_s_v = sess.run(c_reward_summay, {reward_tensor: cumulative_reward})
             eval_writer.add_summary(qvals_summary, global_step=steps)
             eval_writer.add_summary(c_r_s_v, global_step=steps)
 
-
+        states_to_save_tensor = tf.placeholder(tf.float32, shape=[len(states_to_save), env.shape[0] * 7, env.shape[0] * 7, 1])
+        states_summary = tf.summary.image("States", states_to_save_tensor, max_outputs=len(states_to_save))
+        states_summary_value = sess.run(states_summary, {states_to_save_tensor: states_to_save})
+        eval_writer.add_summary(states_summary_value)
 
         if RENDER:
             env.render(close=True)
