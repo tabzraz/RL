@@ -2,15 +2,16 @@ from __future__ import division, print_function
 import numpy as np
 import gym
 import tensorflow as tf
-import tflearn
 import time
 import datetime
 import os
 import json
 from collections import deque
-from math import sqrt
+from math import sqrt, log
+import dill
 from Misc.Gradients import clip_grads
 from Replay.ExpReplay import ExperienceReplay
+import Exploration.CTS as CTS
 # Todo: Make this friendlier
 from Models.DQN_Maze import model
 from Models.VIME_Maze import model as exploration_model
@@ -32,7 +33,7 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(5e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
 flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
@@ -51,7 +52,7 @@ flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
 flags.DEFINE_boolean("pseudo", False, "PseudoCount bonuses or not")
 flags.DEFINE_integer("n", 10, "Number of steps for n-step Q-Learning")
-flags.DEFINE_float("beta", 0.05, "Beta for pseudocounts")
+flags.DEFINE_float("beta", 0.10, "Beta for pseudocounts")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -165,7 +166,6 @@ with tf.Graph().as_default():
         dqn_summary_loss = dqn["Loss_Summary"]
         dqn_summary_qvals = dqn["QVals_Summary"]
 
-
         with tf.name_scope("Start_State"):
             start_qvals = []
             for i in range(ACTIONS):
@@ -205,7 +205,9 @@ with tf.Graph().as_default():
 
         if PSEDUOCOUNT:
             # We will cheat a bit and use tabular counting to begin with
-            state_counter = {}
+            # state_counter = {}
+            # Cts model
+            cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
             count_bonus = tf.placeholder(tf.float32)
             count_bonus_summary = tf.summary.scalar("Pseudocount_Bonus", count_bonus)
             count_episode = tf.placeholder(tf.float32)
@@ -243,6 +245,8 @@ with tf.Graph().as_default():
         sess.run(tf.global_variables_initializer())
         sess.run(sync_vars)
         #Testing init
+        # for i in range(100):
+            # print(np.random.random())
         # weights = sess.run(dqn_vars)
         # print(weights)
 
@@ -266,6 +270,14 @@ with tf.Graph().as_default():
                 replay.Add_Exp(s, a, r, sn, terminated)
                 s = sn
                 e_steps += 1
+
+        # if PSEDUOCOUNT:
+        #     batch = replay.Sample(100)
+        #     states = list(map(lambda tups: tups[0], batch))
+        #     log_prob = 0
+        #     for s in states:
+        #         log_prob += cts_model.update(s)
+        #     print('Loss (in bytes per frame): {:.2f}'.format(-log_prob / log(2) / 8 / 100))
 
         print("Exploratory phase finished, starting learning")
         start_time = time.time()
@@ -319,55 +331,64 @@ with tf.Graph().as_default():
                 else:
                     action = np.argmax(q_vals[0, :])
 
-                s_new, r_t, episode_finished, _ = env.step(action)
+                s_new, r_t, episode_finished, info_dict = env.step(action)
                 if RENDER:
                     env.render()
-                ep_reward += r_t
+                if "Steps_Termination" not in info_dict:
+                    # We have taken too long in the environment, so the episode is ending
+                    # We do NOT want to show this transition to the agent
+                    # print("Step Termination seen")
+                    ep_reward += r_t
 
-                if VIME:
-                    sess.run(vime_set_variational_params)
-                    # Compute posterior
-                    one_hot_action = np.zeros(ACTIONS)
-                    one_hot_action[action] = 1
-                    # TODO: Use Hessian
-                    states = [s_t for _ in range(VIME_POSTERIOR_ITERS)]
-                    actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
-                    targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
-                    _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
-                    kldiv = sess.run(vime_kldiv)
-                    reward_to_give = kldiv
-                    vime_kls.append(reward_to_give)
-                    if len(vime_kls) > 1000:
-                        vime_kls.popleft()
-                    reward_to_give *= ETA
-                    reward_to_give /= max(np.median(vime_kls), 1e-4)
-                    kldiv_summary, vime_reward_summary = sess.run([vime_kldiv_summary, vime_rewards_summary], feed_dict={vime_reward: reward_to_give})
-                    r_t += reward_to_give
-                    vime_ep_reward += r_t
+                    if VIME:
+                        sess.run(vime_set_variational_params)
+                        # Compute posterior
+                        one_hot_action = np.zeros(ACTIONS)
+                        one_hot_action[action] = 1
+                        # TODO: Use Hessian
+                        states = [s_t for _ in range(VIME_POSTERIOR_ITERS)]
+                        actions = [one_hot_action for _ in range(VIME_POSTERIOR_ITERS)]
+                        targets = [s_new for _ in range(VIME_POSTERIOR_ITERS)]
+                        _, vime_posterior_loss_summary_value = sess.run([vime_posterior_minimise_op, vime_posterior_loss_summary], feed_dict={vime_input: states, vime_action: actions, vime_target: targets, vime_kl_scaling: VIME_POSTERIOR_ITERS * 1.0})
+                        kldiv = sess.run(vime_kldiv)
+                        reward_to_give = kldiv
+                        vime_kls.append(reward_to_give)
+                        if len(vime_kls) > 1000:
+                            vime_kls.popleft()
+                        reward_to_give *= ETA
+                        reward_to_give /= max(np.median(vime_kls), 1e-4)
+                        kldiv_summary, vime_reward_summary = sess.run([vime_kldiv_summary, vime_rewards_summary], feed_dict={vime_reward: reward_to_give})
+                        r_t += reward_to_give
+                        vime_ep_reward += r_t
 
-                if PSEDUOCOUNT:
-                    # Super hard-coded for the maze
-                    # s_t_3 = s_t * 3
-                    # s_t_3 = np.rint(s_t_3)
-                    # s_t_3 = np.array(s_t_3, dtype=np.int8)
-                    # s_t_3_list = [element[0] for columns in s_t_3 for element in columns]
-                    count_state = s_t
-                    player_pos = np.argwhere(count_state > 0.9)[0]
-                    goals_left = (abs(count_state - 0.6666) < 0.1).sum()
-                    state_str = (player_pos[0], player_pos[1], goals_left)
-                    # print(state_str)
-                    if state_str not in state_counter:
-                        state_counter[state_str] = 1
-                    else:
-                        state_counter[state_str] += 1
+                    if PSEDUOCOUNT:
+                        # Super hard-coded for the maze
+                        # count_state = s_t
+                        # player_pos = np.argwhere(count_state > 0.9)[0]
+                        # goals_left = (abs(count_state - 0.6666) < 0.1).sum()
+                        # state_str = (player_pos[0], player_pos[1], goals_left)
+                        # # print(state_str)
+                        # if state_str not in state_counter:
+                        #     state_counter[state_str] = 1
+                        # else:
+                        #     state_counter[state_str] += 1
+                        # bonus = BETA / sqrt(state_counter[state_str])
 
-                    bonus = BETA / sqrt(state_counter[state_str])
-                    r_t += bonus
-                    count_ep_reward += r_t
-                    count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
+                        rho_old = np.exp(cts_model.update(s_t))
+                        # cts_model.update(s_t)
+                        rho_new = np.exp(cts_model.log_prob(s_t))
+                        # print(rho_old, " ,", rho_new)
+                        pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+                        pseudo_count = max(pseudo_count, 0)  # Hack
+                        # print(pseudo_count)
+                        bonus = BETA / sqrt(pseudo_count + 0.01)
 
-                replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
-                s_t = s_new
+                        r_t += bonus
+                        count_ep_reward += r_t
+                        count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
+
+                    replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
+                    s_t = s_new
 
                 batch = replay.Sample(BATCH_SIZE)
                 # Create targets from the batch
@@ -462,7 +483,10 @@ with tf.Graph().as_default():
         states_to_save = [s]
         while not terminated:
             q_vals, qvals_summary = sess.run([dqn_qvals, dqn_summary_qvals], feed_dict={dqn_inputs: [s]})
-            a = np.argmax(q_vals[0, :])
+            if np.random.random() < epsilon:
+                a = env.action_space.sample()
+            else:
+                a = np.argmax(q_vals[0, :])
             sn, r, terminated, _ = env.step(a)
             states_to_save.append(sn)
             s = sn
@@ -483,6 +507,8 @@ with tf.Graph().as_default():
         if RENDER:
             env.render(close=True)
 
+        # if PSEDUOCOUNT:
+            # dill.dump(cts_model, open("{}/cts_model".format(LOGDIR), "w"))
         # Save the final model
         saver.save(sess=sess, save_path="{}/ckpts/vars-{}-FINAL.ckpt".format(LOGDIR, T))
 

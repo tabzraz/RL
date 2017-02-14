@@ -58,11 +58,12 @@ class MazeEnv(gym.Env):
 
     def _step(self, a):
         self.steps += 1
+        info_dict = {}
         new_player_pos = (self.player_pos[0] + self.actions[a][0], self.player_pos[1] + self.actions[a][1])
         # Clip
-        r=self.negative_reward
+        r = self.negative_reward
         if new_player_pos[0] < 0 or new_player_pos[0] >= self.maze.shape[0]\
-        or new_player_pos[1] < 0 or new_player_pos[1] >= self.maze.shape[1]:
+           or new_player_pos[1] < 0 or new_player_pos[1] >= self.maze.shape[1]:
             new_player_pos = self.player_pos
             # r += self.negative_reward
 
@@ -84,8 +85,9 @@ class MazeEnv(gym.Env):
 
         if self.steps >= self.limit:
             finished = True
+            info_dict["Steps_Termination"] = True
 
-        return self.maze[:, :, np.newaxis] / 3, r, finished, {}
+        return self.maze[:, :, np.newaxis] / 3, r, finished, info_dict
 
     def _reset(self):
         self.reset_maze()
