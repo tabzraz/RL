@@ -2,6 +2,7 @@ import argparse
 import gym
 import datetime
 import time
+import os
 
 import numpy as np
 
@@ -13,31 +14,35 @@ from torch.autograd import Variable
 
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
-from Models import Models
+from Models.Models import get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(1e6))
+parser.add_argument("--t-max", type=int, default=int(1e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--xp", type=int, default=int(1e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--no-gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="Maze-2")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exp-steps", "--exploration-steps", type=int, default=1e5)
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=1e5)
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(50e5))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(5e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
 args = parser.parse_args()
 args.gpu = not args.no_gpu and torch.cuda.is_available()
+print("Gpu: ", args.gpu)
 print("Settings:\n", args, "\n")
 
 LOGDIR = "{}/{}_{}".format(args.logdir, args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+
+if not os.path.exists(LOGDIR):
+    os.makedirs(LOGDIR)
 
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
@@ -52,11 +57,11 @@ if args.gpu:
 env = gym.make(args.env)
 
 # Experience Replay
-replay = ExperienceReplay_Options(args.xp_size)
+replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # DQN
-dqn = Models[args.model]()
-target_dqn = Models[args.model]()
+dqn = get_models(args.model)()
+target_dqn = get_models(args.model)()
 
 if args.gpu:
     dqn.cuda()
@@ -82,13 +87,13 @@ start_time = time.time()
 
 # Methods
 def select_action(state):
-    state = torch.from_numpy(state).float().unsqueeze(0)
-    q_values = dqn(Variable(state, volatile=True))[0].cpu()
+    state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
+    q_values = dqn(Variable(state)).data[0]
     Q_Values.append(q_values)
     if np.random.random() < epsilon:
         action = env.action_space.sample()
     else:
-        action = np.argmax(q_values)
+        action = q_values.max(0)[1][0]  # Torch...
     return action
 
 
@@ -123,28 +128,28 @@ def epsilon_schedule():
 
 def train_agent():
     # TODO: Use a named tuple for experience replay
-    batch = replay.sample(args.batch_size)
+    batch = replay.Sample(args.batch_size)
     columns = list(zip(*batch))
 
-    states = Variable(columns[0])
-    actions = torch.IntTensor(columns[1])
+    states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
+    actions = Variable(torch.LongTensor(columns[1]))
     terminal_states = torch.FloatTensor(columns[5])
     rewards = torch.FloatTensor(columns[2])
-    steps = torch.IntTensor(columns[4])
-    new_states = Variable(columns[3], volatile=True)
+    steps = torch.FloatTensor(columns[4])
+    new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-    target_dqn_qvals = target_dqn(new_states)
-    new_states_qvals = dqn(new_states)
+    target_dqn_qvals = target_dqn(new_states).data
+    new_states_qvals = dqn(new_states).data
 
     q_value_targets = (torch.ones(args.batch_size) - terminal_states)
     q_value_targets *= torch.pow(torch.ones(args.batch_size) * args.gamma, steps)
     # Double Q Learning
-    q_value_targets *= target_dqn_qvals[np.argmax(new_states_qvals, axis=1)]
+    q_value_targets *= target_dqn_qvals.gather(1, new_states_qvals.max(1)[1])
     q_value_targets += rewards
 
-    model_predictions = dqn(states).gather(1, actions)
+    model_predictions = dqn(states).gather(1, actions.view(-1, 1))
 
-    l2_loss = (model_predictions - q_value_targets).pow(2).mean()
+    l2_loss = (model_predictions - Variable(q_value_targets)).pow(2).mean()
     DQN_Loss.append(l2_loss.data[0])
 
     # Update
@@ -152,6 +157,8 @@ def train_agent():
     l2_loss.backward()
     optimizer.step()
 
+
+explore()
 
 while T < args.t_max:
 
@@ -191,87 +198,3 @@ while T < args.t_max:
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
     Rewards = []
-
-
-
-# FLAGS = flags.FLAGS
-# ENV_NAME = FLAGS.env
-# RENDER = FLAGS.render
-# SLOW = FLAGS.slow
-# env = gym.make(ENV_NAME)
-
-# if FLAGS.action_override > 0:
-#     ACTIONS = FLAGS.action_override
-# else:
-#     ACTIONS = env.action_space.n
-# DOUBLE_DQN = FLAGS.double
-# SEED = FLAGS.seed
-# LR = FLAGS.lr
-# VIME_LR = FLAGS.vime_lr
-# ETA = FLAGS.eta
-# VIME_BATCH_SIZE = FLAGS.vime_batch
-# VIME_ITERS = FLAGS.vime_iters
-# NAME = FLAGS.name
-# EPISODES = FLAGS.episodes
-# T_MAX = FLAGS.t_max
-# EPSILON_START = FLAGS.epsilon_start
-# EPSILON_FINISH = FLAGS.epsilon_finish
-# EPSILON_STEPS = FLAGS.epsilon_steps
-# XP_SIZE = FLAGS.xp
-# GAMMA = FLAGS.gamma
-# BATCH_SIZE = FLAGS.batch
-# TARGET_UPDATE = FLAGS.target
-# SUMMARY_UPDATE = FLAGS.summary
-# CLIP_VALUE = FLAGS.grad_clip
-# VIME = FLAGS.vime
-# VIME_POSTERIOR_ITERS = FLAGS.posterior_iters
-# RANDOM_AGENT = FLAGS.rnd
-# CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
-# if FLAGS.ckpt != "":
-#     RESTORE = True
-#     CHECKPOINT = FLAGS.ckpt
-# else:
-#     RESTORE = False
-# EXPLORATION_STEPS = FLAGS.exp_steps
-# if FLAGS.logdir != "":
-#     LOGDIR = FLAGS.logdir
-# else:
-#     LOGDIR = "Logs/{}_{}".format(NAME, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-# DQN_MODEL = FLAGS.model
-# LEVELS = FLAGS.levels
-
-# if not os.path.exists("{}/ckpts/".format(LOGDIR)):
-#     os.makedirs("{}/ckpts".format(LOGDIR))
-
-# # Print all the hyperparams
-# hyperparams = FLAGS.__dict__["__flags"]
-# with open("{}/info.json".format(LOGDIR), "w") as fp:
-#     json.dump(hyperparams, fp)
-
-# # TODO: Add some more info here
-# print("\n--------Info--------")
-# print("Logdir:", LOGDIR)
-# print("T: {:,}".format(T_MAX))
-# print("Actions:", ACTIONS)
-# print("Gamma", GAMMA)
-# print("Learning Rate:", LR)
-# print("Batch Size:", BATCH_SIZE)
-# print("VIME bonuses:", VIME)
-# print("--------------------\n")
-
-# replays = [ExperienceReplay(XP_SIZE) for _ in range(LEVELS)]
-
-# config = tf.ConfigProto()
-# config.gpu_options.allow_growth = True
-# with tf.Graph().as_default():
-#     with tf.Session(config=config) as sess:
-
-#         # Seed numpy and tensorflow
-#         np.random.seed(SEED)
-#         tf.set_random_seed(SEED)
-
-#         print("\n-------Models-------")
-
-#         dqn_creator = get_models(DQN_MODEL)
-#         dqn = dqn_creator("DQN")
-#         target_dqn = dqn_creator("Target_DQN")
