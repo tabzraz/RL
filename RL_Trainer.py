@@ -24,10 +24,10 @@ parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
 parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--no-gpu", action="store_true", default=False)
+parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="Maze-2")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=1e5)
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(5e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
@@ -35,11 +35,19 @@ parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
 args = parser.parse_args()
-args.gpu = not args.no_gpu and torch.cuda.is_available()
-print("Gpu: ", args.gpu)
-print("Settings:\n", args, "\n")
+if args.gpu and not torch.cuda.is_available():
+    print("CUDA unavailable! Switching to cpu only")
+# print("Settings:\n", args, "\n")
+print("\n" + "=" * 40)
+print(15 * " " + "Settings:" + " " * 15)
+print("=" * 40)
+for arg in vars(args):
+    print(" {}: {}".format(arg, getattr(args, arg)))
+print("=" * 40)
+print()
 
 LOGDIR = "{}/{}_{}".format(args.logdir, args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+print("Logging to:\n{}\n".format(LOGDIR))
 
 if not os.path.exists(LOGDIR):
     os.makedirs(LOGDIR)
@@ -88,7 +96,7 @@ start_time = time.time()
 # Methods
 def select_action(state):
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-    q_values = dqn(Variable(state)).data[0]
+    q_values = dqn(Variable(state, volatile=True)).data[0]
     Q_Values.append(q_values)
     if np.random.random() < epsilon:
         action = env.action_space.sample()
@@ -98,7 +106,7 @@ def select_action(state):
 
 
 def explore():
-    print("Exploratory phase for {} steps".format(args.exploration_steps))
+    print("\nExploratory phase for {} steps".format(args.exploration_steps))
     e_steps = 0
     while e_steps < args.exploration_steps:
         s = env.reset()
@@ -111,7 +119,7 @@ def explore():
             s = sn
             e_steps += 1
 
-    print("Exploratory phase finished, starting learning")
+    print("Exploratory phase finished. Starting learning.\n")
 
 
 def print_time():
@@ -119,7 +127,7 @@ def print_time():
     time_left = time_elapsed * (args.t_max - T) / T
     # Just in case its over 100 days
     time_left = min(time_left, 60 * 60 * 24 * 100)
-    print("Ep: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Elapsed: {}, Left: {}".format(episode, T, args.t_max, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+    print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, \n\x1b[KEpsilon: {:.2f}, Elapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
 
 def epsilon_schedule():
@@ -160,6 +168,8 @@ def train_agent():
 
 explore()
 
+print("Training\n\n\n")
+
 while T < args.t_max:
 
     state = env.reset()
@@ -193,6 +203,8 @@ while T < args.t_max:
         train_agent()
 
         state = state_new
+
+        print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
 
     episode += 1
     Episode_Rewards.append(episode_reward)
