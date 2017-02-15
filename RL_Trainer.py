@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
@@ -27,13 +26,14 @@ parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="Maze-2")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e3))
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(5e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
+parser.add_argument("--target", type=int, default=100)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -51,6 +51,8 @@ print("Logging to:\n{}\n".format(LOGDIR))
 
 if not os.path.exists(LOGDIR):
     os.makedirs(LOGDIR)
+if not os.path.exists("{}/logs".format(LOGDIR)):
+    os.makedirs("{}/logs".format(LOGDIR))
 
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
@@ -68,10 +70,12 @@ env = gym.make(args.env)
 replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # DQN
+print("\nGetting Models.\n")
 dqn = get_models(args.model)()
 target_dqn = get_models(args.model)()
 
 if args.gpu:
+    print("Moving models to GPU.")
     dqn.cuda()
     target_dqn.cuda()
 
@@ -85,6 +89,9 @@ Episode_Lengths = []
 Rewards = []
 DQN_Loss = []
 
+Last_T_Logged = 1
+Last_Ep_Logged = 1
+
 
 # Variables and stuff
 T = 1
@@ -93,11 +100,48 @@ episode = 1
 start_time = time.time()
 
 
+class Variable(torch.autograd.Variable):
+
+    def __init__(self, data, *arguments, **kwargs):
+        if args.gpu:
+            data = data.cuda()
+        super(Variable, self).__init__(data, *arguments, **kwargs)
+
+
 # Methods
+def save_values():
+    global Last_Ep_Logged
+    if episode > Last_Ep_Logged:
+        with open("{}/logs/Episode_Rewards.txt".format(LOGDIR), "ab") as file:
+            np.savetxt(file, Episode_Rewards[Last_Ep_Logged - 1:], delimiter=" ", fmt="%f")
+
+        with open("{}/logs/Episode_Lengths.txt".format(LOGDIR), "ab") as file:
+            np.savetxt(file, Episode_Lengths[Last_Ep_Logged - 1:], delimiter=" ", fmt="%d")
+
+        Last_Ep_Logged = episode
+
+    global Last_T_Logged
+    if T > Last_T_Logged:
+        with open("{}/logs/Q_Values_T.txt".format(LOGDIR), "ab") as file:
+            np.savetxt(file, Q_Values[Last_T_Logged - 1:], delimiter=" ", fmt="%f")
+            file.write(str.encode("\n"))
+
+        with open("{}/logs/DQN_Loss_T.txt".format(LOGDIR), "ab") as file:
+            np.savetxt(file, DQN_Loss[Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
+            file.write(str.encode("\n"))
+
+        Last_T_Logged = T
+
+
+def sync_target_network():
+    for target, source in zip(target_dqn.parameters(), dqn.parameters()):
+        target.data = source.data
+
+
 def select_action(state):
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-    q_values = dqn(Variable(state, volatile=True)).data[0]
-    Q_Values.append(q_values)
+    q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
+    Q_Values.append(q_values.numpy())
     if np.random.random() < epsilon:
         action = env.action_space.sample()
     else:
@@ -106,7 +150,7 @@ def select_action(state):
 
 
 def explore():
-    print("\nExploratory phase for {} steps".format(args.exploration_steps))
+    print("\nExploratory phase for {} steps.".format(args.exploration_steps))
     e_steps = 0
     while e_steps < args.exploration_steps:
         s = env.reset()
@@ -127,7 +171,10 @@ def print_time():
     time_left = time_elapsed * (args.t_max - T) / T
     # Just in case its over 100 days
     time_left = min(time_left, 60 * 60 * 24 * 100)
-    print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, \n\x1b[KEpsilon: {:.2f}, Elapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+    last_reward = "N\A"
+    if len(Episode_Rewards) > 10:
+        last_reward = "{:.2f}".format(np.mean(Episode_Rewards[-10:-1]))
+    print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
 
 def epsilon_schedule():
@@ -141,23 +188,25 @@ def train_agent():
 
     states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
     actions = Variable(torch.LongTensor(columns[1]))
-    terminal_states = torch.FloatTensor(columns[5])
-    rewards = torch.FloatTensor(columns[2])
-    steps = torch.FloatTensor(columns[4])
+    terminal_states = Variable(torch.FloatTensor(columns[5]))
+    rewards = Variable(torch.FloatTensor(columns[2]))
+    steps = Variable(torch.FloatTensor(columns[4]))
     new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-    target_dqn_qvals = target_dqn(new_states).data
-    new_states_qvals = dqn(new_states).data
+    target_dqn_qvals = target_dqn(new_states)
+    new_states_qvals = dqn(new_states)
 
-    q_value_targets = (torch.ones(args.batch_size) - terminal_states)
-    q_value_targets *= torch.pow(torch.ones(args.batch_size) * args.gamma, steps)
+    q_value_targets = (Variable(torch.ones(args.batch_size)) - terminal_states)
+    inter = Variable(torch.ones(args.batch_size) * args.gamma)
+    # print(steps)
+    q_value_targets_ = q_value_targets * torch.pow(inter, steps)
     # Double Q Learning
-    q_value_targets *= target_dqn_qvals.gather(1, new_states_qvals.max(1)[1])
-    q_value_targets += rewards
+    q_value_targets__ = q_value_targets_ * target_dqn_qvals.gather(1, new_states_qvals.max(1)[1])
+    q_value_targets___ = q_value_targets__ + rewards
 
     model_predictions = dqn(states).gather(1, actions.view(-1, 1))
 
-    l2_loss = (model_predictions - Variable(q_value_targets)).pow(2).mean()
+    l2_loss = (model_predictions - q_value_targets___).pow(2).mean()
     DQN_Loss.append(l2_loss.data[0])
 
     # Update
@@ -168,7 +217,7 @@ def train_agent():
 
 explore()
 
-print("Training\n\n\n")
+print("Training.\n\n\n")
 
 while T < args.t_max:
 
@@ -202,6 +251,9 @@ while T < args.t_max:
 
         train_agent()
 
+        if T % args.target == 0:
+            sync_target_network()
+
         state = state_new
 
         print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
@@ -210,3 +262,5 @@ while T < args.t_max:
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
     Rewards = []
+
+    save_values()
