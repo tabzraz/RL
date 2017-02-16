@@ -33,10 +33,10 @@ flags.DEFINE_integer("action_override", 0, "Overrides the number of actions prov
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
 flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
-flags.DEFINE_integer("xp", int(1e3), "Size of the experience replay")
+flags.DEFINE_integer("xp", int(1e4), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(5e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(10e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
@@ -91,7 +91,6 @@ N_STEPS = FLAGS.n
 PSEDUOCOUNT = FLAGS.pseudo
 BETA = FLAGS.beta
 XLA = FLAGS.xla
-BUFFER = 10000
 if FLAGS.ckpt != "":
     RESTORE = True
     CHECKPOINT = FLAGS.ckpt
@@ -367,7 +366,7 @@ with tf.Graph().as_default():
                         r_t += reward_to_give
                         vime_ep_reward += r_t
 
-                    if PSEDUOCOUNT and T > EPSILON_STEPS - BUFFER:
+                    if PSEDUOCOUNT and T > EPSILON_STEPS:
                         # Super hard-coded for the maze
                         # count_state = s_t
                         # player_pos = np.argwhere(count_state > 0.9)[0]
@@ -384,17 +383,16 @@ with tf.Graph().as_default():
                         cts_st = s_t
                         rho_old = np.exp(cts_model.update(cts_st))
                         # cts_model.update(s_t)
-                        if T > EPSILON_STEPS:
-                            rho_new = np.exp(cts_model.log_prob(cts_st))
-                            # print(rho_old, " ,", rho_new)
-                            pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
-                            pseudo_count = max(pseudo_count, 0)  # Hack
-                            # print(pseudo_count)
-                            bonus = BETA / sqrt(pseudo_count + 0.01)
+                        rho_new = np.exp(cts_model.log_prob(cts_st))
+                        # print(rho_old, " ,", rho_new)
+                        pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+                        pseudo_count = max(pseudo_count, 0)  # Hack
+                        # print(pseudo_count)
+                        bonus = BETA / sqrt(pseudo_count + 0.01)
 
-                            r_t += bonus
-                            count_ep_reward += r_t
-                            count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
+                        r_t += bonus
+                        count_ep_reward += r_t
+                        count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
 
                     replay.Add_Exp(s_t, action, r_t, s_new, 1, episode_finished)
                     s_t = s_new

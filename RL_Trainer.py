@@ -7,14 +7,14 @@ from math import sqrt
 
 import numpy as np
 
-import torch
-import torch.optim as optim
+import tensorflow as tf
 
 import Exploration.CTS as CTS
 
+from Misc.Gradients import clip_grads
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
-from Models.Models import get_torch_models
+from Models.Models import get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
@@ -39,10 +39,18 @@ parser.add_argument("--count", action="store_true", default=False)
 parser.add_argument("--beta", type=float, default=0.1)
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
+parser.add_argument("--xla", action="store_true", default=False)
+parser.add_argument("--clip-value", type=float, default=10)
 args = parser.parse_args()
-if args.gpu and not torch.cuda.is_available():
-    print("CUDA unavailable! Switching to cpu only")
-# print("Settings:\n", args, "\n")
+
+config = tf.ConfigProto()
+if args.gpu:
+    config.gpu_options.allow_growth = True
+else:
+    config.device_count = {'GPU': 0}
+if args.xla:
+    config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+
 print("\n" + "=" * 40)
 print(15 * " " + "Settings:" + " " * 15)
 print("=" * 40)
@@ -62,11 +70,12 @@ if not os.path.exists("{}/logs".format(LOGDIR)):
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
 
+# Tensorflow sessions
+sess = tf.Session(config=config)
+
 # Seed everything
 np.random.seed(args.seed)
-torch.manual_seed(args.seed)
-if args.gpu:
-    torch.cuda.manual_seed_all(args.seed)
+tf.set_random_seed(args.seed)
 
 # Gym Environment
 env = gym.make(args.env)
@@ -79,13 +88,24 @@ print("\nGetting Models.\n")
 dqn = get_models(args.model)()
 target_dqn = get_models(args.model)()
 
-if args.gpu:
-    print("Moving models to GPU.")
-    dqn.cuda()
-    target_dqn.cuda()
-
 # Optimizer
-optimizer = optim.Adam(dqn.parameters(), lr=args.lr)
+optimizer = tf.train.AdamOptimizer(args.lr)
+
+# Tensorflow Operations
+with tf.name_scope("Sync_Target_DQN"):
+    dqn_vars = dqn["Variables"]
+    target_dqn_vars = target_dqn["Variables"]
+    sync_vars_list = []
+    for (ref, val) in zip(target_dqn_vars, dqn_vars):
+        sync_vars_list.append(tf.assign(ref, val))
+    sync_vars = tf.group(*sync_vars_list)
+
+with tf.name_scope("Minimise_DQN_Loss"):
+    qval_loss = dqn["Q_Loss"]
+    grads_vars = optimiser.compute_gradients(qval_loss)
+    clipped_grads_vars, dqn_grad_norm = clip_grads(grads_vars, args.clip_value)
+    minimise_op = optimiser.apply_gradients(clipped_grads_vars)
+
 
 # Stuff to log
 Q_Values = []
@@ -105,17 +125,10 @@ Last_Ep_Logged = 1
 # Variables and stuff
 T = 1
 episode = 1
+epsilon = 1
 
 if args.count:
     cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
-
-
-class Variable(torch.autograd.Variable):
-
-    def __init__(self, data, *arguments, **kwargs):
-        if args.gpu:
-            data = data.cuda()
-        super(Variable, self).__init__(data, *arguments, **kwargs)
 
 
 # Methods
@@ -161,18 +174,21 @@ def save_values():
 
 
 def sync_target_network():
-    for target, source in zip(target_dqn.parameters(), dqn.parameters()):
-        target.data = source.data
+    sess.run(sync_vars)
 
 
 def select_action(state):
-    state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-    q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
-    Q_Values.append(q_values.numpy())
+    dqn_q_values = dqn["Q_Values"]
+    dqn_inputs = dqn["Input"]
+    q_values = sess.run([dqn_q_values], {dqn_inputs: [state]})[0]
+    Q_Values.append(q_values)
+
+    # Epsilon Greedy
     if np.random.random() < epsilon:
         action = env.action_space.sample()
     else:
-        action = q_values.max(0)[1][0]  # Torch...
+        action = np.argmax(q_values)
+
     return action
 
 
@@ -214,35 +230,34 @@ def epsilon_schedule():
 def train_agent():
     # TODO: Use a named tuple for experience replay
     batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
-    columns = list(zip(*batch))
 
-    states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
-    actions = Variable(torch.LongTensor(columns[1]))
-    terminal_states = Variable(torch.FloatTensor(columns[5]))
-    rewards = Variable(torch.FloatTensor(columns[2]))
-    steps = Variable(torch.FloatTensor(columns[4]))
-    new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
+    dqn_inputs = dqn["Input"]
+    dqn_targets = dqn["Targets"]
+    dqn_actions = dqn["Actions"]
+    dqn_qvals = dqn["Q_Values"]
+    target_dqn_qvals = target_dqn["Q_Values"]
 
-    target_dqn_qvals = target_dqn(new_states)
-    new_states_qvals = dqn(new_states)
+    # Create targets from the batch
+    old_states = list(map(lambda tups: tups[0], batch))
+    new_states = list(map(lambda tups: tups[3], batch))
+    new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: new_states})
+    q_targets = []
+    actions = []
+    for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
+        st, at, rt, snew, steps, terminal = batch_item
+        target = np.zeros(ACTIONS)
+        target[at] = rt
+        if not terminal:
+            if DOUBLE_DQN:
+                target[at] += (GAMMA ** steps) * target_qval[np.argmax(double_qvals)]
+            else:
+                target[at] += (GAMMA ** steps) * np.max(target_qval)
+        q_targets.append(target)
+        action_onehot = np.zeros(ACTIONS)
+        action_onehot[at] = 1
+        actions.append(action_onehot)
 
-    q_value_targets = (Variable(torch.ones(args.batch_size)) - terminal_states)
-    inter = Variable(torch.ones(args.batch_size) * args.gamma)
-    # print(steps)
-    q_value_targets_ = q_value_targets * torch.pow(inter, steps)
-    # Double Q Learning
-    q_value_targets__ = q_value_targets_ * target_dqn_qvals.gather(1, new_states_qvals.max(1)[1])
-    q_value_targets___ = q_value_targets__ + rewards
-
-    model_predictions = dqn(states).gather(1, actions.view(-1, 1))
-
-    l2_loss = (model_predictions - q_value_targets___).pow(2).mean()
-    DQN_Loss.append(l2_loss.data[0])
-
-    # Update
-    optimizer.zero_grad()
-    l2_loss.backward()
-    optimizer.step()
+    sess.run([minimise_op], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
 
 
 ######################
