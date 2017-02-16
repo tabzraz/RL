@@ -8,9 +8,9 @@ import os
 import json
 from collections import deque
 from math import sqrt, log
-import dill
+from skimage.transform import resize
 from Misc.Gradients import clip_grads
-from Replay.ExpReplay import ExperienceReplay
+from Replay.ExpReplay_Options import ExperienceReplay_Options as ExperienceReplay
 import Exploration.CTS as CTS
 # Todo: Make this friendlier
 from Models.DQN_Maze import model
@@ -24,7 +24,7 @@ flags = tf.app.flags
 flags.DEFINE_string("env", "Maze-2-v1", "Environment name for OpenAI gym")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
 flags.DEFINE_string("name", "nn", "The name of the model")
-flags.DEFINE_float("lr", 0.0005, "Initial Learning Rate")
+flags.DEFINE_float("lr", 0.0001, "Initial Learning Rate")
 flags.DEFINE_float("vime_lr", 0.0001, "Initial Learning Rate for VIME model")
 flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
 flags.DEFINE_integer("t_max", int(2e5), "Number of frames to act for")
@@ -36,7 +36,7 @@ flags.DEFINE_integer("ckpt_interval", 5e4, "How often to save the global model")
 flags.DEFINE_integer("xp", int(1e3), "Size of the experience replay")
 flags.DEFINE_float("epsilon_start", 1.0, "Value of epsilon to start with")
 flags.DEFINE_float("epsilon_finish", 0.1, "Final value of epsilon to anneal to")
-flags.DEFINE_integer("epsilon_steps", int(15e4), "Number of steps to anneal epsilon for")
+flags.DEFINE_integer("epsilon_steps", int(5e4), "Number of steps to anneal epsilon for")
 flags.DEFINE_integer("target", 100, "After how many steps to update the target network")
 flags.DEFINE_boolean("double", True, "Double DQN or not")
 flags.DEFINE_integer("batch", 64, "Minibatch size")
@@ -53,6 +53,7 @@ flags.DEFINE_boolean("rnd", False, "Random Agent")
 flags.DEFINE_boolean("pseudo", False, "PseudoCount bonuses or not")
 flags.DEFINE_integer("n", 10, "Number of steps for n-step Q-Learning")
 flags.DEFINE_float("beta", 0.10, "Beta for pseudocounts")
+flags.DEFINE_boolean("xla", False, "Tensorflow XLA")
 
 FLAGS = flags.FLAGS
 ENV_NAME = FLAGS.env
@@ -89,6 +90,8 @@ CHECKPOINT_INTERVAL = FLAGS.ckpt_interval
 N_STEPS = FLAGS.n
 PSEDUOCOUNT = FLAGS.pseudo
 BETA = FLAGS.beta
+XLA = FLAGS.xla
+BUFFER = 10000
 if FLAGS.ckpt != "":
     RESTORE = True
     CHECKPOINT = FLAGS.ckpt
@@ -141,6 +144,9 @@ replay = ExperienceReplay(XP_SIZE)
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
+if XLA:
+    print("\n---USING XLA---\n")
+    config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
 with tf.Graph().as_default():
         # Seed numpy and tensorflow
         np.random.seed(SEED)
@@ -267,7 +273,7 @@ with tf.Graph().as_default():
                 print(e_steps, end="\r")
                 a = env.action_space.sample()
                 sn, r, terminated, _ = env.step(a)
-                replay.Add_Exp(s, a, r, sn, terminated)
+                replay.Add_Exp(s, a, r, sn, 1, terminated)
                 s = sn
                 e_steps += 1
 
@@ -361,7 +367,7 @@ with tf.Graph().as_default():
                         r_t += reward_to_give
                         vime_ep_reward += r_t
 
-                    if PSEDUOCOUNT:
+                    if PSEDUOCOUNT and T > EPSILON_STEPS - BUFFER:
                         # Super hard-coded for the maze
                         # count_state = s_t
                         # player_pos = np.argwhere(count_state > 0.9)[0]
@@ -374,23 +380,26 @@ with tf.Graph().as_default():
                         #     state_counter[state_str] += 1
                         # bonus = BETA / sqrt(state_counter[state_str])
 
-                        rho_old = np.exp(cts_model.update(s_t))
+                        # cts_st = resize(s_t, (env.shape[0] * 1, env.shape[1] * 1))
+                        cts_st = s_t
+                        rho_old = np.exp(cts_model.update(cts_st))
                         # cts_model.update(s_t)
-                        rho_new = np.exp(cts_model.log_prob(s_t))
-                        # print(rho_old, " ,", rho_new)
-                        pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
-                        pseudo_count = max(pseudo_count, 0)  # Hack
-                        # print(pseudo_count)
-                        bonus = BETA / sqrt(pseudo_count + 0.01)
+                        if T > EPSILON_STEPS:
+                            rho_new = np.exp(cts_model.log_prob(cts_st))
+                            # print(rho_old, " ,", rho_new)
+                            pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+                            pseudo_count = max(pseudo_count, 0)  # Hack
+                            # print(pseudo_count)
+                            bonus = BETA / sqrt(pseudo_count + 0.01)
 
-                        r_t += bonus
-                        count_ep_reward += r_t
-                        count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
+                            r_t += bonus
+                            count_ep_reward += r_t
+                            count_bonus_summary_val = sess.run(count_bonus_summary, {count_bonus: bonus})
 
-                    replay.Add_Exp(s_t, action, r_t, s_new, episode_finished)
+                    replay.Add_Exp(s_t, action, r_t, s_new, 1, episode_finished)
                     s_t = s_new
 
-                batch = replay.Sample(BATCH_SIZE)
+                batch = replay.Sample_N(BATCH_SIZE, N_STEPS, GAMMA)
                 # Create targets from the batch
                 old_states = list(map(lambda tups: tups[0], batch))
                 new_states = list(map(lambda tups: tups[3], batch))
@@ -398,16 +407,16 @@ with tf.Graph().as_default():
                 q_targets = []
                 actions = []
                 for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
-                    st, at, rt, snew, terminal = batch_item
+                    st, at, rt, snew, steps, terminal = batch_item
                     # Reward clipping
                     # rt = np.clip(rt, -1, 1)
                     target = np.zeros(ACTIONS)
                     target[at] = rt
                     if not terminal:
                         if DOUBLE_DQN:
-                            target[at] += GAMMA * target_qval[np.argmax(double_qvals)]
+                            target[at] += (GAMMA ** steps) * target_qval[np.argmax(double_qvals)]
                         else:
-                            target[at] += GAMMA * np.max(target_qval)
+                            target[at] += (GAMMA ** steps) * np.max(target_qval)
                     q_targets.append(target)
                     action_onehot = np.zeros(ACTIONS)
                     action_onehot[at] = 1
@@ -433,7 +442,7 @@ with tf.Graph().as_default():
                         writer.add_summary(kldiv_summary, global_step=T)
                         writer.add_summary(vime_reward_summary, global_step=T)
 
-                    if PSEDUOCOUNT:
+                    if PSEDUOCOUNT and T > EPSILON_STEPS:
                         writer.add_summary(count_bonus_summary_val, global_step=T)
 
                 if T % CHECKPOINT_INTERVAL == 0:

@@ -140,7 +140,6 @@ class LocationDependentDensityModel(object):
 
     def log_prob(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
-
         total_log_probability = 0.0
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):

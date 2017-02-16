@@ -3,13 +3,14 @@ import gym
 import datetime
 import time
 import os
+from math import sqrt
 
 import numpy as np
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
+
+import Exploration.CTS as CTS
 
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
@@ -17,7 +18,7 @@ from Models.Models import get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(1e5))
+parser.add_argument("--t-max", type=int, default=int(2e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
@@ -26,14 +27,18 @@ parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="Maze-2")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e3))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(5e4))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(15e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
+parser.add_argument("--count", action="store_true", default=False)
+parser.add_argument("--beta", type=float, default=0.1)
+parser.add_argument("--n-step", "--n", type=int, default=1)
+parser.add_argument("--plain-print", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -87,7 +92,11 @@ Q_Values = []
 Episode_Rewards = []
 Episode_Lengths = []
 Rewards = []
+States = []
+Actions = []
+States_Next = []
 DQN_Loss = []
+Exploration_Bonus = []
 
 Last_T_Logged = 1
 Last_Ep_Logged = 1
@@ -97,7 +106,8 @@ Last_Ep_Logged = 1
 T = 1
 episode = 1
 
-start_time = time.time()
+if args.count:
+    cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
 
 
 class Variable(torch.autograd.Variable):
@@ -109,6 +119,18 @@ class Variable(torch.autograd.Variable):
 
 
 # Methods
+def add_exploration_bonus(state):
+    if args.count:
+        rho_old = np.exp(cts_model.update(state))
+        rho_new = np.exp(cts_model.log_prob(state))
+        pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+        pseudo_count = max(pseudo_count, 0)
+        bonus = args.beta / sqrt(pseudo_count + 0.01)
+        Exploration_Bonus.append(bonus)
+        return bonus
+    return 0
+
+
 def save_values():
     global Last_Ep_Logged
     if episode > Last_Ep_Logged:
@@ -129,6 +151,11 @@ def save_values():
         with open("{}/logs/DQN_Loss_T.txt".format(LOGDIR), "ab") as file:
             np.savetxt(file, DQN_Loss[Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
             file.write(str.encode("\n"))
+
+        if args.count:
+            with open("{}/logs/Exploration_Bonus_T.txt".format(LOGDIR), "ab") as file:
+                np.savetxt(file, Exploration_Bonus[Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
+                file.write(str.encode("\n"))
 
         Last_T_Logged = T
 
@@ -167,14 +194,17 @@ def explore():
 
 
 def print_time():
-    time_elapsed = time.time() - start_time
-    time_left = time_elapsed * (args.t_max - T) / T
-    # Just in case its over 100 days
-    time_left = min(time_left, 60 * 60 * 24 * 100)
-    last_reward = "N\A"
-    if len(Episode_Rewards) > 10:
-        last_reward = "{:.2f}".format(np.mean(Episode_Rewards[-10:-1]))
-    print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+    if args.plain_print:
+        print(T, end="\r")
+    else:
+        time_elapsed = time.time() - start_time
+        time_left = time_elapsed * (args.t_max - T) / T
+        # Just in case its over 100 days
+        time_left = min(time_left, 60 * 60 * 24 * 100)
+        last_reward = "N\A"
+        if len(Episode_Rewards) > 10:
+            last_reward = "{:.2f}".format(np.mean(Episode_Rewards[-10:-1]))
+        print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
 
 def epsilon_schedule():
@@ -183,7 +213,7 @@ def epsilon_schedule():
 
 def train_agent():
     # TODO: Use a named tuple for experience replay
-    batch = replay.Sample(args.batch_size)
+    batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
 
     states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -215,7 +245,13 @@ def train_agent():
     optimizer.step()
 
 
+######################
+# Training procedure #
+######################
+
 explore()
+
+start_time = time.time()
 
 print("Training.\n\n\n")
 
@@ -242,10 +278,18 @@ while T < args.t_max:
             break
         if args.render:
             env.render()
+
         episode_reward += reward
+
+        reward += add_exploration_bonus(state)
+
         episode_steps += 1
         T += 1
+
         Rewards.append(reward)
+        States.append(state)
+        States_Next.append(state_new)
+        Actions.append(action)
 
         replay.Add_Exp(state, action, reward, state_new, 1, episode_finished)
 
@@ -256,11 +300,16 @@ while T < args.t_max:
 
         state = state_new
 
-        print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
+        if not args.plain_print:
+            print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
 
     episode += 1
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
+
     Rewards = []
+    States = []
+    States_Next = []
+    Actions = []
 
     save_values()
