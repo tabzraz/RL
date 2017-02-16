@@ -41,6 +41,7 @@ parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--xla", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=10)
+parser.add_argument("--no-tensorboard", "--no-tb", action="store_true", default=False)
 args = parser.parse_args()
 
 config = tf.ConfigProto()
@@ -50,6 +51,8 @@ else:
     config.device_count = {'GPU': 0}
 if args.xla:
     config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+
+args.tb = not args.no_tensorboard
 
 print("\n" + "=" * 40)
 print(15 * " " + "Settings:" + " " * 15)
@@ -107,6 +110,24 @@ with tf.name_scope("Minimise_DQN_Loss"):
     minimise_op = optimiser.apply_gradients(clipped_grads_vars)
 
 
+# Tensorboard Stuff
+DQN_Q_Values_Summary = dqn["QVals_Summary"]
+DQN_Loss_Summary = dqn["Loss_Summary"]
+DQN_Grad_Norm_Summary = tf.summary.scalar("DQN_Gradient_Norm", dqn_grad_norm)
+
+if args.count:
+    count_bonus = tf.Variable(name="Count_Bonus", dtype=tf.float32, trainable=False, )
+    Count_Bonus_Summary = tf.summary.scalar("Count_Bonus", count_bonus)
+
+training_writer = tf.summary.FileWriter("{}/tb/agent".format(LOGDIR), graph=sess.graph)
+
+
+def save_to_tb(summary, global_step, training=True):
+    if args.tb:
+        if training:
+            training_writer.add_summary(summary, global_step=global_step)
+
+
 # Stuff to log
 Q_Values = []
 Episode_Rewards = []
@@ -140,6 +161,7 @@ def add_exploration_bonus(state):
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
         Exploration_Bonus.append(bonus)
+        save_to_tb(sess.run(Count_Bonus_Summary, {count_bonus: bonus}), global_step=T)
         return bonus
     return 0
 
@@ -180,8 +202,9 @@ def sync_target_network():
 def select_action(state):
     dqn_q_values = dqn["Q_Values"]
     dqn_inputs = dqn["Input"]
-    q_values = sess.run([dqn_q_values], {dqn_inputs: [state]})[0]
+    q_values, q_values_summary = sess.run([dqn_q_values, DQN_Q_Values_Summary], {dqn_inputs: [state]})[0]
     Q_Values.append(q_values)
+    save_to_tb(q_values_summary, global_step=T)
 
     # Epsilon Greedy
     if np.random.random() < epsilon:
@@ -257,7 +280,9 @@ def train_agent():
         action_onehot[at] = 1
         actions.append(action_onehot)
 
-    sess.run([minimise_op], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+    _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Gradient_Norm], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+    save_to_tb(loss_summary, global_step=T)
+    save_to_tb(norm_summary, global_step=T)
 
 
 ######################
@@ -269,6 +294,9 @@ explore()
 start_time = time.time()
 
 print("Training.\n\n\n")
+
+sess.run(tf.global_variables_initializer())
+sync_target_network()
 
 while T < args.t_max:
 

@@ -52,7 +52,7 @@ flags.DEFINE_integer("vime_batch", 32, "Size of minibatch for VIME")
 flags.DEFINE_boolean("rnd", False, "Random Agent")
 flags.DEFINE_boolean("pseudo", False, "PseudoCount bonuses or not")
 flags.DEFINE_integer("n", 10, "Number of steps for n-step Q-Learning")
-flags.DEFINE_float("beta", 0.10, "Beta for pseudocounts")
+flags.DEFINE_float("beta", 0.05, "Beta for pseudocounts")
 flags.DEFINE_boolean("xla", False, "Tensorflow XLA")
 
 FLAGS = flags.FLAGS
