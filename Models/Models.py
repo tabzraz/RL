@@ -2,21 +2,26 @@
 torch_models = {}
 models = {}
 
-# --- Torch models ---
-from .Torch import DQN_Maze
+## --- Torch models ---
+#from .Torch import DQN_Maze
 
-# DQN Maze
-torch_models["Maze-2"] = DQN_Maze.DQN
+## DQN Maze
+#torch_models["Maze-2"] = DQN_Maze.DQN
+
+
+#def get_torch_models(name):
+#    return torch_models[name]
+
 
 # --- Tensorflow models ---
-from DQN_Maze import model as DQN_Maze_Model
+from .DQN_Maze import model as DQN_Maze_Model
 
 # DQN Maze
-models["Maze-2"] = DQN_Maze_Model
+for s in range(10):
+    def model_creator(name, size=s, actions=4):
+        return DQN_Maze_Model(name=name, size=size, actions=actions)
+    models["Maze-{}-v1".format(s)] = model_creator
 
-
-def get_torch_models(name):
-    return torch_models[name]
 
 def get_models(name):
     return models[name]

@@ -25,53 +25,42 @@ parser.add_argument("--name", type=str, default="nn")
 parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
-parser.add_argument("--model", type=str, default="Maze-2")
+parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(15e4))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(10e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.1)
+parser.add_argument("--beta", type=float, default=0.05)
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--xla", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=10)
 parser.add_argument("--no-tensorboard", "--no-tb", action="store_true", default=False)
+parser.add_argument("--action-override", type=int, default=-1)
+parser.add_argument("--double-q", type=bool, default=True)
+parser.add_argument("--checkpoint-interval", "--ckpt", type=int, default=5e4)
+parser.add_argument("--restore", type=str, default="")
 args = parser.parse_args()
 
 config = tf.ConfigProto()
-if args.gpu:
-    config.gpu_options.allow_growth = True
-else:
-    config.device_count = {'GPU': 0}
+config.gpu_options.allow_growth = True
+if not args.gpu:
+    print("\n---DISABLING GPU---\n")
+    os.environ['CUDA_VISIBLE_DEVICES'] = ""
 if args.xla:
+    print("\n---USING XLA---\n")
     config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
 
 args.tb = not args.no_tensorboard
 
-print("\n" + "=" * 40)
-print(15 * " " + "Settings:" + " " * 15)
-print("=" * 40)
-for arg in vars(args):
-    print(" {}: {}".format(arg, getattr(args, arg)))
-print("=" * 40)
-print()
-
-LOGDIR = "{}/{}_{}".format(args.logdir, args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-print("Logging to:\n{}\n".format(LOGDIR))
-
-if not os.path.exists(LOGDIR):
-    os.makedirs(LOGDIR)
-if not os.path.exists("{}/logs".format(LOGDIR)):
-    os.makedirs("{}/logs".format(LOGDIR))
-
-with open("{}/settings.txt".format(LOGDIR), "w") as f:
-    f.write(str(args))
+if args.model == "":
+    args.model = args.env
 
 # Tensorflow sessions
 sess = tf.Session(config=config)
@@ -80,19 +69,53 @@ sess = tf.Session(config=config)
 np.random.seed(args.seed)
 tf.set_random_seed(args.seed)
 
+LOGDIR = "{}/{}_{}".format(args.logdir, args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+print("\n" + "=" * 40)
+print(16 * " " + "Logdir:" + " " * 16)
+print("=" * 40)
+print(" Logging to:\n {}".format(LOGDIR))
+print("=" * 40)
+
+if not os.path.exists(LOGDIR):
+    os.makedirs(LOGDIR)
+if not os.path.exists("{}/logs".format(LOGDIR)):
+    os.makedirs("{}/logs".format(LOGDIR))
+if not os.path.exists("{}/ckpts".format(LOGDIR)):
+    os.makedirs("{}/ckpts".format(LOGDIR))
+
+with open("{}/settings.txt".format(LOGDIR), "w") as f:
+    f.write(str(args))
+
 # Gym Environment
+print()
 env = gym.make(args.env)
+args.actions = env.action_space.n
+if args.action_override > 0:
+    args.actions = args.action_override
+
+# Print Settings and Hyperparameters
+print("\n" + "=" * 40)
+print(15 * " " + "Settings:" + " " * 15)
+print("=" * 40)
+for arg in vars(args):
+    print(" {}: {}".format(arg, getattr(args, arg)))
+print("=" * 40)
+print()
 
 # Experience Replay
 replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # DQN
-print("\nGetting Models.\n")
-dqn = get_models(args.model)()
-target_dqn = get_models(args.model)()
+print("\n" + "=" * 40)
+print(16 * " " + "Models:" + " " * 16)
+print("=" * 40)
+dqn = get_models(args.model)(name="DQN")
+print()
+target_dqn = get_models(args.model)(name="Target_DQN")
+print("=" * 40)
 
 # Optimizer
-optimizer = tf.train.AdamOptimizer(args.lr)
+optimiser = tf.train.AdamOptimizer(args.lr)
 
 # Tensorflow Operations
 with tf.name_scope("Sync_Target_DQN"):
@@ -109,17 +132,33 @@ with tf.name_scope("Minimise_DQN_Loss"):
     clipped_grads_vars, dqn_grad_norm = clip_grads(grads_vars, args.clip_value)
     minimise_op = optimiser.apply_gradients(clipped_grads_vars)
 
+# Checkpoints
+checkpointer = tf.train.Saver(var_list=dqn["Variables"], max_to_keep=None)
 
 # Tensorboard Stuff
 DQN_Q_Values_Summary = dqn["QVals_Summary"]
 DQN_Loss_Summary = dqn["Loss_Summary"]
 DQN_Grad_Norm_Summary = tf.summary.scalar("DQN_Gradient_Norm", dqn_grad_norm)
 
+# Dummy variable to log scalars to tensorboard
+scalar_variable = tf.Variable(name="Insert_Scalar_Here", initial_value=0.0, dtype=tf.float32, trainable=False)
+
 if args.count:
-    count_bonus = tf.Variable(name="Count_Bonus", dtype=tf.float32, trainable=False, )
-    Count_Bonus_Summary = tf.summary.scalar("Count_Bonus", count_bonus)
+    Count_Bonus_Summary = tf.summary.scalar("Count_Bonus", scalar_variable)
+
+Episode_Bonus_Only_Reward_Summary = tf.summary.scalar("Episode_Bonus_Only_Rewards", scalar_variable)
+
+Episode_Reward_Summary = tf.summary.scalar("Episode_Reward", scalar_variable)
+Episode_Length_Summary = tf.summary.scalar("Episode_Length", scalar_variable)
+
+Epsilon_Summary = tf.summary.scalar("Epsilon", scalar_variable)
 
 training_writer = tf.summary.FileWriter("{}/tb/agent".format(LOGDIR), graph=sess.graph)
+
+
+def save_scalar(value, summary, global_step, training=True):
+    summary_value = sess.run(summary, {scalar_variable: value})
+    save_to_tb(summary_value, global_step, training=training)
 
 
 def save_to_tb(summary, global_step, training=True):
@@ -131,13 +170,16 @@ def save_to_tb(summary, global_step, training=True):
 # Stuff to log
 Q_Values = []
 Episode_Rewards = []
+Episode_Bonus_Only_Rewards = []
 Episode_Lengths = []
+DQN_Loss = []
+Exploration_Bonus = []
+
+# Inter-episode
 Rewards = []
 States = []
 Actions = []
 States_Next = []
-DQN_Loss = []
-Exploration_Bonus = []
 
 Last_T_Logged = 1
 Last_Ep_Logged = 1
@@ -147,21 +189,24 @@ Last_Ep_Logged = 1
 T = 1
 episode = 1
 epsilon = 1
+episode_reward = 0
+episode_steps = 0
+episode_bonus_only_reward = 0
 
 if args.count:
     cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
 
 
 # Methods
-def add_exploration_bonus(state):
+def exploration_bonus(state):
     if args.count:
         rho_old = np.exp(cts_model.update(state))
         rho_new = np.exp(cts_model.log_prob(state))
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
-        Exploration_Bonus.append(bonus)
-        save_to_tb(sess.run(Count_Bonus_Summary, {count_bonus: bonus}), global_step=T)
+        Exploration_Bonus.append(exp_bonus)
+        save_scalar(bonus, Count_Bonus_Summary, global_step=T)
         return bonus
     return 0
 
@@ -174,6 +219,9 @@ def save_values():
 
         with open("{}/logs/Episode_Lengths.txt".format(LOGDIR), "ab") as file:
             np.savetxt(file, Episode_Lengths[Last_Ep_Logged - 1:], delimiter=" ", fmt="%d")
+
+        with open("{}/logs/Episode_Bonus_Only_Rewards.txt".format(LOGDIR), "ab") as file:
+            np.savetxt(file, Episode_Bonus_Only_Rewards[Last_Ep_Logged - 1:], delimiter=" ", fmt="%d")
 
         Last_Ep_Logged = episode
 
@@ -202,10 +250,10 @@ def sync_target_network():
 def select_action(state):
     dqn_q_values = dqn["Q_Values"]
     dqn_inputs = dqn["Input"]
-    q_values, q_values_summary = sess.run([dqn_q_values, DQN_Q_Values_Summary], {dqn_inputs: [state]})[0]
+    q_values, q_values_summary = sess.run([dqn_q_values, DQN_Q_Values_Summary], {dqn_inputs: [state]})
+    q_values = q_values[0]
     Q_Values.append(q_values)
     save_to_tb(q_values_summary, global_step=T)
-
     # Epsilon Greedy
     if np.random.random() < epsilon:
         action = env.action_space.sample()
@@ -258,6 +306,8 @@ def train_agent():
     dqn_targets = dqn["Targets"]
     dqn_actions = dqn["Actions"]
     dqn_qvals = dqn["Q_Values"]
+
+    target_dqn_input = target_dqn["Input"]
     target_dqn_qvals = target_dqn["Q_Values"]
 
     # Create targets from the batch
@@ -268,21 +318,35 @@ def train_agent():
     actions = []
     for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
         st, at, rt, snew, steps, terminal = batch_item
-        target = np.zeros(ACTIONS)
+        target = np.zeros(args.actions)
         target[at] = rt
         if not terminal:
-            if DOUBLE_DQN:
-                target[at] += (GAMMA ** steps) * target_qval[np.argmax(double_qvals)]
+            if args.double_q:
+                target[at] += (args.gamma ** steps) * target_qval[np.argmax(double_qvals)]
             else:
-                target[at] += (GAMMA ** steps) * np.max(target_qval)
+                target[at] += (args.gamma ** steps) * np.max(target_qval)
         q_targets.append(target)
-        action_onehot = np.zeros(ACTIONS)
+        action_onehot = np.zeros(args.actions)
         action_onehot[at] = 1
         actions.append(action_onehot)
 
-    _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Gradient_Norm], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+    _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
     save_to_tb(loss_summary, global_step=T)
     save_to_tb(norm_summary, global_step=T)
+
+
+def start_of_episode_tb():
+    save_scalar(epsilon, Epsilon_Summary, T)
+
+
+def end_of_episode_tb():
+    save_scalar(episode_bonus_only_reward, Episode_Bonus_Only_Reward_Summary, T)
+    save_scalar(episode_reward, Episode_Reward_Summary, T)
+    save_scalar(episode_steps, Episode_Length_Summary, T)
+
+
+def save_checkpoint():
+    checkpointer.save(sess=sess, save_path="{}/ckpts/dqn".format(LOGDIR), global_step=T)
 
 
 ######################
@@ -291,12 +355,17 @@ def train_agent():
 
 explore()
 
+sess.run(tf.global_variables_initializer())
+
+if args.restore != "":
+    print("\n--RESTORING--\nFrom: {}".format(args.restore))
+    checkpointer.restore(sess, save_path=args.restore)
+
+sync_target_network()
+
 start_time = time.time()
 
 print("Training.\n\n\n")
-
-sess.run(tf.global_variables_initializer())
-sync_target_network()
 
 while T < args.t_max:
 
@@ -306,8 +375,12 @@ while T < args.t_max:
     episode_finished = False
     episode_reward = 0
     episode_steps = 0
+    episode_bonus_only_reward = 0
+    exp_bonus = 0
 
     epsilon = epsilon_schedule()
+
+    start_of_episode_tb()
 
     print_time()
 
@@ -324,7 +397,10 @@ while T < args.t_max:
 
         episode_reward += reward
 
-        reward += add_exploration_bonus(state)
+        exp_bonus = exploration_bonus(state)
+
+        episode_bonus_only_reward += exp_bonus
+        reward += exp_bonus
 
         episode_steps += 1
         T += 1
@@ -338,10 +414,13 @@ while T < args.t_max:
 
         train_agent()
 
+        state = state_new
+
         if T % args.target == 0:
             sync_target_network()
 
-        state = state_new
+        if T % args.checkpoint_interval == 0:
+            save_checkpoint()
 
         if not args.plain_print:
             print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
@@ -349,10 +428,24 @@ while T < args.t_max:
     episode += 1
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
+    Episode_Bonus_Only_Rewards.append(episode_bonus_only_reward)
 
+    end_of_episode_tb()
+
+    # TODO: Do something with these or get rid of them
     Rewards = []
     States = []
     States_Next = []
     Actions = []
 
     save_values()
+
+# Housekeeping
+checkpointer.save(sess=sess, save_path="{}/ckpts/dqn-final".format(LOGDIR), global_step=T)
+
+if args.render:
+    env.render(close=True)
+# Keep the tensorflow session open incase we run this in ipython
+# sess.close()
+
+print("\nFinished\n")
