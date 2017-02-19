@@ -14,6 +14,7 @@ import Exploration.CTS as CTS
 from Misc.Gradients import clip_grads
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
+from Replay.Prioritised_ExpReplay_Options import ExperienceReplay_Options as Prioritised_ExpReplay_Options
 from Models.Models import get_models
 import Envs
 
@@ -27,7 +28,7 @@ parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e3))
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(10e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
@@ -46,6 +47,7 @@ parser.add_argument("--action-override", type=int, default=-1)
 parser.add_argument("--double-q", type=bool, default=True)
 parser.add_argument("--checkpoint-interval", "--ckpt", type=int, default=5e4)
 parser.add_argument("--restore", type=str, default="")
+parser.add_argument("--prioritized", "--pexp", action="store_true", default=False)
 args = parser.parse_args()
 
 config = tf.ConfigProto()
@@ -103,7 +105,11 @@ print("=" * 40)
 print()
 
 # Experience Replay
-replay = ExperienceReplay_Options(args.exp_replay_size)
+replay = None
+if args.prioritized:
+    replay = Prioritised_ExpReplay_Options(args.exp_replay_size)
+else:
+    replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # DQN
 print("\n" + "=" * 40)
@@ -300,12 +306,13 @@ def epsilon_schedule():
 
 def train_agent():
     # TODO: Use a named tuple for experience replay
-    batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
+    indices, batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
 
     dqn_inputs = dqn["Input"]
     dqn_targets = dqn["Targets"]
     dqn_actions = dqn["Actions"]
     dqn_qvals = dqn["Q_Values"]
+    dqn_errors = dqn["Q_Error"]
 
     target_dqn_input = target_dqn["Input"]
     target_dqn_qvals = target_dqn["Q_Values"]
@@ -330,7 +337,12 @@ def train_agent():
         action_onehot[at] = 1
         actions.append(action_onehot)
 
-    _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+    _, q_errors, loss_summary, norm_summary = sess.run([minimise_op, dqn_errors, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+
+    if args.prioritized:
+        td_errors = list(map(lambda x: np.max(x), q_errors))
+        replay.Update_Indices(indices, td_errors)
+
     save_to_tb(loss_summary, global_step=T)
     save_to_tb(norm_summary, global_step=T)
 

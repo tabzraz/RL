@@ -55,6 +55,7 @@ def model(name="Model", size=1, actions=4):
     dict["Input"] = inputs
     dict["Q_Values"] = q_values
     dict["Q_Loss"] = q_loss
+    dict["Q_Error"] = q_error
     dict["Variables"] = variables
     dict["Targets"] = target_q
     dict["Actions"] = action_index
