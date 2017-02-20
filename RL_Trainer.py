@@ -6,6 +6,7 @@ import os
 from math import sqrt
 
 import numpy as np
+from skimage.transform import resize
 
 import tensorflow as tf
 
@@ -48,6 +49,7 @@ parser.add_argument("--double-q", type=bool, default=True)
 parser.add_argument("--checkpoint-interval", "--ckpt", type=int, default=5e4)
 parser.add_argument("--restore", type=str, default="")
 parser.add_argument("--prioritized", "--pexp", action="store_true", default=False)
+parser.add_argument("--bonus-after-epsilon", action="store_true", default=False)
 args = parser.parse_args()
 
 config = tf.ConfigProto()
@@ -200,12 +202,23 @@ episode_steps = 0
 episode_bonus_only_reward = 0
 
 if args.count:
-    cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
+    cts_model_shape = (14, 14)
+    cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
 
 
 # Methods
+def environment_specific_stuff():
+    if args.env.startswith("Maze"):
+        player_pos = env.player_pos
+        with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
+            file.write(player_pos)
+
+
 def exploration_bonus(state):
+    if args.bonus_after_epsilon and T < args.epsilon_steps:
+        return 0
     if args.count:
+        state = resize(state, output_shape=cts_model_shape)
         rho_old = np.exp(cts_model.update(state))
         rho_new = np.exp(cts_model.log_prob(state))
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
@@ -433,6 +446,8 @@ while T < args.t_max:
 
         if T % args.checkpoint_interval == 0:
             save_checkpoint()
+
+        environment_specific_stuff()
 
         if not args.plain_print:
             print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")

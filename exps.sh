@@ -1,0 +1,5 @@
+screen -mdS Count fish -c "python RL_Trainer.py --gpu --name Count_1 --n 1 --env Maze-3-v1 --count --bonus-after-epsilon"
+screen -mdS Count fish -c "python RL_Trainer.py --gpu --name Count_2 --n 2 --env Maze-3-v1 --count --bonus-after-epsilon"
+screen -mdS Count fish -c "python RL_Trainer.py --gpu --name Count_5 --n 5 --env Maze-3-v1 --count --bonus-after-epsilon"
+screen -mdS Count fish -c "python RL_Trainer.py --gpu --name Count_10 --n 10 --env Maze-3-v1 --count --bonus-after-epsilon"
+screen -mdS Count fish -c "python RL_Trainer.py --gpu --name Count_20 --n 20 --env Maze-3-v1 --count --bonus-after-epsilon"
