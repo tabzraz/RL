@@ -89,7 +89,7 @@ class ExperienceReplay_Options:
             # Check for terminal states
             index_up_to = N
             for i, exp in enumerate(exps_to_use):
-                if exp[5]:
+                if exp is None or exp[5]:
                     index_up_to = i + 1
                     break
             exps_to_use = exps_to_use[:index_up_to]
