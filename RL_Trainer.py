@@ -211,7 +211,7 @@ def environment_specific_stuff():
     if args.env.startswith("Maze"):
         player_pos = env.player_pos
         with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
-            file.write(str(player_pos))
+            file.write(str(player_pos) + "\n")
 
 
 def exploration_bonus(state):
