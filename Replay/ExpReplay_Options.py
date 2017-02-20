@@ -47,4 +47,5 @@ class ExperienceReplay_Options:
                 accum_reward = ri + gamma * accum_reward
             new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
             batch_to_return.append(new_exp)
-        return batch_to_return
+        # [] for indices to match the prioritized replay
+        return [], batch_to_return
