@@ -5,13 +5,13 @@ import tflearn
 def model(name="Model", actions=2, beta=0.01):
     with tf.name_scope(name):
         obs = tf.placeholder(tf.float32, shape=[None, 4], name="Observation_Input")
-        # net = tflearn.fully_connected(obs, 128, activation="relu", weights_init="xavier", name="FC1")
+        net = tflearn.fully_connected(obs, 32, activation="relu", name="FC1")
         with tf.name_scope("value"):
-            v_net = tflearn.fully_connected(obs, 64, activation="relu")
+            v_net = tflearn.fully_connected(net, 16, activation="relu")
             # v_net = tflearn.fully_connected(v_net, 64, activation="relu")
             value = tflearn.fully_connected(v_net, 1, activation="linear", name="Value")
         with tf.name_scope("policy"):
-            p_net = tflearn.fully_connected(obs, 64, activation="relu")
+            p_net = tflearn.fully_connected(net, 16, activation="relu")
             # p_net = tflearn.fully_connected(p_net, 64, activation="relu")
             policy = tflearn.fully_connected(p_net, actions, activation="softmax", name="Policy")
 

@@ -7,22 +7,22 @@ import time
 import random
 import datetime
 import os
-from Models.A3C_Maze import model as model
+from Models.A3C_CartPole import model as model
 import Envs
 
 flags = tf.app.flags
-flags.DEFINE_float("learning_rate", 0.0001, "Initial Learning Rate")
+flags.DEFINE_float("learning_rate", 0.001, "Initial Learning Rate")
 flags.DEFINE_integer("actors", 8, "Number of actor threads to use")
-flags.DEFINE_float("gamma", 0.99, "Gamma, the discount rate for future rewards")
-flags.DEFINE_integer("t_max", 1e6, "Number of frames to run for")
-flags.DEFINE_string("env", "Maze-v0", "Name of OpenAI gym environment to use")
+flags.DEFINE_float("gamma", 0.95, "Gamma, the discount rate for future rewards")
+flags.DEFINE_integer("t_max", 10e5, "Number of frames to run for")
+flags.DEFINE_string("env", "CartPole-v0", "Name of OpenAI gym environment to use")
 flags.DEFINE_integer("action_override", 0, "Overrides the number of actions provided by the environment")
-flags.DEFINE_float("beta", 0.01, "Used to regularise the policy loss via the entropy")
+flags.DEFINE_float("beta", 0.05, "Used to regularise the policy loss via the entropy")
 flags.DEFINE_float("grad_clip", 10, "Clips gradients by their norm")
 flags.DEFINE_string("logdir", "", "Directory to put logs (including tensorboard logs)")
-flags.DEFINE_integer("episode_t_max", 4, "Maximum number of frames an actor should act for before syncing")
+flags.DEFINE_integer("episode_t_max", 25, "Maximum number of frames an actor should act for before syncing")
 flags.DEFINE_integer("eval_interval", 2.5e4, "Rough number of timesteps to wait until evaluating the global model")
-flags.DEFINE_integer("eval_runs", 3, "Number of runs to average over for evaluation")
+flags.DEFINE_integer("eval_runs", 5, "Number of runs to average over for evaluation")
 flags.DEFINE_integer("eval_t_max", 10000, "Max frames to run an episode for during evaluation")
 flags.DEFINE_string("name", "nn", "The name of your model")
 flags.DEFINE_integer("seed", 0, "Seed for numpy and tf")
@@ -63,7 +63,7 @@ EVAL_RUNS = FLAGS.eval_runs
 EVAL_T_MAX = FLAGS.eval_t_max
 SEED = FLAGS.seed
 CHECKPOINT_INTERVAL = FLAGS.checkpoint
-SUMMARY_UPDATE = 10
+SUMMARY_UPDATE = 50
 
 # TODO: Dump hyperparameters to disk here
 
@@ -105,10 +105,10 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
     policy_entropy = model["Policy_Entropy"]
 
     # Summary statistics
-    if id == 1:
-        writer = tf.train.SummaryWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
-    value_summary_op = tf.scalar_summary([["Value"]], value)
-    policy_entropy_summary_op = tf.scalar_summary("Policy Entropy", policy_entropy)
+    if id > -1:
+        writer = tf.summary.FileWriter("{}/tb_logs/actor_{}".format(LOGDIR, id))
+    value_summary_op = tf.summary.scalar("Value", value[0][0])
+    policy_entropy_summary_op = tf.summary.scalar("Policy Entropy", policy_entropy[0])
 
     s_t = env.reset()
     episode_finished = False
@@ -148,7 +148,7 @@ def actor(env, model, id, t_max, sess, update_global_model, sync_vars):
             t += 1
             episode_frames += 1
 
-            if id == 1 and (internal_T - 1) % SUMMARY_UPDATE == 0:
+            if id > -1 and (internal_T - 1) % SUMMARY_UPDATE == 0:
                 writer.add_summary(value_summary, global_step=T)
                 writer.add_summary(entropy_summary, global_step=T)
 
@@ -262,9 +262,9 @@ with tf.Graph().as_default():
                 grouped = tf.group(*sync_vars)
                 sync_var_ops.append(grouped)
 
-        sess.run(tf.initialize_all_variables())
+        sess.run(tf.global_variables_initializer())
 
-        writer = tf.train.SummaryWriter("{}/tb_logs/eval".format(LOGDIR), graph=sess.graph)
+        writer = tf.summary.FileWriter("{}/tb_logs/eval".format(LOGDIR), graph=sess.graph)
         saver = tf.train.Saver(max_to_keep=None, var_list=global_vars)
 
         # TODO: Use multiprocessing to make this actually parallelisable
@@ -293,7 +293,7 @@ with tf.Graph().as_default():
             t.start()
 
         reward_tf = tf.placeholder(tf.float32)
-        reward_summary = tf.scalar_summary("Average Reward", reward_tf)
+        reward_summary = tf.summary.scalar("Average Reward", reward_tf)
 
         env = gym.make(ENV_NAME)
         eval_model = model(name="Eval_Model", actions=ACTIONS)

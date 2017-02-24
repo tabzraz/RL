@@ -7,6 +7,9 @@ class ExperienceReplay_Options:
         self.N = N
         self.Exps = []
 
+    def Clear(self):
+        self.Exps = []
+
     def Add_Exp(self, state_now, action, reward, state_after, steps, terminal):
         if len(self.Exps) >= self.N:
             self.Exps.pop(0)
