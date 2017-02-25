@@ -29,16 +29,16 @@ parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e4))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(10e4))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.05)
+parser.add_argument("--beta", type=float, default=0.01)
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--xla", action="store_true", default=False)
@@ -200,9 +200,13 @@ epsilon = 1
 episode_reward = 0
 episode_steps = 0
 episode_bonus_only_reward = 0
+RNN_State = None
 
 if args.count:
-    cts_model_shape = (14, 14)
+    # Use half the env size
+    env_size = env.shape[0] * 7
+    cts_model_shape = (env_size // 2, env_size // 2)
+    print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
     cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
 
 

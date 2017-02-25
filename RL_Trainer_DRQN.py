@@ -24,25 +24,25 @@ parser.add_argument("--t-max", type=int, default=int(2e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e5))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e4))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e1))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(10e4))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
-parser.add_argument("--batch-size", "--batch", type=int, default=64)
+parser.add_argument("--batch-size", "--batch", type=int, default=8)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.05)
+parser.add_argument("--beta", type=float, default=0.01)
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--xla", action="store_true", default=False)
-parser.add_argument("--clip-value", type=float, default=10)
+parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tensorboard", "--no-tb", action="store_true", default=False)
 parser.add_argument("--action-override", type=int, default=-1)
 parser.add_argument("--double-q", type=bool, default=True)
@@ -50,7 +50,7 @@ parser.add_argument("--checkpoint-interval", "--ckpt", type=int, default=5e4)
 parser.add_argument("--restore", type=str, default="")
 parser.add_argument("--prioritized", "--pexp", action="store_true", default=False)
 parser.add_argument("--bonus-after-epsilon", action="store_true", default=False)
-parser.add_argument("--passes", type=int, default=400)
+parser.add_argument("--unroll", type=int, default=5)
 args = parser.parse_args()
 
 config = tf.ConfigProto()
@@ -65,7 +65,7 @@ if args.xla:
 args.tb = not args.no_tensorboard
 
 if args.model == "":
-    args.model = args.env
+    args.model = "DRQN-" + args.env
 
 # Tensorflow sessions
 sess = tf.Session(config=config)
@@ -128,25 +128,25 @@ optimiser = tf.train.AdamOptimizer(args.lr)
 
 # Tensorflow Operations
 with tf.name_scope("Sync_Target_DQN"):
-    dqn_vars = dqn["Variables"]
-    target_dqn_vars = target_dqn["Variables"]
+    dqn_vars = dqn.variables
+    target_dqn_vars = target_dqn.variables
     sync_vars_list = []
     for (ref, val) in zip(target_dqn_vars, dqn_vars):
         sync_vars_list.append(tf.assign(ref, val))
     sync_vars = tf.group(*sync_vars_list)
 
 with tf.name_scope("Minimise_DQN_Loss"):
-    qval_loss = dqn["Q_Loss"]
+    qval_loss = dqn.q_loss
     grads_vars = optimiser.compute_gradients(qval_loss)
     clipped_grads_vars, dqn_grad_norm = clip_grads(grads_vars, args.clip_value)
     minimise_op = optimiser.apply_gradients(clipped_grads_vars)
 
 # Checkpoints
-checkpointer = tf.train.Saver(var_list=dqn["Variables"], max_to_keep=None)
+checkpointer = tf.train.Saver(var_list=dqn.variables, max_to_keep=None)
 
 # Tensorboard Stuff
-DQN_Q_Values_Summary = dqn["QVals_Summary"]
-DQN_Loss_Summary = dqn["Loss_Summary"]
+DQN_Q_Values_Summary = dqn.qvals_summary
+DQN_Loss_Summary = dqn.loss_summary
 DQN_Grad_Norm_Summary = tf.summary.scalar("DQN_Gradient_Norm", dqn_grad_norm)
 
 # Dummy variable to log scalars to tensorboard
@@ -201,6 +201,8 @@ epsilon = 1
 episode_reward = 0
 episode_steps = 0
 episode_bonus_only_reward = 0
+# RNN_State = (np.zeros(shape=(1, dqn.lstm_size)), np.zeros(shape=(1, dqn.lstm_size)))
+RNN_State = None
 
 if args.count:
     # Use half the env size
@@ -271,10 +273,15 @@ def sync_target_network():
 
 
 def select_action(state):
-    dqn_q_values = dqn["Q_Values"]
-    dqn_inputs = dqn["Input"]
-    q_values, q_values_summary = sess.run([dqn_q_values, DQN_Q_Values_Summary], {dqn_inputs: [state]})
-    q_values = q_values[0]
+    global RNN_State
+    dqn_q_values = dqn.q_values
+    dqn_inputs = dqn.inputs
+    unrolls = dqn.unroll
+    lstm_state = dqn.initial_lstm_state
+    batch_size = dqn.batch_size
+    final_states = dqn.final_states
+    q_values, RNN_State, q_values_summary = sess.run([dqn_q_values, final_states, DQN_Q_Values_Summary], {dqn_inputs: [state], unrolls: 1, lstm_state: RNN_State, batch_size: 1})
+    q_values = q_values[0][0]
     Q_Values.append(q_values)
     save_to_tb(q_values_summary, global_step=T)
     # Epsilon Greedy
@@ -323,42 +330,114 @@ def epsilon_schedule():
 
 def train_agent():
     # TODO: Use a named tuple for experience replay
-    indices, batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
+    states, actions, rewards, next_states, terminals = replay.Sample_Sequence(args.batch_size, args.unroll)
 
-    dqn_inputs = dqn["Input"]
-    dqn_targets = dqn["Targets"]
-    dqn_actions = dqn["Actions"]
-    dqn_qvals = dqn["Q_Values"]
-    dqn_errors = dqn["Q_Error"]
+    dqn_inputs = dqn.inputs
+    dqn_targets = dqn.target_q
+    dqn_actions = dqn.action_index
+    dqn_qvals = dqn.q_values
+    batch_size = dqn.batch_size
+    unroll = dqn.unroll
+    dqn_state = dqn.initial_lstm_state
+    # dqn_errors = dqn["Q_Error"]
 
-    target_dqn_input = target_dqn["Input"]
-    target_dqn_qvals = target_dqn["Q_Values"]
+    target_dqn_input = target_dqn.inputs
+    target_dqn_qvals = target_dqn.q_values
+    target_batch_size = target_dqn.batch_size
+    target_unroll = target_dqn.unroll
+    target_dqn_state = target_dqn.initial_lstm_state
 
-    # Create targets from the batch
-    old_states = list(map(lambda tups: tups[0], batch))
-    new_states = list(map(lambda tups: tups[3], batch))
-    new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: new_states, dqn_inputs: new_states})
-    q_targets = []
-    actions = []
-    for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
-        st, at, rt, snew, steps, terminal = batch_item
+    zero_rnn_state = (np.zeros(shape=(1, dqn.lstm_size)), np.zeros(shape=(1, dqn.lstm_size)))
+
+    flattened_states = []
+    flattened_next_states = []
+    flattened_actions = []
+    flattened_targets = []
+    flattened_rewards = []
+    flattened_terminals = []
+    # sequence_lengths = []
+    for state, action, reward, next_state, terminal in zip(states, actions, rewards, next_states, terminals):
+        # State is a list of sequential data, likewise for the rest
+        zero_state = np.zeros(shape=state[0].shape)
+        # zero_action = np.zeros(shape=action[0].shape)
+        length = len(state)
+        # sequence_lengths.append(length)
+        padded_state = state + ([zero_state] * (args.unroll - length))
+        padded_action = action + ([-1] * (args.unroll - length))
+        padded_next_state = next_state + ([zero_state] * (args.unroll - length))
+        padded_reward = reward + ([0] * (args.unroll - length))
+        padded_terminal = terminal + ([True] * (args.unroll - length))
+        flattened_states += padded_state
+        flattened_actions += padded_action
+        flattened_next_states += padded_next_state
+        flattened_rewards += padded_reward
+        flattened_terminals += padded_terminal
+
+    q_dict = {}
+    q_dict[batch_size] = args.batch_size
+    q_dict[target_batch_size] = args.batch_size
+    q_dict[unroll] = args.unroll
+    q_dict[target_unroll] = args.unroll
+    q_dict[dqn_inputs] = flattened_next_states
+    q_dict[target_dqn_input] = flattened_next_states
+    q_dict[dqn_state] = zero_rnn_state
+    q_dict[target_dqn_state] = zero_rnn_state
+    new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict=q_dict)
+
+    flattened_action_indices = []
+    for action, reward, terminal, target_qval, double_qval in zip(flattened_actions, flattened_rewards, flattened_terminals, target_qvals, new_state_qvals):
         target = np.zeros(args.actions)
-        target[at] = rt
-        if not terminal:
-            if args.double_q:
-                target[at] += (args.gamma ** steps) * target_qval[np.argmax(double_qvals)]
-            else:
-                target[at] += (args.gamma ** steps) * np.max(target_qval)
-        q_targets.append(target)
-        action_onehot = np.zeros(args.actions)
-        action_onehot[at] = 1
-        actions.append(action_onehot)
+        if action < 0:
+            # This is a padded thing, make the onehot actions 0 => no error
+            flattened_targets.append(0)
+            flattened_action_indices.append(np.zeros(args.actions))
+        else:
+            target[action] = reward
+            if not terminal:
+                if args.double_q:
+                    target[action] += (args.gamma) * target_qval[np.argmax(double_qval)]
+                else:
+                    target[action] += (args.gamma) * np.max(target_qval)
+            flattened_targets.append(target)
+            action_onehot = np.zeros(args.actions)
+            action_onehot[action] = 1
+            flattened_action_indices.append(action_onehot)
 
-    _, q_errors, loss_summary, norm_summary = sess.run([minimise_op, dqn_errors, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+    # seq_lens = dqn.sequence_lengths
+    feed_dict = {}
+    feed_dict[batch_size] = args.batch_size
+    feed_dict[unroll] = args.unroll
+    feed_dict[dqn_inputs] = flattened_states
+    feed_dict[dqn_targets] = flattened_targets
+    feed_dict[dqn_actions] = flattened_action_indices
+    _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict=feed_dict)
 
-    if args.prioritized:
-        td_errors = list(map(lambda x: np.max(x), q_errors))
-        replay.Update_Indices(indices, td_errors)
+    # # Create targets from the batch
+    # # old_states = list(map(lambda tups: tups[0], batch))
+    # # new_states = list(map(lambda tups: tups[3], batch))
+    # new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict={target_dqn_input: next_states, dqn_inputs: next_states})
+    # q_targets = []
+    # actions = []
+
+    # for batch_item, target_qval, double_qvals in zip(batch, target_qvals, new_state_qvals):
+    #     st, at, rt, snew, steps, terminal = batch_item
+    #     target = np.zeros(args.actions)
+    #     target[at] = rt
+    #     if not terminal:
+    #         if args.double_q:
+    #             target[at] += (args.gamma ** steps) * target_qval[np.argmax(double_qvals)]
+    #         else:
+    #             target[at] += (args.gamma ** steps) * np.max(target_qval)
+    #     q_targets.append(target)
+    #     action_onehot = np.zeros(args.actions)
+    #     action_onehot[at] = 1
+    #     actions.append(action_onehot)
+
+    # _, q_errors, loss_summary, norm_summary = sess.run([minimise_op, dqn_errors, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict={dqn_inputs: old_states, dqn_targets: q_targets, dqn_actions: actions})
+
+    # if args.prioritized:
+    #     td_errors = list(map(lambda x: np.max(x), q_errors))
+    #     replay.Update_Indices(indices, td_errors)
 
     save_to_tb(loss_summary, global_step=T)
     save_to_tb(norm_summary, global_step=T)
@@ -382,7 +461,7 @@ def save_checkpoint():
 # Training procedure #
 ######################
 
-# explore()
+explore()
 
 sess.run(tf.global_variables_initializer())
 
@@ -394,7 +473,7 @@ sync_target_network()
 
 start_time = time.time()
 
-print("\nTraining.\n\n\n")
+print("Training.\n\n\n")
 
 while T < args.t_max:
 
@@ -406,6 +485,8 @@ while T < args.t_max:
     episode_steps = 0
     episode_bonus_only_reward = 0
     exp_bonus = 0
+    RNN_State = (np.zeros(shape=(1, dqn.lstm_size)), np.zeros(shape=(1, dqn.lstm_size)))
+    # RNN_State = dqn.zero_state(args.batch_size)
 
     epsilon = epsilon_schedule()
 
@@ -441,6 +522,8 @@ while T < args.t_max:
 
         replay.Add_Exp(state, action, reward, state_new, 1, episode_finished)
 
+        train_agent()
+
         state = state_new
 
         if T % args.target == 0:
@@ -458,10 +541,6 @@ while T < args.t_max:
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
     Episode_Bonus_Only_Rewards.append(episode_bonus_only_reward)
-
-    for _ in range(args.passes):
-        train_agent()
-    replay.Clear()
 
     end_of_episode_tb()
 

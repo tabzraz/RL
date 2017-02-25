@@ -23,6 +23,31 @@ class ExperienceReplay_Options:
         indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
         return [self.Exps[i] for i in indices]
 
+    def Sample_Sequence(self, size, seq_length):
+        indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        states = []
+        actions = []
+        rewards = []
+        next_states = []
+        terminals = []
+        for index in indices:
+            exps_to_use = self.Exps[index: index + seq_length]
+            # Check for terminal states
+            index_up_to = seq_length
+            for i, exp in enumerate(exps_to_use):
+                if exp[5]:
+                    index_up_to = i + 1
+                    break
+            exps_to_use = exps_to_use[:index_up_to]
+
+            states.append([x[0] for x in exps_to_use])
+            actions.append([x[1] for x in exps_to_use])
+            rewards.append([x[2] for x in exps_to_use])
+            next_states.append([x[3] for x in exps_to_use])
+            terminals.append([x[5] for x in exps_to_use])
+
+        return states, actions, rewards, next_states, terminals
+
     # Sample an n-step target
     # Intended for use with step sizes of 1 for now
     def Sample_N(self, size, N, gamma):
