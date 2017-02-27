@@ -19,7 +19,7 @@ import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
 parser.add_argument("--t-max", type=int, default=int(2e5))
-parser.add_argument("--env", type=str, default="Maze-2-v1")
+parser.add_argument("--env", type=str, default="Maze-1-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
 parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
@@ -29,7 +29,7 @@ parser.add_argument("--model", type=str, default="Maze-2")
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e5))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(15e4))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=64)
@@ -225,13 +225,16 @@ def train_agent():
 
     target_dqn_qvals = target_dqn(new_states)
     new_states_qvals = dqn(new_states)
+    # Make a new variable with those values so that these are treated as constants
+    target_dqn_qvals_data = Variable(target_dqn_qvals.data)
+    new_states_qvals_data = Variable(new_states_qvals.data)
 
     q_value_targets = (Variable(torch.ones(args.batch_size)) - terminal_states)
     inter = Variable(torch.ones(args.batch_size) * args.gamma)
     # print(steps)
     q_value_targets_ = q_value_targets * torch.pow(inter, steps)
     # Double Q Learning
-    q_value_targets__ = q_value_targets_ * target_dqn_qvals.gather(1, new_states_qvals.max(1)[1])
+    q_value_targets__ = q_value_targets_ * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
     q_value_targets___ = q_value_targets__ + rewards
 
     model_predictions = dqn(states).gather(1, actions.view(-1, 1))

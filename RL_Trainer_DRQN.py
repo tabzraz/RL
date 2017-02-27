@@ -20,21 +20,21 @@ from Models.Models import get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(2e5))
-parser.add_argument("--env", type=str, default="Maze-2-v1")
+parser.add_argument("--t-max", type=int, default=int(1e5))
+parser.add_argument("--env", type=str, default="Maze-1-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(20e3))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e1))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(5e4))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
-parser.add_argument("--batch-size", "--batch", type=int, default=8)
+parser.add_argument("--batch-size", "--batch", type=int, default=2)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
@@ -50,7 +50,7 @@ parser.add_argument("--checkpoint-interval", "--ckpt", type=int, default=5e4)
 parser.add_argument("--restore", type=str, default="")
 parser.add_argument("--prioritized", "--pexp", action="store_true", default=False)
 parser.add_argument("--bonus-after-epsilon", action="store_true", default=False)
-parser.add_argument("--unroll", type=int, default=5)
+parser.add_argument("--unroll", type=int, default=32)
 args = parser.parse_args()
 
 config = tf.ConfigProto()
@@ -134,6 +134,8 @@ with tf.name_scope("Sync_Target_DQN"):
     for (ref, val) in zip(target_dqn_vars, dqn_vars):
         sync_vars_list.append(tf.assign(ref, val))
     sync_vars = tf.group(*sync_vars_list)
+# print(dqn_vars)
+# print(target_dqn_vars)
 
 with tf.name_scope("Minimise_DQN_Loss"):
     qval_loss = dqn.q_loss
@@ -280,6 +282,7 @@ def select_action(state):
     lstm_state = dqn.initial_lstm_state
     batch_size = dqn.batch_size
     final_states = dqn.final_states
+    # print(RNN_State)
     q_values, RNN_State, q_values_summary = sess.run([dqn_q_values, final_states, DQN_Q_Values_Summary], {dqn_inputs: [state], unrolls: 1, lstm_state: RNN_State, batch_size: 1})
     q_values = q_values[0][0]
     Q_Values.append(q_values)
@@ -338,16 +341,16 @@ def train_agent():
     dqn_qvals = dqn.q_values
     batch_size = dqn.batch_size
     unroll = dqn.unroll
-    dqn_state = dqn.initial_lstm_state
+    # dqn_state = dqn.initial_lstm_state
     # dqn_errors = dqn["Q_Error"]
 
     target_dqn_input = target_dqn.inputs
     target_dqn_qvals = target_dqn.q_values
     target_batch_size = target_dqn.batch_size
     target_unroll = target_dqn.unroll
-    target_dqn_state = target_dqn.initial_lstm_state
+    # target_dqn_state = target_dqn.initial_lstm_state
 
-    zero_rnn_state = (np.zeros(shape=(1, dqn.lstm_size)), np.zeros(shape=(1, dqn.lstm_size)))
+    # zero_rnn_state = (np.zeros(shape=(1, dqn.lstm_size)), np.zeros(shape=(1, dqn.lstm_size)))
 
     flattened_states = []
     flattened_next_states = []
@@ -380,8 +383,9 @@ def train_agent():
     q_dict[target_unroll] = args.unroll
     q_dict[dqn_inputs] = flattened_next_states
     q_dict[target_dqn_input] = flattened_next_states
-    q_dict[dqn_state] = zero_rnn_state
-    q_dict[target_dqn_state] = zero_rnn_state
+    # q_dict[dqn_state] = zero_rnn_state
+    # q_dict[target_dqn_state] = zero_rnn_state
+    # print(len(flattened_next_states))
     new_state_qvals, target_qvals = sess.run([dqn_qvals, target_dqn_qvals], feed_dict=q_dict)
 
     flattened_action_indices = []
@@ -389,7 +393,7 @@ def train_agent():
         target = np.zeros(args.actions)
         if action < 0:
             # This is a padded thing, make the onehot actions 0 => no error
-            flattened_targets.append(0)
+            flattened_targets.append(target)
             flattened_action_indices.append(np.zeros(args.actions))
         else:
             target[action] = reward
@@ -410,6 +414,8 @@ def train_agent():
     feed_dict[dqn_inputs] = flattened_states
     feed_dict[dqn_targets] = flattened_targets
     feed_dict[dqn_actions] = flattened_action_indices
+    # print(len(flattened_targets))
+    # _ = sess.run([minimise_op], feed_dict=feed_dict)
     _, loss_summary, norm_summary = sess.run([minimise_op, DQN_Loss_Summary, DQN_Grad_Norm_Summary], feed_dict=feed_dict)
 
     # # Create targets from the batch

@@ -3,14 +3,14 @@ torch_models = {}
 models = {}
 
 ## --- Torch models ---
-#from .Torch import DQN_Maze
+from .Torch import DQN_Maze
 
-## DQN Maze
-#torch_models["Maze-2"] = DQN_Maze.DQN
+# DQN Maze
+torch_models["Maze-1"] = DQN_Maze.DQN
 
 
-#def get_torch_models(name):
-#    return torch_models[name]
+def get_torch_models(name):
+   return torch_models[name]
 
 
 # --- Tensorflow models ---
