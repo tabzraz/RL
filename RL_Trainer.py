@@ -20,17 +20,17 @@ from Models.Models import get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(4e5))
+parser.add_argument("--t-max", type=int, default=int(2e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(2e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(2e5))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=32)
@@ -162,6 +162,7 @@ Episode_Length_Summary = tf.summary.scalar("Episode_Length", scalar_variable)
 Epsilon_Summary = tf.summary.scalar("Epsilon", scalar_variable)
 
 training_writer = tf.summary.FileWriter("{}/tb/agent".format(LOGDIR), graph=sess.graph)
+eval_writer = tf.summary.FileWriter("{}/tb/eval".format(LOGDIR))
 
 
 def save_scalar(value, summary, global_step, training=True):
@@ -173,6 +174,8 @@ def save_to_tb(summary, global_step, training=True):
     if args.tb:
         if training:
             training_writer.add_summary(summary, global_step=global_step)
+        else:
+            eval_writer.add_summary(summary, global_step=global_step)
 
 
 # Stuff to log
@@ -200,7 +203,6 @@ epsilon = 1
 episode_reward = 0
 episode_steps = 0
 episode_bonus_only_reward = 0
-RNN_State = None
 
 if args.count:
     # Use half the env size
@@ -270,13 +272,13 @@ def sync_target_network():
     sess.run(sync_vars)
 
 
-def select_action(state):
+def select_action(state, training=True):
     dqn_q_values = dqn["Q_Values"]
     dqn_inputs = dqn["Input"]
     q_values, q_values_summary = sess.run([dqn_q_values, DQN_Q_Values_Summary], {dqn_inputs: [state]})
     q_values = q_values[0]
     Q_Values.append(q_values)
-    save_to_tb(q_values_summary, global_step=T)
+    save_to_tb(q_values_summary, global_step=T, training=training)
     # Epsilon Greedy
     if np.random.random() < epsilon:
         action = env.action_space.sample()
@@ -315,6 +317,22 @@ def print_time():
         if len(Episode_Rewards) > 10:
             last_reward = "{:.2f}".format(np.mean(Episode_Rewards[-10:-1]))
         print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+
+
+def eval_agent():
+    global epsilon
+    epsilon = 0
+    terminated = False
+    ep_reward = 0
+    steps = 0
+    state = env.reset()
+    while not terminated:
+        action = select_action(state, training=False)
+        state, reward, terminated, env_info = env.step(action)
+        ep_reward += reward
+        steps += 1
+    save_scalar(ep_reward, Episode_Reward_Summary, T, training=False)
+    save_scalar(steps, Episode_Length_Summary, T, training=False)
 
 
 def epsilon_schedule():
@@ -416,6 +434,8 @@ while T < args.t_max:
     while not episode_finished:
         action = select_action(state)
         state_new, reward, episode_finished, env_info = env.step(action)
+        episode_steps += 1
+        T += 1
         # If the environment terminated because it reached a limit, we do not want the agent
         # to see that transition, since it makes the env non markovian wrt state
         if "Steps_Termination" in env_info:
@@ -430,9 +450,6 @@ while T < args.t_max:
 
         episode_bonus_only_reward += exp_bonus
         reward += exp_bonus
-
-        episode_steps += 1
-        T += 1
 
         Rewards.append(reward)
         States.append(state)
@@ -470,6 +487,8 @@ while T < args.t_max:
     Actions = []
 
     save_values()
+
+    eval_agent()
 
 # Housekeeping
 checkpointer.save(sess=sess, save_path="{}/ckpts/dqn-final".format(LOGDIR), global_step=T)
