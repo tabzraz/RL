@@ -10,6 +10,9 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.autograd import Variable
+
+import imageio
+
 # import torch.nn.modules.utils.clip_grad_norm as clip_grad
 
 import Exploration.CTS as CTS
@@ -49,6 +52,8 @@ parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
+parser.add_argument("--no-eval-images", action="store_true", default=False)
+parser.add_argument("--eval-images-interval", type=int, default=25)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -69,6 +74,8 @@ if not os.path.exists(LOGDIR):
     os.makedirs(LOGDIR)
 if not os.path.exists("{}/logs".format(LOGDIR)):
     os.makedirs("{}/logs".format(LOGDIR))
+if not os.path.exists("{}/evals".format(LOGDIR)):
+    os.makedirs("{}/evals".format(LOGDIR))
 
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
@@ -81,6 +88,8 @@ if args.gpu:
 
 # TB
 args.tb = not args.no_tb
+# Saving the evaluation policies as images
+args.eval_images = not args.no_eval_images
 # Model
 if args.model == "":
     args.model = args.env
@@ -131,8 +140,13 @@ episode_reward = 0
 episode_bonus_only_reward = 0
 epsiode_steps = 0
 
+# Debug stuff
+max_q_value = -1000
+max_exp_bonus = 0
+
 # Async queue
 q = Queue()
+eval_images = 0
 
 if args.count:
     cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
@@ -170,35 +184,52 @@ def environment_specific_stuff():
             file.write(str(player_pos) + "\n")
 
 
-def eval_agent():
+def eval_agent(last=False):
     global epsilon
     epsilon = 0
     terminated = False
     ep_reward = 0
     steps = 0
     state = env.reset()
+    states = [state]
     while not terminated:
         action = select_action(state)
         state, reward, terminated, env_info = env.step(action)
         ep_reward += reward
         steps += 1
+        states.append(state)
     if args.tb:
         log_value("Eval/Episode_Reward", ep_reward, step=T)
         log_value("Eval/Episode_Length", steps, step=T)
+    global eval_images
+    if args.eval_images and (last or eval_images % args.eval_images_interval == 0):
+        save_states(states)
+        eval_images += 1
+
+
+# TODO: Make this async
+def save_states(states):
+    # Pray this keeps working
+    images = []
+    for s in states:
+        images.append(s[:, :, 0] * 255)
+    imageio.mimsave("{}/evals/T_{}__Ep_{}.gif".format(LOGDIR, T, episode), images)
 
 
 def exploration_bonus(state):
+    bonus = 0
     if args.count:
         rho_old = np.exp(cts_model.update(state))
         rho_new = np.exp(cts_model.log_prob(state))
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
         pseudo_count = max(pseudo_count, 0)
-        bonus = args.beta / sqrt(pseudo_count + 0.0001)
+        bonus = args.beta / sqrt(pseudo_count + 0.01)
         Exploration_Bonus.append(bonus)
         if args.tb:
             log_value("Count_Bonus", bonus, step=T)
-        return bonus
-    return 0
+    global max_exp_bonus
+    max_exp_bonus = max(max_exp_bonus, bonus)
+    return bonus
 
 
 def start_of_episode():
@@ -251,6 +282,10 @@ def select_action(state):
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
     q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
     q_values_numpy = q_values.numpy()
+
+    global max_q_value
+    max_q_value = max(max_q_value, np.max(q_values_numpy))
+
     Q_Values.append(q_values_numpy)
 
     # Log the q values
@@ -386,7 +421,7 @@ while T < args.t_max:
 
     state = env.reset()
     if args.render:
-        env.render()
+        env.debug_render()
     episode_finished = False
     episode_reward = 0
     episode_bonus_only_reward = 0
@@ -408,14 +443,20 @@ while T < args.t_max:
         if "Steps_Termination" in env_info:
             episode_finished = True
             break
-        if args.render:
-            env.render()
 
         episode_reward += reward
 
         exp_bonus = exploration_bonus(state)
         episode_bonus_only_reward += exp_bonus
         reward += exp_bonus
+
+        if args.render:
+            debug_dict = {}
+            debug_dict["Q_Values"] = Q_Values[-1]
+            debug_dict["Max_Q_Value"] = max_q_value
+            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+            debug_dict["Exp_Bonus"] = exp_bonus
+            env.debug_render(debug_dict)
 
         Rewards.append(reward)
         States.append(state)
@@ -451,6 +492,8 @@ while T < args.t_max:
     save_values()
 
     eval_agent()
+
+eval_agent(last=True)
 
 q.close()
 p.terminate()
