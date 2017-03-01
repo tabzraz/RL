@@ -127,14 +127,18 @@ class MazeEnv(gym.Env):
 
         pygame.display.update()
 
-    def debug_render(self, debug_info=None, close=False):
+    def debug_render(self, debug_info=None, offline=True, close=False):
         if close:
             pygame.quit()
             return
         if not self.made_screen:
             pygame.init()
             screen_size = (self.maze.shape[0] * 20 + 60, self.maze.shape[1] * 20 + 120)
-            screen = pygame.display.set_mode(screen_size)
+            screen = None
+            if offline:
+                screen = pygame.Surface(screen_size)
+            else:
+                screen = pygame.display.set_mode(screen_size)
             self.screen = screen
             self.made_screen = True
 
@@ -174,4 +178,5 @@ class MazeEnv(gym.Env):
                 pygame.draw.rect(self.screen, blue_colour, (10 + int((self.maze.shape[0] * 20 - 20) / actions) * i, self.maze.shape[1] * 20 + 10 + 100 - q_size, int((self.maze.shape[0] * 20 - 20) / 4), q_size), 0)
                 pygame.draw.rect(self.screen, white_colour, (10 + int((self.maze.shape[0] * 20 - 20) / actions) * i, self.maze.shape[1] * 20 + 10 + 100 - q_size, int((self.maze.shape[0] * 20 - 20) / 4), q_size), 2)
 
-        pygame.display.update()
+        if not offline:
+            pygame.display.update()

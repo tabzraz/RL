@@ -12,7 +12,8 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 import imageio
-
+# from pygame.image import tostring as pygame_tostring
+from pygame.surfarray import array3d as pygame_image
 # import torch.nn.modules.utils.clip_grad_norm as clip_grad
 
 import Exploration.CTS as CTS
@@ -54,6 +55,7 @@ parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
 parser.add_argument("--eval-images-interval", type=int, default=25)
+parser.add_argument("--debug-eval", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -192,31 +194,61 @@ def eval_agent(last=False):
     steps = 0
     state = env.reset()
     states = [state]
+
+    global eval_images
+    will_save_states = args.eval_images and (last or eval_images % args.eval_images_interval == 0)
+
+    if will_save_states and args.debug_eval:
+        env.debug_render(offline=True)
+        debug_states = [pygame_image(env.screen)]
+
     while not terminated:
-        action = select_action(state)
-        state, reward, terminated, env_info = env.step(action)
+        action, q_vals = select_action(state, training=False)
+        state_new, reward, terminated, env_info = env.step(action)
         ep_reward += reward
         steps += 1
-        states.append(state)
+
+        if will_save_states:
+            # Only do this stuff if we're actually gonna save it
+            if args.debug_eval:
+                debug_dict = {}
+                debug_dict["Q_Values"] = q_vals
+                debug_dict["Max_Q_Value"] = max_q_value
+                if args.count:
+                    exp_bonus = exploration_bonus(state, training=False)
+                    debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+                    debug_dict["Exp_Bonus"] = exp_bonus
+                env.debug_render(debug_info=debug_dict, offline=True)
+                debug_states.append(pygame_image(env.screen))
+            states.append(state)
+
+        state = state_new
+
     if args.tb:
         log_value("Eval/Episode_Reward", ep_reward, step=T)
         log_value("Eval/Episode_Length", steps, step=T)
-    global eval_images
-    if args.eval_images and (last or eval_images % args.eval_images_interval == 0):
-        save_states(states)
-        eval_images += 1
+
+    if will_save_states:
+        if args.debug_eval:
+            save_states(debug_states, debug=True)
+        else:
+            save_states(states)
+    eval_images += 1
 
 
 # TODO: Make this async
-def save_states(states):
+def save_states(states, debug=False):
     # Pray this keeps working
     images = []
     for s in states:
-        images.append(s[:, :, 0] * 255)
+        if debug:
+            images.append(s.swapaxes(0, 1))
+        else:
+            images.append(s[:, :, 0] * 255)
     imageio.mimsave("{}/evals/T_{}__Ep_{}.gif".format(LOGDIR, T, episode), images)
 
 
-def exploration_bonus(state):
+def exploration_bonus(state, training=True):
     bonus = 0
     if args.count:
         rho_old = np.exp(cts_model.update(state))
@@ -224,9 +256,10 @@ def exploration_bonus(state):
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
-        Exploration_Bonus.append(bonus)
-        if args.tb:
-            log_value("Count_Bonus", bonus, step=T)
+        if training:
+            Exploration_Bonus.append(bonus)
+            if args.tb:
+                log_value("Count_Bonus", bonus, step=T)
     global max_exp_bonus
     max_exp_bonus = max(max_exp_bonus, bonus)
     return bonus
@@ -278,7 +311,7 @@ def sync_target_network():
         target.data = source.data
 
 
-def select_action(state):
+def select_action(state, training=True):
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
     q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
     q_values_numpy = q_values.numpy()
@@ -286,23 +319,25 @@ def select_action(state):
     global max_q_value
     max_q_value = max(max_q_value, np.max(q_values_numpy))
 
-    Q_Values.append(q_values_numpy)
+    if training:
+        Q_Values.append(q_values_numpy)
 
-    # Log the q values
-    if args.tb:
-        # crayon_exp.add_histogram_value("DQN/Q_Values", q_values_numpy.tolist(), tobuild=True, step=T)
-        # q_val_dict = {}
-        for index in range(args.actions):
-            # q_val_dict["DQN/Action_{}_Q_Value".format(index)] = float(q_values_numpy[index])
-            log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
-        # print(q_val_dict)
-        # crayon_exp.add_scalar_dict(q_val_dict, step=T)
+        # Log the q values
+        if args.tb:
+            # crayon_exp.add_histogram_value("DQN/Q_Values", q_values_numpy.tolist(), tobuild=True, step=T)
+            # q_val_dict = {}
+            for index in range(args.actions):
+                # q_val_dict["DQN/Action_{}_Q_Value".format(index)] = float(q_values_numpy[index])
+                log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
+            # print(q_val_dict)
+            # crayon_exp.add_scalar_dict(q_val_dict, step=T)
 
     if np.random.random() < epsilon:
         action = env.action_space.sample()
     else:
         action = q_values.max(0)[1][0]  # Torch...
-    return action
+
+    return action, q_values_numpy
 
 
 def explore():
@@ -434,7 +469,7 @@ while T < args.t_max:
     print_time()
 
     while not episode_finished:
-        action = select_action(state)
+        action, q_values = select_action(state)
         state_new, reward, episode_finished, env_info = env.step(action)
         episode_steps += 1
         T += 1
@@ -452,10 +487,11 @@ while T < args.t_max:
 
         if args.render:
             debug_dict = {}
-            debug_dict["Q_Values"] = Q_Values[-1]
+            debug_dict["Q_Values"] = q_values
             debug_dict["Max_Q_Value"] = max_q_value
-            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-            debug_dict["Exp_Bonus"] = exp_bonus
+            if args.count:
+                debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+                debug_dict["Exp_Bonus"] = exp_bonus
             env.debug_render(debug_dict)
 
         Rewards.append(reward)
@@ -477,6 +513,8 @@ while T < args.t_max:
         if not args.plain_print:
             print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
 
+    eval_agent()
+
     episode += 1
     Episode_Rewards.append(episode_reward)
     Episode_Lengths.append(episode_steps)
@@ -491,7 +529,6 @@ while T < args.t_max:
 
     save_values()
 
-    eval_agent()
 
 eval_agent(last=True)
 
