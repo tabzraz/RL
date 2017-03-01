@@ -127,22 +127,28 @@ class MazeEnv(gym.Env):
 
         pygame.display.update()
 
-    def debug_render(self, debug_info=None, offline=True, close=False):
+    def debug_render(self, debug_info=None, offline=False, close=False):
         if close:
             pygame.quit()
             return
         if not self.made_screen:
             pygame.init()
-            screen_size = (self.maze.shape[0] * 20 + 60, self.maze.shape[1] * 20 + 120)
-            screen = None
-            if offline:
-                screen = pygame.Surface(screen_size)
-            else:
-                screen = pygame.display.set_mode(screen_size)
-            self.screen = screen
+            self.scaling = 20
+            screen_size = (self.maze.shape[0] * self.scaling + 60, self.maze.shape[1] * self.scaling + 120)
+            surface_size = (self.maze.shape[0] * 4 + 60, self.maze.shape[1] * 4 + 120)
+            self.surface = pygame.Surface(surface_size)
+            self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
 
-        self.screen.fill((0, 0, 0))
+        drawing_surface = None
+        if offline:
+            drawing_surface = self.surface
+            scaling = 4
+        else:
+            drawing_surface = self.screen
+            scaling = self.scaling
+
+        drawing_surface.fill((0, 0, 0))
         maze = self.maze
 
         for x in range(maze.shape[0]):
@@ -150,7 +156,7 @@ class MazeEnv(gym.Env):
                 if maze[x, y] != 0:
                     colour = (255 * maze[x, y] / 3, 255 * maze[x, y] / 3, 255 * maze[x, y] / 3)
                     # colour = (255 - colour[0], 255 - colour[1], 255 - colour[2])
-                    pygame.draw.rect(self.screen, colour, (y * 20, x * 20, 20, 20))
+                    pygame.draw.rect(drawing_surface, colour, (y * scaling, x * scaling, scaling, scaling))
 
         if debug_info is None:
             return
@@ -158,25 +164,35 @@ class MazeEnv(gym.Env):
         white_colour = (255, 255, 255)
         red_colour = (255, 0, 0)
         blue_colour = (0, 0, 255)
+        yellow_colour = (255, 255, 0)
+        green_colour = (0, 255, 0)
 
         if "Exp_Bonus" in debug_info:
             exploration_bonus = debug_info["Exp_Bonus"]
             max_exp_bonus = debug_info["Max_Exp_Bonus"]
             # Exploration_Bonus
             exp_bonus_size = int(exploration_bonus / max_exp_bonus * 40)
-            pygame.draw.rect(self.screen, red_colour, (self.maze.shape[0] * 20 + 10, 10 + (self.maze.shape[1] * 20) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
-            pygame.draw.rect(self.screen, white_colour, (self.maze.shape[0] * 20 + 10, 10, 40, (self.maze.shape[1] * 20) + 100), 2)
+            pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
+            pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 40, (self.maze.shape[1] * scaling) + 100), 2)
 
         if "Q_Values" in debug_info:
             q_values = debug_info["Q_Values"]
             max_q_value = debug_info["Max_Q_Value"]
+            action_chosen = debug_info["Action"]
 
             # Q vals
             q_val_sizes = [int(q_val / max_q_value * 100) for q_val in q_values]
+            greedy_action = np.argmax(q_values)
             actions = len(q_values)
             for i, q_size in enumerate(q_val_sizes):
-                pygame.draw.rect(self.screen, blue_colour, (10 + int((self.maze.shape[0] * 20 - 20) / actions) * i, self.maze.shape[1] * 20 + 10 + 100 - q_size, int((self.maze.shape[0] * 20 - 20) / 4), q_size), 0)
-                pygame.draw.rect(self.screen, white_colour, (10 + int((self.maze.shape[0] * 20 - 20) / actions) * i, self.maze.shape[1] * 20 + 10 + 100 - q_size, int((self.maze.shape[0] * 20 - 20) / 4), q_size), 2)
+                if i == greedy_action:
+                    q_colour = yellow_colour
+                elif i == action_chosen:
+                    q_colour = green_colour
+                else:
+                    q_colour = blue_colour
+                pygame.draw.rect(drawing_surface, q_colour, (10 + int((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, int((self.maze.shape[0] * scaling - 20) / 4), q_size), 0)
+                pygame.draw.rect(drawing_surface, white_colour, (10 + int((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, int((self.maze.shape[0] * scaling - 20) / 4), q_size), 2)
 
         if not offline:
             pygame.display.update()

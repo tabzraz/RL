@@ -147,7 +147,8 @@ max_q_value = -1000
 max_exp_bonus = 0
 
 # Async queue
-q = Queue()
+log_queue = Queue()
+eval_images_queue = Queue()
 eval_images = 0
 
 if args.count:
@@ -175,7 +176,7 @@ def logger(q):
 
 
 def log_value(name, value, step):
-    q.put((name, value, step))
+    log_queue.put((name, value, step))
 
 
 # Methods
@@ -187,6 +188,8 @@ def environment_specific_stuff():
 
 
 def eval_agent(last=False):
+    # Best to keep this on the main thread so we have access to the CTS model
+    # If this becomes a bottleneck then think about asyncing this as a whole
     global epsilon
     epsilon = 0
     terminated = False
@@ -194,13 +197,14 @@ def eval_agent(last=False):
     steps = 0
     state = env.reset()
     states = [state]
+    Eval_Q_Values = []
 
     global eval_images
     will_save_states = args.eval_images and (last or eval_images % args.eval_images_interval == 0)
 
     if will_save_states and args.debug_eval:
         env.debug_render(offline=True)
-        debug_states = [pygame_image(env.screen)]
+        debug_states = [pygame_image(env.surface)]
 
     while not terminated:
         action, q_vals = select_action(state, training=False)
@@ -208,21 +212,29 @@ def eval_agent(last=False):
         ep_reward += reward
         steps += 1
 
+        Eval_Q_Values.append(q_vals)
+
         if will_save_states:
             # Only do this stuff if we're actually gonna save it
             if args.debug_eval:
                 debug_dict = {}
                 debug_dict["Q_Values"] = q_vals
                 debug_dict["Max_Q_Value"] = max_q_value
+                debug_dict["Action"] = action
                 if args.count:
                     exp_bonus = exploration_bonus(state, training=False)
                     debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                     debug_dict["Exp_Bonus"] = exp_bonus
                 env.debug_render(debug_info=debug_dict, offline=True)
-                debug_states.append(pygame_image(env.screen))
+                debug_states.append(pygame_image(env.surface))
             states.append(state)
 
         state = state_new
+
+    # Log the Q_Values for this
+    with open("{}/logs/Eval_Q_Values_T.txt".format(LOGDIR), "ab") as file:
+        np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
+        file.write(str.encode("\n"))
 
     if args.tb:
         log_value("Eval/Episode_Reward", ep_reward, step=T)
@@ -236,16 +248,21 @@ def eval_agent(last=False):
     eval_images += 1
 
 
-# TODO: Make this async
 def save_states(states, debug=False):
-    # Pray this keeps working
-    images = []
-    for s in states:
-        if debug:
-            images.append(s.swapaxes(0, 1))
-        else:
-            images.append(s[:, :, 0] * 255)
-    imageio.mimsave("{}/evals/T_{}__Ep_{}.gif".format(LOGDIR, T, episode), images)
+    eval_images_queue.put((states, debug, LOGDIR, T, episode))
+
+
+def gif_saver(q):
+    while True:
+        (states, debug, LOGDIR, T, episode) = q.get(block=True)
+        images = []
+        # Pray this keeps working
+        for s in states:
+            if debug:
+                images.append(s.swapaxes(0, 1))
+            else:
+                images.append(s[:, :, 0] * 255)
+        imageio.mimsave("{}/evals/T_{}__Ep_{}.gif".format(LOGDIR, T, episode), images)
 
 
 def exploration_bonus(state, training=True):
@@ -441,8 +458,10 @@ def train_agent():
 ######################
 
 # Start the async logger
-p = Process(target=logger, args=(q,), daemon=True)
-p.start()
+p_log = Process(target=logger, args=(log_queue,), daemon=True)
+p_gif = Process(target=gif_saver, args=(eval_images_queue,), daemon=True)
+p_log.start()
+p_gif.start()
 
 explore()
 
@@ -489,6 +508,7 @@ while T < args.t_max:
             debug_dict = {}
             debug_dict["Q_Values"] = q_values
             debug_dict["Max_Q_Value"] = max_q_value
+            debug_dict["Action"] = action
             if args.count:
                 debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                 debug_dict["Exp_Bonus"] = exp_bonus
