@@ -38,6 +38,7 @@ class MazeEnv(gym.Env):
 
         self.player_pos = (0, 3)
         self.made_screen = False
+        self.made_surface = False
         self.pellets = (self.maze == 2).sum()
 
     def __init__(self, size=(1, 1), seed=2, normalise=True):
@@ -131,14 +132,16 @@ class MazeEnv(gym.Env):
         if close:
             pygame.quit()
             return
-        if not self.made_screen:
+        if not offline and not self.made_screen:
             pygame.init()
             self.scaling = 20
             screen_size = (self.maze.shape[0] * self.scaling + 60, self.maze.shape[1] * self.scaling + 120)
-            surface_size = (self.maze.shape[0] * 4 + 60, self.maze.shape[1] * 4 + 120)
-            self.surface = pygame.Surface(surface_size)
             self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
+        if offline and not self.made_surface:
+            surface_size = (self.maze.shape[0] * 4 + 60, self.maze.shape[1] * 4 + 120)
+            self.surface = pygame.Surface(surface_size)
+            self.made_surface = True
 
         drawing_surface = None
         if offline:
@@ -171,7 +174,7 @@ class MazeEnv(gym.Env):
             exploration_bonus = debug_info["Exp_Bonus"]
             max_exp_bonus = debug_info["Max_Exp_Bonus"]
             # Exploration_Bonus
-            exp_bonus_size = int(exploration_bonus / max_exp_bonus * 40)
+            exp_bonus_size = int(exploration_bonus / max_exp_bonus * (self.maze.shape[1] * scaling + 100))
             pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
             pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 40, (self.maze.shape[1] * scaling) + 100), 2)
 

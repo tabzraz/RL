@@ -17,6 +17,7 @@ from pygame.surfarray import array3d as pygame_image
 # import torch.nn.modules.utils.clip_grad_norm as clip_grad
 
 import Exploration.CTS as CTS
+from skimage.transform import resize
 
 # from pycrayon import CrayonClient
 from tensorboard_logger import configure
@@ -30,16 +31,16 @@ from Models.Models import get_torch_models as get_models
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(2e5))
+parser.add_argument("--t-max", type=int, default=int(5e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(2e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1e4))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
@@ -54,7 +55,7 @@ parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
-parser.add_argument("--eval-images-interval", type=int, default=25)
+parser.add_argument("--eval-images-interval", type=int, default=50)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
@@ -146,13 +147,20 @@ epsiode_steps = 0
 max_q_value = -1000
 max_exp_bonus = 0
 
+# Env specific stuff
+Player_Positions = []
+
 # Async queue
 log_queue = Queue()
-eval_images_queue = Queue()
+gif_queue = Queue()
 eval_images = 0
 
 if args.count:
-    cts_model = CTS.LocationDependentDensityModel(frame_shape=(env.shape[0] * 7, env.shape[0] * 7, 1), context_functor=CTS.L_shaped_context)
+    # Use half the env size
+    env_size = env.shape[0] * 7
+    cts_model_shape = (env_size // 2, env_size // 2)
+    print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
+    cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
 
 
 # class Variable(torch.autograd.Variable):
@@ -183,13 +191,30 @@ def log_value(name, value, step):
 def environment_specific_stuff():
     if args.env.startswith("Maze"):
         player_pos = env.player_pos
+        Player_Positions.append(player_pos)
         with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
             file.write(str(player_pos) + "\n")
 
+        if T % int(args.t_max / 10) == 0:
+            # Make a gif of the positions
+            interval = int(args.t_max / 10)
+            scaling = 2
+            images = []
+            for i in range(0, T, interval // 10):
+                canvas = np.zeros((env.maze.shape[0], env.maze.shape[1]))
+                for visit in Player_Positions[i: i + interval]:
+                    canvas[visit] += 1
+                # Bit of a hack
+                if np.max(canvas) == 0:
+                    break
+                gray_maze = canvas / (np.max(canvas) / scaling)
+                gray_maze = np.clip(gray_maze, 0, 1) * 255
+                images.append(gray_maze)
+            gif_queue.put((images, "{}/evals/Visits__T_{}.gif".format(LOGDIR, T)))
 
+
+# TODO: Async this
 def eval_agent(last=False):
-    # Best to keep this on the main thread so we have access to the CTS model
-    # If this becomes a bottleneck then think about asyncing this as a whole
     global epsilon
     epsilon = 0
     terminated = False
@@ -242,32 +267,30 @@ def eval_agent(last=False):
 
     if will_save_states:
         if args.debug_eval:
-            save_states(debug_states, debug=True)
+            save_eval_states(debug_states, debug=True)
         else:
-            save_states(states)
+            save_eval_states(states)
     eval_images += 1
 
 
-def save_states(states, debug=False):
-    eval_images_queue.put((states, debug, LOGDIR, T, episode))
+def save_eval_states(states, debug=False):
+    if debug:
+        states = [s.swapaxes(0, 1) for s in states]
+    else:
+        states = [s[:, :, 0] * 255 for s in states]
+    gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
 
 
 def gif_saver(q):
     while True:
-        (states, debug, LOGDIR, T, episode) = q.get(block=True)
-        images = []
-        # Pray this keeps working
-        for s in states:
-            if debug:
-                images.append(s.swapaxes(0, 1))
-            else:
-                images.append(s[:, :, 0] * 255)
-        imageio.mimsave("{}/evals/T_{}__Ep_{}.gif".format(LOGDIR, T, episode), images)
+        (images, name) = q.get(block=True)
+        imageio.mimsave(name, images)
 
 
 def exploration_bonus(state, training=True):
     bonus = 0
     if args.count:
+        state = resize(state, output_shape=cts_model_shape)
         rho_old = np.exp(cts_model.update(state))
         rho_new = np.exp(cts_model.log_prob(state))
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
@@ -334,6 +357,8 @@ def select_action(state, training=True):
     q_values_numpy = q_values.numpy()
 
     global max_q_value
+    # Decay it so that it reflects a recentish maximum q value
+    max_q_value *= 0.9999
     max_q_value = max(max_q_value, np.max(q_values_numpy))
 
     if training:
@@ -459,7 +484,7 @@ def train_agent():
 
 # Start the async logger
 p_log = Process(target=logger, args=(log_queue,), daemon=True)
-p_gif = Process(target=gif_saver, args=(eval_images_queue,), daemon=True)
+p_gif = Process(target=gif_saver, args=(gif_queue,), daemon=True)
 p_log.start()
 p_gif.start()
 
@@ -552,6 +577,12 @@ while T < args.t_max:
 
 eval_agent(last=True)
 
-q.close()
-p.terminate()
+# Wait until the queues are empty
+while not log_queue.empty() or not gif_queue.empty():
+    time.sleep(5)
+
+log_queue.close()
+gif_queue.close()
+p_log.terminate()
+p_gif.terminate()
 print("\nFinished\n")
