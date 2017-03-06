@@ -23,6 +23,7 @@ from skimage.transform import resize
 from tensorboard_logger import configure
 from tensorboard_logger import log_value as tb_log_value
 from multiprocessing import Process, Queue
+from multiprocessing.sharedctypes import Value
 
 
 from Utils.Utils import time_str
@@ -39,18 +40,20 @@ parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
-parser.add_argument("--lr", type=float, default=0.0001)
+parser.add_argument("--lr", type=float, default=0.00001)
 parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
 parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(3e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=32)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.1)
+parser.add_argument("--beta", type=float, default=0.01)
 parser.add_argument("--n-step", "--n", type=int, default=1)
+parser.add_argument("--n-inc", action="store_true", default=False)
+parser.add_argument("--n-max", type=int, default=10)
 parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
@@ -88,6 +91,9 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.gpu:
     torch.cuda.manual_seed_all(args.seed)
+
+# N step start
+args.n_start = args.n_step
 
 # TB
 args.tb = not args.no_tb
@@ -149,16 +155,19 @@ max_exp_bonus = 0
 
 # Env specific stuff
 Player_Positions = []
+Player_Positions_With_Goals = []
 
 # Async queue
 log_queue = Queue()
-gif_queue = Queue()
+# gif_queue = Queue()
 eval_images = 0
 
 if args.count:
     # Use half the env size
-    env_size = env.shape[0] * 7
-    cts_model_shape = (env_size // 2, env_size // 2)
+    # env_size = env.shape[0] * 7
+    # cts_model_shape = (env_size // 2, env_size // 2)
+    # Use a (14, 14) model anyway
+    cts_model_shape = (7, 7)
     print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
     cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
 
@@ -172,12 +181,12 @@ if args.count:
 #         super(Variable, self).__init__(data, *arguments, **kwargs)
 
 # Multiprocessing logger
-def logger(q):
+def logger(q, finished):
     configure("{}/tb".format(LOGDIR), flush_secs=30)
     # Crayon stuff
     # crayon_client = CrayonClient(hostname="localhost")
     # crayon_exp = crayon_client.create_experiment(NAME_DATE)
-    while True:
+    while finished.value < 1:
         (name, value, step) = q.get(block=True)
         tb_log_value(name, value, step=step)
         # crayon_exp.add_scalar_value(name, value, step=step)
@@ -191,26 +200,74 @@ def log_value(name, value, step):
 def environment_specific_stuff():
     if args.env.startswith("Maze"):
         player_pos = env.player_pos
+        player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
         Player_Positions.append(player_pos)
+        Player_Positions_With_Goals.append(player_pos_with_goals)
         with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
             file.write(str(player_pos) + "\n")
+        with open("{}/logs/Player_Positions_In_Maze_With_Goals.txt".format(LOGDIR), "a") as file:
+            file.write(str(player_pos_with_goals) + "\n")
 
-        if T % int(args.t_max / 10) == 0:
+        # TODO: Move this out into a post-processing step
+        if T % int(args.t_max / 2) == 0:
             # Make a gif of the positions
-            interval = int(args.t_max / 10)
-            scaling = 2
-            images = []
-            for i in range(0, T, interval // 10):
-                canvas = np.zeros((env.maze.shape[0], env.maze.shape[1]))
-                for visit in Player_Positions[i: i + interval]:
-                    canvas[visit] += 1
-                # Bit of a hack
-                if np.max(canvas) == 0:
-                    break
-                gray_maze = canvas / (np.max(canvas) / scaling)
-                gray_maze = np.clip(gray_maze, 0, 1) * 255
-                images.append(gray_maze)
-            gif_queue.put((images, "{}/evals/Visits__T_{}.gif".format(LOGDIR, T)))
+            for interval_size in range(2, 11, 2):
+                interval = int(args.t_max / interval_size)
+                scaling = 2
+                images = []
+                for i in range(0, T, interval // 10):
+                    canvas = np.zeros((env.maze.shape[0], env.maze.shape[1]))
+                    for visit in Player_Positions[i: i + interval]:
+                        canvas[visit] += 1
+                    # Bit of a hack
+                    if np.max(canvas) == 0:
+                        break
+                    gray_maze = canvas / (np.max(canvas) / scaling)
+                    gray_maze = np.clip(gray_maze, 0, 1) * 255
+                    images.append(gray_maze)
+                imageio.mimsave("{}/evals/Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), images)
+
+                # We want to show visualisations for the agent depending on which goals they've visited as well
+                # Keep it seperate from the other one
+                colour_images = []
+                for i in range(0, T, interval // 10):
+                    canvas = np.zeros((env.maze.shape[0] * 3, env.maze.shape[1] * 3, 3))
+                    maze_size = env.maze.shape[0]
+                    for visit in Player_Positions_With_Goals[i: i + interval]:
+                        px = visit[0]
+                        py = visit[1]
+                        g1 = visit[2]
+                        g2 = visit[3]
+                        g3 = visit[4]
+                        if not g1 and not g2 and not g3:
+                            # No Goals visited
+                            canvas[px, py, :] += 1
+                        elif g1 and not g2 and not g3:
+                            # Only g1
+                            canvas[px, py + maze_size, 0] += 1
+                        elif not g1 and g2 and not g3:
+                            # Only g2
+                            canvas[px + maze_size, py + maze_size, 1] += 1
+                        elif not g1 and not g2 and g3:
+                            # Only g3
+                            canvas[px + 2 * maze_size, py + maze_size, 2] += 1
+                        elif g1 and g2 and not g3:
+                            # g1 and g2
+                            canvas[px, py + maze_size * 2, 0: 2] += 1
+                        elif g1 and not g2 and g3:
+                            # g1 and g3
+                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] += 1
+                        elif not g1 and g2 and g3:
+                            # g2 and g3
+                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
+                        else:
+                            print("ERROR", g1, g2, g3)
+                    if np.max(canvas) == 0:
+                        break
+                    colour_maze = canvas / (np.max(canvas) / scaling)
+                    colour_maze = np.clip(colour_maze, 0, 1) * 255
+                    colour_images.append(colour_maze)
+                imageio.mimsave("{}/evals/Goal_Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), colour_images)
 
 
 # TODO: Async this
@@ -278,13 +335,15 @@ def save_eval_states(states, debug=False):
         states = [s.swapaxes(0, 1) for s in states]
     else:
         states = [s[:, :, 0] * 255 for s in states]
-    gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
+    # gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
+    # Don't really need the async for this since it is relatively infrequent
+    imageio.mimsave("{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode), states)
 
 
-def gif_saver(q):
-    while True:
-        (images, name) = q.get(block=True)
-        imageio.mimsave(name, images)
+# def gif_saver(q, finished):
+    # while finished.value < 1:
+        # (images, name) = q.get(block=True)
+        # imageio.mimsave(name, images)
 
 
 def exploration_bonus(state, training=True):
@@ -352,6 +411,7 @@ def sync_target_network():
 
 
 def select_action(state, training=True):
+    dqn.eval()
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
     q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
     q_values_numpy = q_values.numpy()
@@ -418,6 +478,10 @@ def epsilon_schedule():
 
 
 def train_agent():
+    dqn.eval()
+    if args.n_inc:
+        # Start at n and increase to n_max over T_MAX
+        args.n_step = round(args.n_start + (T / args.t_max) * (args.n_max - args.n_start))
     # TODO: Use a named tuple for experience replay
     batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
@@ -443,6 +507,7 @@ def train_agent():
     q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
     q_value_targets = q_value_targets + rewards
 
+    dqn.train()
     if args.gpu:
         actions = actions.cuda()
         q_value_targets = q_value_targets.cuda()
@@ -483,10 +548,11 @@ def train_agent():
 ######################
 
 # Start the async logger
-p_log = Process(target=logger, args=(log_queue,), daemon=True)
-p_gif = Process(target=gif_saver, args=(gif_queue,), daemon=True)
+finished_training = Value("i", 0)
+p_log = Process(target=logger, args=(log_queue, finished_training), daemon=True)
+# p_gif = Process(target=gif_saver, args=(gif_queue, finished_training), daemon=True)
 p_log.start()
-p_gif.start()
+# p_gif.start()
 
 explore()
 
@@ -574,15 +640,15 @@ while T < args.t_max:
 
     save_values()
 
-
+print("\nEvaluating Last Agent\n")
 eval_agent(last=True)
+print("Last Evaluation Finished")
 
-# Wait until the queues are empty
-while not log_queue.empty() or not gif_queue.empty():
-    time.sleep(5)
+finished_training.value = 10
+time.sleep(5)
 
 log_queue.close()
-gif_queue.close()
-p_log.terminate()
-p_gif.terminate()
+# gif_queue.close()
+p_log.join(timeout=1)
+# p_gif.join()
 print("\nFinished\n")

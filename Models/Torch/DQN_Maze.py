@@ -9,9 +9,11 @@ class DQN(nn.Module):
         img_size = int(input_size[1])
         # print(img_size)
         self.conv1 = nn.Conv2d(1, 8, 3, padding=2, stride=2)
+        self.batch1 = nn.BatchNorm2d(8, affine=False)
         img_size = int((img_size - 3 + 4) / 2 + 1)
         # print(img_size)
         self.conv2 = nn.Conv2d(8, 16, 3, padding=2, stride=2)
+        self.batch2 = nn.BatchNorm2d(16, affine=False)
         img_size = int((img_size - 3 + 4) / 2 + 1)
         # print(img_size)
         # self.flatten_size = img_size * img_size * 8
@@ -23,8 +25,10 @@ class DQN(nn.Module):
             x = x.cuda()
 
         x = F.relu(self.conv1(x))
+        x = self.batch1(x)
         # print(x)
         x = F.relu(self.conv2(x))
+        x = self.batch2(x)
         # print(x)
         x = x.view(x.size()[0], -1)
         # print(x)
