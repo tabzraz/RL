@@ -40,7 +40,7 @@ parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
-parser.add_argument("--lr", type=float, default=0.00001)
+parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(3e5))
@@ -264,7 +264,29 @@ def environment_specific_stuff():
                             print("ERROR", g1, g2, g3)
                     if np.max(canvas) == 0:
                         break
-                    colour_maze = canvas / (np.max(canvas) / scaling)
+                    canvas = canvas / (np.max(canvas) / scaling)
+                    # Colour the unvisited goals
+                    # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
+                    # only g1
+                    canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
+                    canvas[maze_size - 4, maze_size, :] = 1
+                    # only g2
+                    canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
+                    canvas[maze_size + maze_size - 4, maze_size, :] = 1
+                    # only g3
+                    canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
+                    canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
+                    # g1 and g2
+                    canvas[maze_size - 4, 2 * maze_size] = 1
+                    # g1 and g3
+                    canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
+                    # g2 and g2
+                    canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
+                    # Seperate the mazes
+                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
+                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
+                    colour_maze = canvas
+
                     colour_maze = np.clip(colour_maze, 0, 1) * 255
                     colour_images.append(colour_maze)
                 imageio.mimsave("{}/evals/Goal_Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), colour_images)
