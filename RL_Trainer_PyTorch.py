@@ -58,7 +58,7 @@ parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
-parser.add_argument("--eval-images-interval", type=int, default=50)
+parser.add_argument("--eval-images-interval", type=int, default=10)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
@@ -160,7 +160,7 @@ Player_Positions_With_Goals = []
 # Async queue
 log_queue = Queue()
 # gif_queue = Queue()
-eval_images = 0
+eval_images = -args.t_max
 
 if args.count:
     # Use half the env size
@@ -211,7 +211,7 @@ def environment_specific_stuff():
         # TODO: Move this out into a post-processing step
         if T % int(args.t_max / 2) == 0:
             # Make a gif of the positions
-            for interval_size in range(2, 11, 2):
+            for interval_size in [2, 10]:
                 interval = int(args.t_max / interval_size)
                 scaling = 2
                 images = []
@@ -304,7 +304,7 @@ def eval_agent(last=False):
     Eval_Q_Values = []
 
     global eval_images
-    will_save_states = args.eval_images and (last or eval_images % args.eval_images_interval == 0)
+    will_save_states = args.eval_images and (last or T - eval_images > (args.t_max // args.eval_images_interval))
 
     if will_save_states and args.debug_eval:
         env.debug_render(offline=True)
@@ -349,7 +349,7 @@ def eval_agent(last=False):
             save_eval_states(debug_states, debug=True)
         else:
             save_eval_states(states)
-    eval_images += 1
+        eval_images = T
 
 
 def save_eval_states(states, debug=False):
