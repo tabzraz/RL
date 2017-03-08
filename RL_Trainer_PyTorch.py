@@ -295,61 +295,65 @@ def environment_specific_stuff():
 # TODO: Async this
 def eval_agent(last=False):
     global epsilon
-    epsilon = 0
-    terminated = False
-    ep_reward = 0
-    steps = 0
-    state = env.reset()
-    states = [state]
-    Eval_Q_Values = []
+    # epsilon = 0
 
     global eval_images
     will_save_states = args.eval_images and (last or T - eval_images > (args.t_max // args.eval_images_interval))
 
-    if will_save_states and args.debug_eval:
-        env.debug_render(offline=True)
-        debug_states = [pygame_image(env.surface)]
+    epsilons = [0, 0.1, 0.5, epsilon]
 
-    while not terminated:
-        action, q_vals = select_action(state, training=False)
-        state_new, reward, terminated, env_info = env.step(action)
-        ep_reward += reward
-        steps += 1
+    for epsilon_value in epsilons:
+        epsilon = epsilon_value
+        terminated = False
+        ep_reward = 0
+        steps = 0
+        state = env.reset()
+        states = [state]
+        Eval_Q_Values = []
 
-        Eval_Q_Values.append(q_vals)
+        if will_save_states and args.debug_eval:
+            env.debug_render(offline=True)
+            debug_states = [pygame_image(env.surface)]
+
+        while not terminated:
+            action, q_vals = select_action(state, training=False)
+            state_new, reward, terminated, env_info = env.step(action)
+            ep_reward += reward
+            steps += 1
+
+            Eval_Q_Values.append(q_vals)
+
+            if will_save_states:
+                # Only do this stuff if we're actually gonna save it
+                if args.debug_eval:
+                    debug_dict = {}
+                    debug_dict["Q_Values"] = q_vals
+                    debug_dict["Max_Q_Value"] = max_q_value
+                    debug_dict["Action"] = action
+                    if args.count:
+                        exp_bonus = exploration_bonus(state, training=False)
+                        debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+                        debug_dict["Exp_Bonus"] = exp_bonus
+                    env.debug_render(debug_info=debug_dict, offline=True)
+                    debug_states.append(pygame_image(env.surface))
+                states.append(state)
+
+            state = state_new
+
+        with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(LOGDIR, epsilon), "ab") as file:
+            np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
+            file.write(str.encode("\n"))
+
+        if args.tb:
+            log_value("Eval/Epsilon_{}/Episode_Reward".format(epsilon), ep_reward, step=T)
+            log_value("Eval/Epsilon_{}/Episode_Length".format(epsilon), steps, step=T)
 
         if will_save_states:
-            # Only do this stuff if we're actually gonna save it
             if args.debug_eval:
-                debug_dict = {}
-                debug_dict["Q_Values"] = q_vals
-                debug_dict["Max_Q_Value"] = max_q_value
-                debug_dict["Action"] = action
-                if args.count:
-                    exp_bonus = exploration_bonus(state, training=False)
-                    debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-                    debug_dict["Exp_Bonus"] = exp_bonus
-                env.debug_render(debug_info=debug_dict, offline=True)
-                debug_states.append(pygame_image(env.surface))
-            states.append(state)
-
-        state = state_new
-
-    # Log the Q_Values for this
-    with open("{}/logs/Eval_Q_Values_T.txt".format(LOGDIR), "ab") as file:
-        np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
-        file.write(str.encode("\n"))
-
-    if args.tb:
-        log_value("Eval/Episode_Reward", ep_reward, step=T)
-        log_value("Eval/Episode_Length", steps, step=T)
-
-    if will_save_states:
-        if args.debug_eval:
-            save_eval_states(debug_states, debug=True)
-        else:
-            save_eval_states(states)
-        eval_images = T
+                save_eval_states(debug_states, debug=True)
+            else:
+                save_eval_states(states)
+            eval_images = T
 
 
 def save_eval_states(states, debug=False):
@@ -359,7 +363,7 @@ def save_eval_states(states, debug=False):
         states = [s[:, :, 0] * 255 for s in states]
     # gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
     # Don't really need the async for this since it is relatively infrequent
-    imageio.mimsave("{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode), states)
+    imageio.mimsave("{}/evals/Eval_Policy__Epsilon_{}__T_{}__Ep_{}.gif".format(LOGDIR, epsilon, T, episode), states)
 
 
 # def gif_saver(q, finished):

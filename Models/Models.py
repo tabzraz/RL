@@ -17,6 +17,7 @@ def get_torch_models(name):
    return torch_models[name]
 
 
+'''
 # --- Tensorflow models ---
 from .DQN_Maze import model as DQN_Maze_Model
 from .DRQN_Maze import DRQN
@@ -34,3 +35,5 @@ for s in range(10):
 
 def get_models(name):
     return models[name]
+
+'''
