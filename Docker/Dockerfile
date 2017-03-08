@@ -15,6 +15,8 @@ RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 RUN pip install --upgrade pip
 
+RUN apt-get install -y vim screen htop
+
 # Needed for some gym dependencies
 # RUN apt-get update
 # RUN apt-get install -y --no-install-recommends xvfb libav-tools xorg-dev libsdl2-dev swig cmake git
