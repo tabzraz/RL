@@ -199,8 +199,8 @@ def log_value(name, value, step):
 # Methods
 def environment_specific_stuff():
     if args.env.startswith("Maze"):
-        player_pos = env.player_pos
-        player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
+        player_pos = env.env.player_pos
+        player_pos_with_goals = (player_pos[0], player_pos[1], env.env.maze[3, -1] != 2, env.env.maze[-1, -4] != 2, env.env.maze[-4, 0] != 2)
         Player_Positions.append(player_pos)
         Player_Positions_With_Goals.append(player_pos_with_goals)
         with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
@@ -216,7 +216,7 @@ def environment_specific_stuff():
                 scaling = 2
                 images = []
                 for i in range(0, T, interval // 10):
-                    canvas = np.zeros((env.maze.shape[0], env.maze.shape[1]))
+                    canvas = np.zeros((env.env.maze.shape[0], env.env.maze.shape[1]))
                     for visit in Player_Positions[i: i + interval]:
                         canvas[visit] += 1
                     # Bit of a hack
@@ -231,8 +231,8 @@ def environment_specific_stuff():
                 # Keep it seperate from the other one
                 colour_images = []
                 for i in range(0, T, interval // 10):
-                    canvas = np.zeros((env.maze.shape[0] * 3, env.maze.shape[1] * 3, 3))
-                    maze_size = env.maze.shape[0]
+                    canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
+                    maze_size = env.env.maze.shape[0]
                     for visit in Player_Positions_With_Goals[i: i + interval]:
                         px = visit[0]
                         py = visit[1]
@@ -312,8 +312,8 @@ def eval_agent(last=False):
         Eval_Q_Values = []
 
         if will_save_states and args.debug_eval:
-            env.debug_render(offline=True)
-            debug_states = [pygame_image(env.surface)]
+            env.env.debug_render(offline=True)
+            debug_states = [pygame_image(env.env.surface)]
 
         while not terminated:
             action, q_vals = select_action(state, training=False)
@@ -334,8 +334,8 @@ def eval_agent(last=False):
                         exp_bonus = exploration_bonus(state, training=False)
                         debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                         debug_dict["Exp_Bonus"] = exp_bonus
-                    env.debug_render(debug_info=debug_dict, offline=True)
-                    debug_states.append(pygame_image(env.surface))
+                    env.env.debug_render(debug_info=debug_dict, offline=True)
+                    debug_states.append(pygame_image(env.env.surface))
                 states.append(state)
 
             state = state_new
@@ -592,7 +592,7 @@ while T < args.t_max:
 
     state = env.reset()
     if args.render:
-        env.debug_render()
+        env.env.debug_render()
     episode_finished = False
     episode_reward = 0
     episode_bonus_only_reward = 0
@@ -629,7 +629,7 @@ while T < args.t_max:
             if args.count:
                 debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                 debug_dict["Exp_Bonus"] = exp_bonus
-            env.debug_render(debug_dict)
+            env.env.debug_render(debug_dict)
 
         Rewards.append(reward)
         States.append(state)
