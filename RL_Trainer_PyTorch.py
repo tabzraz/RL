@@ -345,8 +345,8 @@ def eval_agent(last=False):
             file.write(str.encode("\n"))
 
         if args.tb:
-            log_value("Eval/Epsilon_{}/Episode_Reward".format(epsilon), ep_reward, step=T)
-            log_value("Eval/Epsilon_{}/Episode_Length".format(epsilon), steps, step=T)
+            log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon), ep_reward, step=T)
+            log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon), steps, step=T)
 
         if will_save_states:
             if args.debug_eval:
@@ -363,7 +363,7 @@ def save_eval_states(states, debug=False):
         states = [s[:, :, 0] * 255 for s in states]
     # gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
     # Don't really need the async for this since it is relatively infrequent
-    imageio.mimsave("{}/evals/Eval_Policy__Epsilon_{}__T_{}__Ep_{}.gif".format(LOGDIR, epsilon, T, episode), states)
+    imageio.mimsave("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}.gif".format(LOGDIR, epsilon, T, episode), states)
 
 
 # def gif_saver(q, finished):
