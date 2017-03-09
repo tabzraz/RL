@@ -141,7 +141,7 @@ class MazeEnv(gym.Env):
                 self.cts_size = cts_size
                 horiz_size += cts_size * self.scaling
             if "Exp_Bonuses" in debug_info:
-                horiz_size += 60
+                horiz_size += 30
             screen_size = (self.maze.shape[0] * self.scaling + horiz_size, self.maze.shape[1] * self.scaling + 120)
             self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
@@ -152,7 +152,7 @@ class MazeEnv(gym.Env):
                 self.cts_size = cts_size
                 horiz_size += cts_size * 4
             if "Exp_Bonuses" in debug_info:
-                horiz_size += 60
+                horiz_size += 30
             surface_size = (self.maze.shape[0] * 4 + horiz_size, self.maze.shape[1] * 4 + 120)
             self.surface = pygame.Surface(surface_size)
             self.made_surface = True
@@ -189,8 +189,8 @@ class MazeEnv(gym.Env):
             max_exp_bonus = debug_info["Max_Exp_Bonus"]
             # Exploration_Bonus
             exp_bonus_size = int(exploration_bonus / max_exp_bonus * (self.maze.shape[1] * scaling + 100))
-            pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
-            pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 40, (self.maze.shape[1] * scaling) + 100), 2)
+            pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 10, exp_bonus_size), 0)
+            pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 10, (self.maze.shape[1] * scaling) + 100), 2)
 
             cts_image = debug_info["CTS_State"]
             cts_pg = debug_info["CTS_PG"]
@@ -234,8 +234,8 @@ class MazeEnv(gym.Env):
             cts_image = pygame.transform.scale(cts_image, (self.cts_size * scaling, self.cts_size * scaling))
             # cts_image.set_alpha(255)
             # drawing_surface.convert_alpha()
-            drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 60, 0))
-            drawing_surface.blit(cts_colour_image, (self.maze.shape[0] * scaling + 60, 0))
+            drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 30, 0))
+            drawing_surface.blit(cts_colour_image, (self.maze.shape[0] * scaling + 30, 0))
 
         if "Q_Values" in debug_info:
             q_values = debug_info["Q_Values"]
