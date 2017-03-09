@@ -61,6 +61,7 @@ parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
 parser.add_argument("--eval-images-interval", type=int, default=10)
+parser.add_argument("--tb-interval", type=int, default=3)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 parser.add_argument("--cts-size", type=int, default=7)
 args = parser.parse_args()
@@ -338,21 +339,13 @@ def eval_agent(last=False):
                         exp_bonus = exploration_bonus(state, training=False)
                         debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                         debug_dict["Exp_Bonus"] = exp_bonus
-                        cts_state = resize(state[:,:,0], cts_model_shape, mode="F")
+                        cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
                         debug_dict["CTS_Image"] = cts_state
                     env.env.debug_render(debug_info=debug_dict, offline=True)
                     debug_states.append(pygame_image(env.env.surface))
                 states.append(state)
 
             state = state_new
-
-        with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(LOGDIR, epsilon), "ab") as file:
-            np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
-            file.write(str.encode("\n"))
-
-        if args.tb:
-            log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon), ep_reward, step=T)
-            log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon), steps, step=T)
 
         if will_save_states:
             if args.debug_eval:
@@ -361,6 +354,14 @@ def eval_agent(last=False):
                 save_eval_states(states)
             eval_images = T
 
+        if epsilon != epsilons[-1]:
+            with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(LOGDIR, epsilon), "ab") as file:
+                np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
+                file.write(str.encode("\n"))
+
+            if args.tb:
+                log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon), ep_reward, step=T)
+                log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon), steps, step=T)
 
 def save_eval_states(states, debug=False):
     if debug:
@@ -389,7 +390,7 @@ def exploration_bonus(state, training=True):
         bonus = args.beta / sqrt(pseudo_count + 0.01)
         if training:
             Exploration_Bonus.append(bonus)
-            if args.tb:
+            if args.tb and T % args.tb_interval == 0:
                 log_value("Count_Bonus", bonus, step=T)
     global max_exp_bonus
     max_exp_bonus = max(max_exp_bonus, bonus)
@@ -468,7 +469,8 @@ def select_action(state, training=True):
             # q_val_dict = {}
             for index in range(args.actions):
                 # q_val_dict["DQN/Action_{}_Q_Value".format(index)] = float(q_values_numpy[index])
-                log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
+                if T % args.tb_interval == 0:
+                    log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
             # print(q_val_dict)
             # crayon_exp.add_scalar_dict(q_val_dict, step=T)
 
@@ -575,7 +577,7 @@ def train_agent():
     optimizer.step()
 
     # Crayon
-    if args.tb:
+    if args.tb and T % args.tb_interval == 0:
         log_value("DQN/Gradient_Norm", total_norm, step=T)
         log_value("DQN/Loss", l2_loss.data[0], step=T)
         log_value("DQN/TD_Error", td_error.mean().data[0], step=T)
@@ -651,7 +653,7 @@ while T < args.t_max:
             if args.count:
                 debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                 debug_dict["Exp_Bonus"] = exp_bonus
-                cts_state = resize(state[:,:,0], cts_model_shape, mode="F")
+                cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
                 debug_dict["CTS_Image"] = cts_state
             env.env.debug_render(debug_dict)
 
