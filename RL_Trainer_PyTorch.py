@@ -3,6 +3,7 @@ import gym
 import datetime
 import time
 import os
+import pickle
 from math import sqrt
 
 import numpy as np
@@ -171,6 +172,7 @@ if args.count:
     cts_model_shape = (args.cts_size, args.cts_size)
     print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
     cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
+    os.makedirs("{}/cts_model".format(LOGDIR))
 
 
 # class Variable(torch.autograd.Variable):
@@ -225,7 +227,7 @@ def environment_specific_stuff():
                         break
                     gray_maze = canvas / (np.max(canvas) / scaling)
                     gray_maze = np.clip(gray_maze, 0, 1) * 255
-                    images.append(gray_maze)
+                    images.append(gray_maze.astype(np.uint8))
                 imageio.mimsave("{}/evals/Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), images)
 
                 # We want to show visualisations for the agent depending on which goals they've visited as well
@@ -289,7 +291,7 @@ def environment_specific_stuff():
                     colour_maze = canvas
 
                     colour_maze = np.clip(colour_maze, 0, 1) * 255
-                    colour_images.append(colour_maze)
+                    colour_images.append(colour_maze.astype(np.uint8))
                 imageio.mimsave("{}/evals/Goal_Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), colour_images)
 
 
@@ -430,6 +432,12 @@ def save_values():
                 file.write(str.encode("\n"))
 
         Last_T_Logged = T
+
+
+def end_of_episode_save():
+    if args.count:
+        with open("{}/cts_model/cts_model_end.pkl".format(LOGDIR), "wb") as file:
+            pickle.dump(cts_model, file, pickle.HIGHEST_PROTOCOL)
 
 
 def sync_target_network():
@@ -666,6 +674,8 @@ while T < args.t_max:
     end_of_episode()
 
     save_values()
+
+end_of_episode_save()
 
 print("\nEvaluating Last Agent\n")
 eval_agent(last=True)
