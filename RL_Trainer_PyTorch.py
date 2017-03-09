@@ -78,6 +78,10 @@ print()
 
 NAME_DATE = "{}_{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 LOGDIR = "{}/{}".format(args.logdir, NAME_DATE)
+
+while os.path.exists(LOGDIR):
+    LOGDIR += "_"
+
 print("Logging to:\n{}\n".format(LOGDIR))
 
 if not os.path.exists(LOGDIR):
@@ -155,6 +159,7 @@ epsiode_steps = 0
 
 # Debug stuff
 max_q_value = -1000
+min_q_value = +1000
 max_exp_bonus = 0
 
 # Env specific stuff
@@ -322,9 +327,6 @@ def eval_agent(last=False):
 
         while not terminated:
             action, q_vals = select_action(state, training=False)
-            state_new, reward, terminated, env_info = env.step(action)
-            ep_reward += reward
-            steps += 1
 
             Eval_Q_Values.append(q_vals)
 
@@ -334,16 +336,22 @@ def eval_agent(last=False):
                     debug_dict = {}
                     debug_dict["Q_Values"] = q_vals
                     debug_dict["Max_Q_Value"] = max_q_value
+                    debug_dict["Min_Q_Value"] = min_q_value
                     debug_dict["Action"] = action
                     if args.count:
-                        exp_bonus = exploration_bonus(state, training=False)
+                        exp_bonus, exp_info = exploration_bonus(state, training=False)
                         debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                         debug_dict["Exp_Bonus"] = exp_bonus
                         cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
-                        debug_dict["CTS_Image"] = cts_state
+                        debug_dict["CTS_State"] = cts_state
+                        debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
                     env.env.debug_render(debug_info=debug_dict, offline=True)
                     debug_states.append(pygame_image(env.env.surface))
                 states.append(state)
+
+            state_new, reward, terminated, env_info = env.step(action)
+            ep_reward += reward
+            steps += 1
 
             state = state_new
 
@@ -363,6 +371,7 @@ def eval_agent(last=False):
                 log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon), ep_reward, step=T)
                 log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon), steps, step=T)
 
+
 def save_eval_states(states, debug=False):
     if debug:
         states = [s.swapaxes(0, 1) for s in states]
@@ -373,19 +382,21 @@ def save_eval_states(states, debug=False):
     imageio.mimsave("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}.gif".format(LOGDIR, epsilon, T, episode), states)
 
 
-# def gif_saver(q, finished):
-    # while finished.value < 1:
-        # (images, name) = q.get(block=True)
-        # imageio.mimsave(name, images)
-
-
 def exploration_bonus(state, training=True):
     bonus = 0
+    extra_info = {}
     if args.count:
-        state = resize(state[:,:,0], cts_model_shape, mode="F")
-        rho_old = np.exp(cts_model.update(state))
-        rho_new = np.exp(cts_model.log_prob(state))
-        pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+        state = resize(state[:, :, 0], cts_model_shape, mode="F")
+        # rho_old = np.exp(cts_model.update(state))
+        rho_old, rho_old_pixels = cts_model.update(state)
+        # rho_new = np.exp(cts_model.log_prob(state))
+        rho_new, rho_new_pixels = cts_model.log_prob(state)
+        pg = rho_new - rho_old
+        pg_pixel = rho_new_pixels - rho_old_pixels
+        extra_info["Pixel_PG"] = pg_pixel
+        # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+        # Change to the pseudo_count they use in neural density models:
+        pseudo_count = 1 / (np.exp(pg) - 1)
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
         if training:
@@ -394,7 +405,7 @@ def exploration_bonus(state, training=True):
                 log_value("Count_Bonus", bonus, step=T)
     global max_exp_bonus
     max_exp_bonus = max(max_exp_bonus, bonus)
-    return bonus
+    return bonus, extra_info
 
 
 def start_of_episode():
@@ -456,9 +467,12 @@ def select_action(state, training=True):
     q_values_numpy = q_values.numpy()
 
     global max_q_value
+    global min_q_value
     # Decay it so that it reflects a recentish maximum q value
     max_q_value *= 0.9999
+    min_q_value *= 0.9999
     max_q_value = max(max_q_value, np.max(q_values_numpy))
+    min_q_value = min(min_q_value, np.min(q_values_numpy))
 
     if training:
         Q_Values.append(q_values_numpy)
@@ -630,6 +644,23 @@ while T < args.t_max:
 
     while not episode_finished:
         action, q_values = select_action(state)
+
+        exp_bonus, exp_info = exploration_bonus(state)
+
+        if args.render:
+            debug_dict = {}
+            debug_dict["Q_Values"] = q_values
+            debug_dict["Max_Q_Value"] = max_q_value
+            debug_dict["Min_Q_Value"] = min_q_value
+            debug_dict["Action"] = action
+            if args.count:
+                debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+                debug_dict["Exp_Bonus"] = exp_bonus
+                cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
+                debug_dict["CTS_State"] = cts_state
+                debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
+            env.env.debug_render(debug_dict)
+
         state_new, reward, episode_finished, env_info = env.step(action)
         episode_steps += 1
         T += 1
@@ -641,21 +672,8 @@ while T < args.t_max:
 
         episode_reward += reward
 
-        exp_bonus = exploration_bonus(state)
         episode_bonus_only_reward += exp_bonus
         reward += exp_bonus
-
-        if args.render:
-            debug_dict = {}
-            debug_dict["Q_Values"] = q_values
-            debug_dict["Max_Q_Value"] = max_q_value
-            debug_dict["Action"] = action
-            if args.count:
-                debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-                debug_dict["Exp_Bonus"] = exp_bonus
-                cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
-                debug_dict["CTS_Image"] = cts_state
-            env.env.debug_render(debug_dict)
 
         Rewards.append(reward)
         States.append(state)

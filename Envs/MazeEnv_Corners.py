@@ -192,23 +192,59 @@ class MazeEnv(gym.Env):
             pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
             pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 40, (self.maze.shape[1] * scaling) + 100), 2)
 
-            cts_image = debug_info["CTS_Image"]
+            cts_image = debug_info["CTS_State"]
+            cts_pg = debug_info["CTS_PG"]
+            cts_colour_image = np.zeros(shape=(self.cts_size, self.cts_size, 3), dtype=np.uint8)
+            # cts_colour_image = np.swapaxes(cts_colour_image, 0, 1)
+            cts_colour_image = pygame.pixelcopy.make_surface(cts_colour_image)
+            cts_colour_image = cts_colour_image.convert_alpha()
+            # cts_colour_image.set_alpha(0)
             # cts_image = cts_image[:, :, 0]
+            for x in range(cts_image.shape[1]):
+                for y in range(cts_image.shape[0]):
+                    pg = cts_pg[y, x]
+                    if pg < 0:
+                        pg = max(-1, pg)
+                        # cts_colour_image[x, y] = (0, 0, 255, -pg)
+                        # cts_colour_image.set_at((x, y), (0, 0, 255, int(-pg * 255)))
+                        cts_colour_image.set_at((x, y), (0, 0, 255, int(-pg * 255)))
+                    else:
+                        pg = min(1, pg)
+                        # cts_colour_image[x, y] = (255, 0, 0, pg)
+                        # cts_colour_image.set_at((x, y), (255, 0, 0, int(pg * 255)))
+                        # print(255 * pg)
+                        # cts_colour_image.set_at((x, y), (255, 0, 0, 100))
+                        cts_colour_image.set_at((x, y), (255, 0, 0, int(255 * pg)))
+
+            # cts_colour_image *= cts_image
+            # cts_colour_image = np.clip(cts_colour_image, 0, 255)
+            # cts_colour_image = cts_colour_image.astype(np.uint8)
+            # cts_colour_image.set_alpha(150)
             cts_image = np.swapaxes(cts_image, 0, 1)
             cts_image = (cts_image * 255).astype(np.uint8)
             cts_image = np.stack([cts_image for i in range(3)], axis=2)
+
+            # alpha = 0.8
+            # cts_colour_image = cts_colour_image * alpha + cts_image * (1 - alpha)
+            # cts_colour_image = cts_colour_image.astype(np.uint8)
+
             # print(cts_image)
+            cts_colour_image = pygame.transform.scale(cts_colour_image, (self.cts_size * scaling, self.cts_size * scaling))
             cts_image = pygame.pixelcopy.make_surface(cts_image)
             cts_image = pygame.transform.scale(cts_image, (self.cts_size * scaling, self.cts_size * scaling))
+            # cts_image.set_alpha(255)
+            # drawing_surface.convert_alpha()
             drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 60, 0))
+            drawing_surface.blit(cts_colour_image, (self.maze.shape[0] * scaling + 60, 0))
 
         if "Q_Values" in debug_info:
             q_values = debug_info["Q_Values"]
             max_q_value = debug_info["Max_Q_Value"]
+            min_q_value = debug_info["Min_Q_Value"]
             action_chosen = debug_info["Action"]
 
             # Q vals
-            q_val_sizes = [int(q_val / max_q_value * 100) for q_val in q_values]
+            q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * 100) for q_val in q_values]
             greedy_action = np.argmax(q_values)
             actions = len(q_values)
             for i, q_size in enumerate(q_val_sizes):

@@ -141,25 +141,30 @@ class LocationDependentDensityModel(object):
     def log_prob(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
         total_log_probability = 0.0
+        log_probs = np.zeros(shape=self.symbol_frame.shape)
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):
                 context = self.context_functor(self.symbol_frame, y, x)
                 colour = self.symbol_frame[y, x]
-                total_log_probability += self.models[y, x].log_prob(context=context, symbol=colour)
+                log_val = self.models[y, x].log_prob(context=context, symbol=colour)
+                total_log_probability += log_val
+                log_probs[y, x] = log_val
 
-        return total_log_probability
+        return total_log_probability, log_probs
 
     def update(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
-
         total_log_probability = 0.0
+        log_probs = np.zeros(shape=self.symbol_frame.shape)
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):
                 context = self.context_functor(self.symbol_frame, y, x)
                 colour = self.symbol_frame[y, x]
-                total_log_probability += self.models[y, x].update(context=context, symbol=colour)
+                log_val = self.models[y, x].update(context=context, symbol=colour)
+                total_log_probability += log_val
+                log_probs[y, x] = log_val
 
-        return total_log_probability
+        return total_log_probability, log_probs
 
     def sample(self):
         output_frame = np.zeros((*self.symbol_frame.shape, 1), dtype=np.float32)
