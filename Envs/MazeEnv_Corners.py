@@ -146,7 +146,7 @@ class MazeEnv(gym.Env):
             self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
         if offline and not self.made_surface:
-            pygame.init()
+            # pygame.init()
             horiz_size = 0
             if "CTS_Size" in debug_info:
                 cts_size = debug_info["CTS_Size"]
@@ -156,7 +156,7 @@ class MazeEnv(gym.Env):
                 horiz_size += 30
             surface_size = (self.maze.shape[0] * 4 + horiz_size, self.maze.shape[1] * 4 + 120)
             self.surface = pygame.Surface(surface_size)
-            pygame.display.set_mode(surface_size)
+            # pygame.display.set_mode(surface_size)
             self.made_surface = True
 
         drawing_surface = None
@@ -198,8 +198,7 @@ class MazeEnv(gym.Env):
             cts_pg = debug_info["CTS_PG"]
             cts_colour_image = np.zeros(shape=(self.cts_size, self.cts_size, 3), dtype=np.uint8)
             # cts_colour_image = np.swapaxes(cts_colour_image, 0, 1)
-            cts_colour_image = pygame.pixelcopy.make_surface(cts_colour_image)
-            cts_colour_image = cts_colour_image.convert_alpha()
+            # cts_colour_image = cts_colour_image.convert_alpha()
             # cts_colour_image.set_alpha(0)
             # cts_image = cts_image[:, :, 0]
             for x in range(cts_image.shape[1]):
@@ -207,16 +206,16 @@ class MazeEnv(gym.Env):
                     pg = cts_pg[y, x]
                     if pg < 0:
                         pg = max(-1, pg)
-                        # cts_colour_image[x, y] = (0, 0, 255, -pg)
+                        cts_colour_image[x, y] = (0, 0, int(-pg * 255))
                         # cts_colour_image.set_at((x, y), (0, 0, 255, int(-pg * 255)))
-                        cts_colour_image.set_at((x, y), (0, 0, 255, int(-pg * 255)))
+                        # cts_colour_image.set_at((x, y), (0, 0, 255, int(-pg * 255)))
                     else:
                         pg = min(1, pg)
-                        # cts_colour_image[x, y] = (255, 0, 0, pg)
+                        cts_colour_image[x, y] = (int(255 * pg), 0, 0)
                         # cts_colour_image.set_at((x, y), (255, 0, 0, int(pg * 255)))
                         # print(255 * pg)
                         # cts_colour_image.set_at((x, y), (255, 0, 0, 100))
-                        cts_colour_image.set_at((x, y), (255, 0, 0, int(255 * pg)))
+                        # cts_colour_image.set_at((x, y), (255, 0, 0, int(255 * pg)))
 
             # cts_colour_image *= cts_image
             # cts_colour_image = np.clip(cts_colour_image, 0, 255)
@@ -226,17 +225,18 @@ class MazeEnv(gym.Env):
             cts_image = (cts_image * 255).astype(np.uint8)
             cts_image = np.stack([cts_image for i in range(3)], axis=2)
 
-            # alpha = 0.8
-            # cts_colour_image = cts_colour_image * alpha + cts_image * (1 - alpha)
-            # cts_colour_image = cts_colour_image.astype(np.uint8)
+            alpha = 0.6
+            cts_colour_image = cts_colour_image * alpha + cts_image * (1 - alpha)
+            cts_colour_image = cts_colour_image.astype(np.uint8)
 
             # print(cts_image)
+            cts_colour_image = pygame.pixelcopy.make_surface(cts_colour_image)
             cts_colour_image = pygame.transform.scale(cts_colour_image, (self.cts_size * scaling, self.cts_size * scaling))
-            cts_image = pygame.pixelcopy.make_surface(cts_image)
-            cts_image = pygame.transform.scale(cts_image, (self.cts_size * scaling, self.cts_size * scaling))
+            # cts_image = pygame.pixelcopy.make_surface(cts_image)
+            # cts_image = pygame.transform.scale(cts_image, (self.cts_size * scaling, self.cts_size * scaling))
             # cts_image.set_alpha(255)
             # drawing_surface.convert_alpha()
-            drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 30, 0))
+            # drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 30, 0))
             drawing_surface.blit(cts_colour_image, (self.maze.shape[0] * scaling + 30, 0))
 
         if "Q_Values" in debug_info:
