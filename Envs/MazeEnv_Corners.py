@@ -146,6 +146,7 @@ class MazeEnv(gym.Env):
             self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
         if offline and not self.made_surface:
+            pygame.init()
             horiz_size = 0
             if "CTS_Size" in debug_info:
                 cts_size = debug_info["CTS_Size"]
@@ -155,6 +156,7 @@ class MazeEnv(gym.Env):
                 horiz_size += 30
             surface_size = (self.maze.shape[0] * 4 + horiz_size, self.maze.shape[1] * 4 + 120)
             self.surface = pygame.Surface(surface_size)
+            pygame.display.set_mode(surface_size)
             self.made_surface = True
 
         drawing_surface = None
