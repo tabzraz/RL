@@ -60,6 +60,7 @@ parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
 parser.add_argument("--eval-images-interval", type=int, default=10)
 parser.add_argument("--debug-eval", action="store_true", default=False)
+parser.add_argument("--cts-size", type=int, default=7)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -167,7 +168,7 @@ if args.count:
     # env_size = env.shape[0] * 7
     # cts_model_shape = (env_size // 2, env_size // 2)
     # Use a (14, 14) model anyway
-    cts_model_shape = (7, 7)
+    cts_model_shape = (args.cts_size, args.cts_size)
     print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
     cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
 
