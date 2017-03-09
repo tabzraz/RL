@@ -18,7 +18,8 @@ from pygame.surfarray import array3d as pygame_image
 # import torch.nn.modules.utils.clip_grad_norm as clip_grad
 
 import Exploration.CTS as CTS
-from skimage.transform import resize
+# from skimage.transform import resize
+from scipy.misc import imresize as resize
 
 # from pycrayon import CrayonClient
 from tensorboard_logger import configure
@@ -315,7 +316,7 @@ def eval_agent(last=False):
         Eval_Q_Values = []
 
         if will_save_states and args.debug_eval:
-            env.env.debug_render(offline=True)
+            env.env.debug_render(offline=True, debug_info={"Exp_Bonuses": 0, "CTS_Size": args.cts_size})
             debug_states = [pygame_image(env.env.surface)]
 
         while not terminated:
@@ -337,6 +338,8 @@ def eval_agent(last=False):
                         exp_bonus = exploration_bonus(state, training=False)
                         debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                         debug_dict["Exp_Bonus"] = exp_bonus
+                        cts_state = resize(state[:,:,0], cts_model_shape, mode="F")
+                        debug_dict["CTS_Image"] = cts_state
                     env.env.debug_render(debug_info=debug_dict, offline=True)
                     debug_states.append(pygame_image(env.env.surface))
                 states.append(state)
@@ -378,7 +381,7 @@ def save_eval_states(states, debug=False):
 def exploration_bonus(state, training=True):
     bonus = 0
     if args.count:
-        state = resize(state, output_shape=cts_model_shape)
+        state = resize(state[:,:,0], cts_model_shape, mode="F")
         rho_old = np.exp(cts_model.update(state))
         rho_new = np.exp(cts_model.log_prob(state))
         pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
@@ -588,6 +591,12 @@ p_log = Process(target=logger, args=(log_queue, finished_training), daemon=True)
 # p_gif = Process(target=gif_saver, args=(gif_queue, finished_training), daemon=True)
 p_log.start()
 # p_gif.start()
+if args.render:
+    debug_info = {}
+    if args.count:
+        debug_info["Exp_Bonuses"] = True
+        debug_info["CTS_Size"] = args.cts_size
+    env.env.debug_render(debug_info)
 
 explore()
 
@@ -601,7 +610,11 @@ while T < args.t_max:
 
     state = env.reset()
     if args.render:
-        env.env.debug_render()
+        debug_info = {}
+        if args.count:
+            debug_info["Exp_Bonuses"] = True
+            debug_info["CTS_Size"] = args.cts_size
+        env.env.debug_render(debug_info)
     episode_finished = False
     episode_reward = 0
     episode_bonus_only_reward = 0
@@ -638,6 +651,8 @@ while T < args.t_max:
             if args.count:
                 debug_dict["Max_Exp_Bonus"] = max_exp_bonus
                 debug_dict["Exp_Bonus"] = exp_bonus
+                cts_state = resize(state[:,:,0], cts_model_shape, mode="F")
+                debug_dict["CTS_Image"] = cts_state
             env.env.debug_render(debug_dict)
 
         Rewards.append(reward)

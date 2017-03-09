@@ -135,11 +135,25 @@ class MazeEnv(gym.Env):
         if not offline and not self.made_screen:
             pygame.init()
             self.scaling = 20
-            screen_size = (self.maze.shape[0] * self.scaling + 60, self.maze.shape[1] * self.scaling + 120)
+            horiz_size = 0
+            if "CTS_Size" in debug_info:
+                cts_size = debug_info["CTS_Size"]
+                self.cts_size = cts_size
+                horiz_size += cts_size * self.scaling
+            if "Exp_Bonuses" in debug_info:
+                horiz_size += 60
+            screen_size = (self.maze.shape[0] * self.scaling + horiz_size, self.maze.shape[1] * self.scaling + 120)
             self.screen = pygame.display.set_mode(screen_size)
             self.made_screen = True
         if offline and not self.made_surface:
-            surface_size = (self.maze.shape[0] * 4 + 60, self.maze.shape[1] * 4 + 120)
+            horiz_size = 0
+            if "CTS_Size" in debug_info:
+                cts_size = debug_info["CTS_Size"]
+                self.cts_size = cts_size
+                horiz_size += cts_size * 4
+            if "Exp_Bonuses" in debug_info:
+                horiz_size += 60
+            surface_size = (self.maze.shape[0] * 4 + horiz_size, self.maze.shape[1] * 4 + 120)
             self.surface = pygame.Surface(surface_size)
             self.made_surface = True
 
@@ -177,6 +191,16 @@ class MazeEnv(gym.Env):
             exp_bonus_size = int(exploration_bonus / max_exp_bonus * (self.maze.shape[1] * scaling + 100))
             pygame.draw.rect(drawing_surface, red_colour, (self.maze.shape[0] * scaling + 10, 10 + (self.maze.shape[1] * scaling) + 100 - exp_bonus_size, 40, exp_bonus_size), 0)
             pygame.draw.rect(drawing_surface, white_colour, (self.maze.shape[0] * scaling + 10, 10, 40, (self.maze.shape[1] * scaling) + 100), 2)
+
+            cts_image = debug_info["CTS_Image"]
+            # cts_image = cts_image[:, :, 0]
+            cts_image = np.swapaxes(cts_image, 0, 1)
+            cts_image = (cts_image * 255).astype(np.uint8)
+            cts_image = np.stack([cts_image for i in range(3)], axis=2)
+            # print(cts_image)
+            cts_image = pygame.pixelcopy.make_surface(cts_image)
+            cts_image = pygame.transform.scale(cts_image, (self.cts_size * scaling, self.cts_size * scaling))
+            drawing_surface.blit(cts_image, (self.maze.shape[0] * scaling + 60, 0))
 
         if "Q_Values" in debug_info:
             q_values = debug_info["Q_Values"]
