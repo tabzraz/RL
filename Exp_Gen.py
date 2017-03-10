@@ -2,7 +2,7 @@ envs = ["Maze-4-v1"]
 lrs = [0.0001]
 counts = [True]
 betas = [0.01]
-t_maxs = [500000]
+t_maxs = [1000000]
 cts_sizes = [7]
 seeds = [13, 66, 99]
 epsilon_starts = [0.1]
@@ -22,7 +22,7 @@ for env in envs:
                             for seed in seeds:
                                 name = env.replace("-", "_")[:-3]
                                 if count:
-                                    name += "_Count_Cts_{}_Beta_{}_uid_{}".format(cts_size, beta, uid)
+                                    name += "_Count_Cts_{}_Beta_{}_Eps_{}_uid_{}".format(cts_size, beta, eps, uid)
                                 else:
                                     name += "_DQN_uid_{}".format(uid)
                                 python_command = "python3 RL_Trainer_PyTorch.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {}".format(name, env, lr, seed, t_max, eps)
