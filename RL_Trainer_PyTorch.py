@@ -60,7 +60,7 @@ parser.add_argument("--plain-print", action="store_true", default=False)
 parser.add_argument("--clip-value", type=float, default=5)
 parser.add_argument("--no-tb", action="store_true", default=False)
 parser.add_argument("--no-eval-images", action="store_true", default=False)
-parser.add_argument("--eval-images-interval", type=int, default=10)
+parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=3)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 parser.add_argument("--cts-size", type=int, default=7)
@@ -311,7 +311,7 @@ def eval_agent(last=False):
     global eval_images
     will_save_states = args.eval_images and (last or T - eval_images > (args.t_max // args.eval_images_interval))
 
-    epsilons = [0, 0.1, 0.5, epsilon]
+    epsilons = [0, epsilon]
 
     for epsilon_value in epsilons:
         epsilon = epsilon_value
