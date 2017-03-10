@@ -271,7 +271,8 @@ def environment_specific_stuff():
                             # g2 and g3
                             canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
                         else:
-                            print("ERROR", g1, g2, g3)
+                            # print("ERROR", g1, g2, g3)
+                            pass
                     if np.max(canvas) == 0:
                         break
                     canvas = canvas / (np.max(canvas) / scaling)
@@ -396,7 +397,8 @@ def exploration_bonus(state, training=True):
         extra_info["Pixel_PG"] = pg_pixel
         # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
         # Change to the pseudo_count they use in neural density models:
-        pseudo_count = 1 / (np.exp(pg) - 1)
+        pg = min(10, pg)
+        pseudo_count = 1 / (np.expm1(pg))
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
         if training:

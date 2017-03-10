@@ -225,8 +225,10 @@ class MazeEnv(gym.Env):
             cts_image = (cts_image * 255).astype(np.uint8)
             cts_image = np.stack([cts_image for i in range(3)], axis=2)
 
-            alpha = 0.6
-            cts_colour_image = cts_colour_image * alpha + cts_image * (1 - alpha)
+            # alpha = 0.6
+            cts_alpha = cts_colour_image / 255
+            # cts_alpha = 1
+            cts_colour_image = cts_colour_image * cts_alpha + cts_image * (1 - cts_alpha)
             cts_colour_image = cts_colour_image.astype(np.uint8)
 
             # print(cts_image)
