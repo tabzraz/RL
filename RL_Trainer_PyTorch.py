@@ -4,7 +4,7 @@ import datetime
 import time
 import os
 import pickle
-from math import sqrt
+from math import sqrt, ceil
 
 import numpy as np
 
@@ -64,6 +64,7 @@ parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=3)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 parser.add_argument("--cts-size", type=int, default=7)
+parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -90,6 +91,10 @@ if not os.path.exists("{}/logs".format(LOGDIR)):
     os.makedirs("{}/logs".format(LOGDIR))
 if not os.path.exists("{}/evals".format(LOGDIR)):
     os.makedirs("{}/evals".format(LOGDIR))
+if not os.path.exists("{}/exp_bonus".format(LOGDIR)):
+    os.makedirs("{}/exp_bonus".format(LOGDIR))
+if not os.path.exists("{}/visitations".format(LOGDIR)):
+    os.makedirs("{}/visitations".format(LOGDIR))
 
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
@@ -206,6 +211,19 @@ def log_value(name, value, step):
     log_queue.put((name, value, step))
 
 
+def save_video(name, images):
+    # name = name + ".mkv"
+    name = name + ".gif"
+    # TODO: Pad the images to macro block size
+    imageio.mimsave(name, images, subrectangles=True)
+    # imageio.mimsave(name, images, ffmpeg_log_level="error", quality=10)
+
+
+def save_image(name, image):
+    name = name + ".png"
+    imageio.imsave(name, image)
+
+
 # Methods
 def environment_specific_stuff():
     if args.env.startswith("Maze"):
@@ -235,7 +253,7 @@ def environment_specific_stuff():
                     gray_maze = canvas / (np.max(canvas) / scaling)
                     gray_maze = np.clip(gray_maze, 0, 1) * 255
                     images.append(gray_maze.astype(np.uint8))
-                imageio.mimsave("{}/evals/Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), images)
+                save_video("{}/visitations/Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), images)
 
                 # We want to show visualisations for the agent depending on which goals they've visited as well
                 # Keep it seperate from the other one
@@ -300,7 +318,7 @@ def environment_specific_stuff():
 
                     colour_maze = np.clip(colour_maze, 0, 1) * 255
                     colour_images.append(colour_maze.astype(np.uint8))
-                imageio.mimsave("{}/evals/Goal_Visits__Interval_{}__T_{}.gif".format(LOGDIR, interval_size, T), colour_images)
+                save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
 
 # TODO: Async this
@@ -380,12 +398,13 @@ def save_eval_states(states, debug=False):
         states = [s[:, :, 0] * 255 for s in states]
     # gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
     # Don't really need the async for this since it is relatively infrequent
-    imageio.mimsave("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}.gif".format(LOGDIR, epsilon, T, episode), states)
+    save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(LOGDIR, epsilon, T, episode), states)
 
 
 def exploration_bonus(state, training=True):
     bonus = 0
     extra_info = {}
+    global max_exp_bonus
     if args.count:
         state = resize(state[:, :, 0], cts_model_shape, mode="F")
         # rho_old = np.exp(cts_model.update(state))
@@ -401,11 +420,22 @@ def exploration_bonus(state, training=True):
         pseudo_count = 1 / (np.expm1(pg))
         pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
+
+        # Save suprising states after the first quarter of training
+        if T > args.t_max / 4 and bonus >= args.exp_bonus_save * max_exp_bonus:
+            debug_dict = {}
+            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+            debug_dict["Exp_Bonus"] = bonus
+            debug_dict["CTS_State"] = state
+            debug_dict["CTS_PG"] = pg_pixel
+            env.env.debug_render(debug_info=debug_dict, offline=True)
+            image = pygame_image(env.env.surface)
+            image.swapaxes(0, 1)
+            save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
         if training:
             Exploration_Bonus.append(bonus)
             if args.tb and T % args.tb_interval == 0:
                 log_value("Count_Bonus", bonus, step=T)
-    global max_exp_bonus
     max_exp_bonus = max(max_exp_bonus, bonus)
     return bonus, extra_info
 
@@ -609,12 +639,6 @@ p_log = Process(target=logger, args=(log_queue, finished_training), daemon=True)
 # p_gif = Process(target=gif_saver, args=(gif_queue, finished_training), daemon=True)
 p_log.start()
 # p_gif.start()
-if args.render:
-    debug_info = {}
-    if args.count:
-        debug_info["Exp_Bonuses"] = True
-        debug_info["CTS_Size"] = args.cts_size
-    env.env.debug_render(debug_info)
 
 explore()
 
@@ -633,6 +657,11 @@ while T < args.t_max:
             debug_info["Exp_Bonuses"] = True
             debug_info["CTS_Size"] = args.cts_size
         env.env.debug_render(debug_info)
+    if args.count:
+        debug_info = {}
+        debug_info["Exp_Bonuses"] = True
+        debug_info["CTS_Size"] = args.cts_size
+        env.env.debug_render(debug_info, offline=True)
     episode_finished = False
     episode_reward = 0
     episode_bonus_only_reward = 0
