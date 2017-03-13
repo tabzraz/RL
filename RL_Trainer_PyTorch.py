@@ -64,7 +64,9 @@ parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=3)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 parser.add_argument("--cts-size", type=int, default=7)
+parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
+parser.add_argument("--clip-reward", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -183,7 +185,7 @@ if args.count:
     # Use a (14, 14) model anyway
     cts_model_shape = (args.cts_size, args.cts_size)
     print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
-    cts_model = CTS.LocationDependentDensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context)
+    cts_model = CTS.DensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context, conv=args.cts_conv)
     os.makedirs("{}/cts_model".format(LOGDIR))
 
 
@@ -576,6 +578,8 @@ def train_agent():
     actions = Variable(torch.LongTensor(columns[1]))
     terminal_states = Variable(torch.FloatTensor(columns[5]))
     rewards = Variable(torch.FloatTensor(columns[2]))
+    if args.clip_reward:
+        rewards = torch.clamp(rewards, -1, 1)
     steps = Variable(torch.FloatTensor(columns[4]))
     new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 

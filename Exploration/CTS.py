@@ -114,13 +114,13 @@ def symbols_to_rgb(frame, output):
     return output
 
 
-class LocationDependentDensityModel(object):
+class DensityModel(object):
     """A density model for Freeway frames.
     This is exactly the same as the ConvolutionalDensityModel, except that we use one model for each
     pixel location.
     """
 
-    def __init__(self, frame_shape, context_functor, alphabet=None):
+    def __init__(self, frame_shape, context_functor, conv=False, alphabet=None):
         """Constructor.
         Args:
             init_frame: A sample frame (numpy array) from which we determine the shape and type of our data.
@@ -131,10 +131,14 @@ class LocationDependentDensityModel(object):
 
         context_length = len(context_functor(self.symbol_frame, -1, -1))
         self.models = np.zeros(frame_shape[0:2], dtype=object)
-
+        if conv:
+            self.convolutional_model = model.CTS(context_length=context_length, alphabet=alphabet)
         for y in range(frame_shape[0]):
             for x in range(frame_shape[1]):
-                self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
+                if conv:
+                    self.models[y, x] = self.convolutional_model
+                else:
+                    self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
 
         self.context_functor = context_functor
 
@@ -178,77 +182,3 @@ class LocationDependentDensityModel(object):
                 self.symbol_frame[y, x] = self.models[y, x].sample(context=context, rejection_sampling=True)
 
         return symbols_to_gray(self.symbol_frame, output_frame)
-
-
-class ConvolutionalDensityModel(object):
-    """A density model for Freeway frames.
-    This one predict according to an L-shaped context around the current pixel.
-    """
-
-    def __init__(self, frame_shape, context_functor, alphabet=None):
-        """Constructor.
-        Args:
-            init_frame: A sample frame (numpy array) from which we determine the shape and type of our data.
-            context_functor: Function mapping image x position to a context.
-        """
-        # For efficiency, we'll pre-process the frame into our internal representation.
-        self.symbol_frame = np.zeros((frame_shape[0], frame_shape[1]), dtype=np.uint32)
-
-        context_length = len(context_functor(self.symbol_frame, -1, -1))
-        self.convolutional_model = model.CTS(context_length=context_length, alphabet=alphabet)
-        self.context_functor = context_functor
-
-    def log_prob(self, frame):
-        # rgb_to_symbols(frame, self.symbol_frame)
-        gray_to_symbols(frame, self.symbol_frame)
-
-        total_log_probability = 0.0
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                colour = self.symbol_frame[y, x]
-                total_log_probability += self.convolutional_model.log_prob(context=context, symbol=colour)
-
-        return total_log_probability
-
-    def update(self, frame):
-        # rgb_to_symbols(frame, self.symbol_frame)
-        gray_to_symbols(frame, self.symbol_frame)
-
-        total_log_probability = 0.0
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                colour = self.symbol_frame[y, x]
-                total_log_probability += self.convolutional_model.update(context=context, symbol=colour)
-
-        return total_log_probability
-
-    def sample(self):
-        output_frame = np.zeros((*self.symbol_frame.shape, 1), dtype=np.float32)
-        print(output_frame.shape)
-
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                # From a programmer's perspective, this is why we must respect the chain rule: otherwise
-                # we condition on garbage.
-                context = self.context_functor(self.symbol_frame, y, x)
-                self.symbol_frame[y, x] = self.convolutional_model.sample(context=context,
-                                                                          rejection_sampling=True)
-
-        # return symbols_to_rgb(self.symbol_frame, output_frame)
-        return symbols_to_gray(self.symbol_frame, output_frame)
-
-    def sample_with_update(self):
-        output_frame = np.zeros((*self.symbol_frame.shape, 1), dtype=np.float32)
-        print(output_frame.shape)
-
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                self.symbol_frame[y, x] = self.convolutional_model.sample(context=context,
-                                                                          rejection_sampling=False)
-                self.convolutional_model.update(context, self.symbol_frame[y, x])
-
-        return symbols_to_gray(self.symbol_frame, output_frame)
-        # return symbols_to_rgb(self.symbol_frame, output_frame)
