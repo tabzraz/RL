@@ -48,12 +48,14 @@ RUN pip install tensorboard_logger
 
 WORKDIR "/home"
 
-RUN git clone https://github.com/tabzraz/RL.git
-RUN git clone https://github.com/tabzraz/ML.git
-RUN pip install -e ML/
+# RUN git clone https://github.com/tabzraz/RL.git
+# RUN git clone https://github.com/tabzraz/ML.git
+# RUN pip install -e ML/
 
 # CTS Lib
 RUN git clone https://github.com/tabzraz/SkipCTS.git
 RUN pip install -e SkipCTS/python
+
+USER tabhid
 
 CMD ["/bin/bash"]
