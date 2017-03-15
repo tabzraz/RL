@@ -45,7 +45,6 @@ RUN pip install imageio
 
 RUN pip install tensorboard_logger
 
-
 WORKDIR "/home"
 
 RUN git clone https://github.com/tabzraz/RL.git
