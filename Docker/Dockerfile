@@ -1,5 +1,5 @@
 # FROM tensorflow/tensorflow:latest-gpu-py3
-FROM nvidia/cuda:8.0-runtime
+FROM nvidia/cuda:8.0-cudnn5-devel
 
 MAINTAINER Tabish Rashid
 
@@ -48,14 +48,12 @@ RUN pip install tensorboard_logger
 
 WORKDIR "/home"
 
-# RUN git clone https://github.com/tabzraz/RL.git
+RUN git clone https://github.com/tabzraz/RL.git
 # RUN git clone https://github.com/tabzraz/ML.git
 # RUN pip install -e ML/
 
 # CTS Lib
 RUN git clone https://github.com/tabzraz/SkipCTS.git
 RUN pip install -e SkipCTS/python
-
-USER tabhid
 
 CMD ["/bin/bash"]
