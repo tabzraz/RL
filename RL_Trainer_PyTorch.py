@@ -432,7 +432,7 @@ def exploration_bonus(state, training=True):
             debug_dict["CTS_PG"] = pg_pixel
             env.env.debug_render(debug_info=debug_dict, offline=True)
             image = pygame_image(env.env.surface)
-            image.swapaxes(0, 1)
+            image = image.swapaxes(0, 1)
             save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
         if training:
             Exploration_Bonus.append(bonus)
