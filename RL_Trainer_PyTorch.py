@@ -31,6 +31,10 @@ from multiprocessing.sharedctypes import Value
 from Utils.Utils import time_str
 from Replay.ExpReplay_Options import ExperienceReplay_Options
 from Models.Models import get_torch_models as get_models
+
+from Hierarchical.MazeOptions import MazeOptions
+from Hierarchical.Primitive_Options import Primitive_Options
+
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
@@ -44,6 +48,7 @@ parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--render", action="store_true", default=False)
+parser.add_argument("--slow-render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(7e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
@@ -67,6 +72,7 @@ parser.add_argument("--cts-size", type=int, default=7)
 parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 parser.add_argument("--clip-reward", action="store_true", default=False)
+parser.add_argument("--options", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -125,6 +131,12 @@ args.actions = env.action_space.n
 # Experience Replay
 replay = ExperienceReplay_Options(args.exp_replay_size)
 
+# Options
+if args.options:
+    options = MazeOptions()
+else:
+    options = Primitive_Options()
+
 # DQN
 print("\nGetting Models.\n")
 dqn = get_models(args.model)()
@@ -163,6 +175,7 @@ epsilon = 1
 episode_reward = 0
 episode_bonus_only_reward = 0
 epsiode_steps = 0
+target_sync_T = 0
 
 # Debug stuff
 max_q_value = -1000
@@ -366,13 +379,25 @@ def eval_agent(last=False):
                         cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
                         debug_dict["CTS_State"] = cts_state
                         debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
-                    env.env.debug_render(debug_info=debug_dict, offline=True)
-                    debug_states.append(pygame_image(env.env.surface))
+                    # env.env.debug_render(debug_info=debug_dict, offline=True)
+                    # debug_states.append(pygame_image(env.env.surface))
                 states.append(state)
 
-            state_new, reward, terminated, env_info = env.step(action)
+            option_terminated = False
+            reward = 0
+            options.choose_option(action)
+            while not option_terminated:
+                if will_save_states and args.debug_eval:
+                    env.env.debug_render(debug_info=debug_dict, offline=True)
+                    debug_states.append(pygame_image(env.env.surface))
+                primitive_action, option_beta = options.act(env)
+                state_new, option_reward, terminated, env_info = env.step(primitive_action)
+                reward += option_reward
+                steps += 1
+                option_terminated = np.random.binomial(1, p=option_beta) == 1 or terminated
+
             ep_reward += reward
-            steps += 1
+            # steps += 1
 
             state = state_new
 
@@ -494,6 +519,10 @@ def sync_target_network():
         target.data = source.data
 
 
+def select_random_action():
+    return np.random.choice(args.actions)
+
+
 def select_action(state, training=True):
     dqn.eval()
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
@@ -538,11 +567,25 @@ def explore():
         terminated = False
         while not terminated:
             print(e_steps, end="\r")
-            a = env.action_space.sample()
-            sn, r, terminated, _ = env.step(a)
-            replay.Add_Exp(s, a, r, sn, 1, terminated)
+            a = select_random_action()
+            option_terminated = False
+            reward = 0
+            steps = 0
+            options.choose_option(a)
+            while not option_terminated:
+                primitive_action, option_beta = options.act(env)
+                sn, option_reward, terminated, env_info = env.step(primitive_action)
+                reward += option_reward
+                steps += 1
+                e_steps += 1
+                option_terminated = np.random.binomial(1, p=option_beta) == 1 or terminated
+
+            if "Steps_Termination" in env_info:
+                terminated = True
+                break
+
+            replay.Add_Exp(s, a, reward, sn, steps, terminated)
             s = sn
-            e_steps += 1
 
     print("Exploratory phase finished. Starting learning.\n")
 
@@ -694,11 +737,25 @@ while T < args.t_max:
                 cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
                 debug_dict["CTS_State"] = cts_state
                 debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
-            env.env.debug_render(debug_dict)
 
-        state_new, reward, episode_finished, env_info = env.step(action)
-        episode_steps += 1
-        T += 1
+        option_terminated = False
+        reward = 0
+        steps = 0
+        options.choose_option(action)
+        while not option_terminated:
+            if args.render:
+                if args.slow_render:
+                    time.sleep(0.1)
+                env.env.debug_render(debug_dict)
+            primitive_action, option_beta = options.act(env)
+            state_new, option_reward, episode_finished, env_info = env.step(primitive_action)
+            reward += option_reward
+            episode_steps += 1
+            steps += 1
+            T += 1
+            option_terminated = np.random.binomial(1, p=option_beta) == 1 or episode_finished
+            environment_specific_stuff()
+
         # If the environment terminated because it reached a limit, we do not want the agent
         # to see that transition, since it makes the env non markovian wrt state
         if "Steps_Termination" in env_info:
@@ -715,16 +772,15 @@ while T < args.t_max:
         States_Next.append(state_new)
         Actions.append(action)
 
-        replay.Add_Exp(state, action, reward, state_new, 1, episode_finished)
+        replay.Add_Exp(state, action, reward, state_new, steps, episode_finished)
 
         train_agent()
 
-        if T % args.target == 0:
+        if T - target_sync_T > args.target:
             sync_target_network()
+            target_sync_T = T
 
         state = state_new
-
-        environment_specific_stuff()
 
         if not args.plain_print:
             print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")

@@ -7,8 +7,7 @@ class MazeOptions:
     # Exit 0 is the left one, anti-clockwise from there
     # (0,0) is at the top left
     # (y, x) is the player_pos
-    def __init__(self, maze_env):
-        self.maze_env = maze_env
+    def __init__(self):
         self.action = 0
         self.steps = 0
 
@@ -57,11 +56,9 @@ class MazeOptions:
 
     def choose_option(self, action):
         self.action = action
-        self.steps = 0
 
-    def act(self):
-        self.steps += 1
-        player_pos = self.maze_env.player_pos
+    def act(self, env):
+        player_pos = env.env.player_pos
         player_pos = (player_pos[0] % 7, player_pos[1] % 7)
         action_to_take = self.actions[self.action][player_pos] - 2
         beta = 0.0
