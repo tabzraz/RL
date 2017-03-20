@@ -5,6 +5,7 @@ import time
 import os
 import pickle
 from math import sqrt, ceil
+from copy import deepcopy
 
 import numpy as np
 
@@ -50,14 +51,14 @@ parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--slow-render", action="store_true", default=False)
 parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(7e4))
-parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
-parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
+parser.add_argument("--epsilon-start", "--eps-start", type=float, default=0)
+parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0)
 parser.add_argument("--batch-size", "--batch", type=int, default=32)
 parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.01)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
+parser.add_argument("--beta", type=float, default=0.1)
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(1))
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--n-inc", action="store_true", default=False)
 parser.add_argument("--n-max", type=int, default=10)
@@ -197,8 +198,10 @@ if args.count:
     # cts_model_shape = (env_size // 2, env_size // 2)
     # Use a (14, 14) model anyway
     cts_model_shape = (args.cts_size, args.cts_size)
+    cts_models = []
     print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
-    cts_model = CTS.DensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context, conv=args.cts_conv)
+    for _ in range(args.actions):
+        cts_models.append(CTS.DensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context, conv=args.cts_conv))
     os.makedirs("{}/cts_model".format(LOGDIR))
 
 
@@ -435,36 +438,42 @@ def exploration_bonus(state, training=True):
     if args.count:
         state = resize(state[:, :, 0], cts_model_shape, mode="F")
         # rho_old = np.exp(cts_model.update(state))
-        rho_old, rho_old_pixels = cts_model.update(state)
-        # rho_new = np.exp(cts_model.log_prob(state))
-        rho_new, rho_new_pixels = cts_model.log_prob(state)
-        pg = rho_new - rho_old
-        pg_pixel = rho_new_pixels - rho_old_pixels
-        extra_info["Pixel_PG"] = pg_pixel
-        # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
-        # Change to the pseudo_count they use in neural density models:
-        pg = min(10, pg)
-        pseudo_count = 1 / (np.expm1(pg))
-        pseudo_count = max(pseudo_count, 0)
-        bonus = args.beta / sqrt(pseudo_count + 0.01)
+        old_models = [deepcopy(c) for c in cts_models]
+
+        bonuses = []
+        for cts_model in cts_models:
+            rho_old, rho_old_pixels = cts_model.update(state)
+            # rho_new = np.exp(cts_model.log_prob(state))
+            rho_new, rho_new_pixels = cts_model.log_prob(state)
+            pg = rho_new - rho_old
+            pg_pixel = rho_new_pixels - rho_old_pixels
+            extra_info["Pixel_PG"] = pg_pixel
+            # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
+            # Change to the pseudo_count they use in neural density models:
+            pg = min(10, pg)
+            pseudo_count = 1 / (np.expm1(pg))
+            pseudo_count = max(pseudo_count, 0)
+            bonus = args.beta / sqrt(pseudo_count + 0.01)
+            bonuses.append(bonus)
 
         # Save suprising states after the first quarter of training
-        if T > args.t_max / 4 and bonus >= args.exp_bonus_save * max_exp_bonus:
-            debug_dict = {}
-            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-            debug_dict["Exp_Bonus"] = bonus
-            debug_dict["CTS_State"] = state
-            debug_dict["CTS_PG"] = pg_pixel
-            env.env.debug_render(debug_info=debug_dict, offline=True)
-            image = pygame_image(env.env.surface)
-            image = image.swapaxes(0, 1)
-            save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
+        # if T > args.t_max / 4 and bonus >= args.exp_bonus_save * max_exp_bonus:
+        #     debug_dict = {}
+        #     debug_dict["Max_Exp_Bonus"] = max_exp_bonus
+        #     debug_dict["Exp_Bonus"] = bonus
+        #     debug_dict["CTS_State"] = state
+        #     debug_dict["CTS_PG"] = pg_pixel
+        #     env.env.debug_render(debug_info=debug_dict, offline=True)
+        #     image = pygame_image(env.env.surface)
+        #     image = image.swapaxes(0, 1)
+        #     save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
         if training:
-            Exploration_Bonus.append(bonus)
+            Exploration_Bonus.append(bonuses)
             if args.tb and T % args.tb_interval == 0:
-                log_value("Count_Bonus", bonus, step=T)
-    max_exp_bonus = max(max_exp_bonus, bonus)
-    return bonus, extra_info
+                for i, bonus in enumerate(bonuses):
+                    log_value("Count_Bonus_{}".format(i), bonus, step=T)
+    max_exp_bonus = max(max_exp_bonus, max(bonuses))
+    return bonuses, old_models, extra_info
 
 
 def start_of_episode():
@@ -511,7 +520,7 @@ def save_values():
 def end_of_episode_save():
     if args.count:
         with open("{}/cts_model/cts_model_end.pkl".format(LOGDIR), "wb") as file:
-            pickle.dump(cts_model, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(cts_models, file, pickle.HIGHEST_PROTOCOL)
 
 
 def sync_target_network():
@@ -525,17 +534,10 @@ def select_random_action():
 
 def select_action(state, training=True):
     dqn.eval()
+    numpy_state = state
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
     q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
     q_values_numpy = q_values.numpy()
-
-    global max_q_value
-    global min_q_value
-    # Decay it so that it reflects a recentish maximum q value
-    max_q_value *= 0.9999
-    min_q_value *= 0.9999
-    max_q_value = max(max_q_value, np.max(q_values_numpy))
-    min_q_value = min(min_q_value, np.min(q_values_numpy))
 
     if training:
         Q_Values.append(q_values_numpy)
@@ -550,13 +552,32 @@ def select_action(state, training=True):
                     log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
             # print(q_val_dict)
             # crayon_exp.add_scalar_dict(q_val_dict, step=T)
+    exp_bonuses = None
+    if args.count:
+        exp_bonuses, old_models, exp_info = exploration_bonus(numpy_state)
+        q_values_numpy += exp_bonuses
+
+    global max_q_value
+    global min_q_value
+    # Decay it so that it reflects a recentish maximum q value
+    max_q_value *= 0.9999
+    min_q_value *= 0.9999
+    max_q_value = max(max_q_value, np.max(q_values_numpy))
+    min_q_value = min(min_q_value, np.min(q_values_numpy))
 
     if np.random.random() < epsilon:
         action = env.action_space.sample()
     else:
-        action = q_values.max(0)[1][0]  # Torch...
+        action = np.argmax(q_values_numpy)
+        action = int(action)
 
-    return action, q_values_numpy
+    if args.count:
+        global cts_models
+        chosen_model = cts_models[action]
+        cts_models = old_models
+        cts_models[action] = chosen_model
+
+    return action, q_values_numpy, exp_bonuses
 
 
 def explore():
@@ -616,7 +637,7 @@ def train_agent():
     # TODO: Use a named tuple for experience replay
     batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
-
+    # print(type(columns[1][0]))
     states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
     actions = Variable(torch.LongTensor(columns[1]))
     terminal_states = Variable(torch.FloatTensor(columns[5]))
@@ -708,7 +729,7 @@ while T < args.t_max:
         debug_info = {}
         debug_info["Exp_Bonuses"] = True
         debug_info["CTS_Size"] = args.cts_size
-        env.env.debug_render(debug_info, offline=True)
+        # env.env.debug_render(debug_info, offline=True)
     episode_finished = False
     episode_reward = 0
     episode_bonus_only_reward = 0
@@ -721,9 +742,9 @@ while T < args.t_max:
     print_time()
 
     while not episode_finished:
-        action, q_values = select_action(state)
+        action, q_values, exp_bonuses = select_action(state)
 
-        exp_bonus, exp_info = exploration_bonus(state)
+        # exp_bonus, exp_info = exploration_bonus(state)
 
         if args.render:
             debug_dict = {}
@@ -733,10 +754,10 @@ while T < args.t_max:
             debug_dict["Action"] = action
             if args.count:
                 debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-                debug_dict["Exp_Bonus"] = exp_bonus
+                debug_dict["Exp_Bonuses"] = exp_bonuses
                 cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
                 debug_dict["CTS_State"] = cts_state
-                debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
+                # debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
 
         option_terminated = False
         reward = 0
@@ -764,14 +785,14 @@ while T < args.t_max:
 
         episode_reward += reward
 
-        episode_bonus_only_reward += exp_bonus
-        reward += exp_bonus
+        # episode_bonus_only_reward += exp_bonus
+        # reward += exp_bonus
 
         Rewards.append(reward)
         States.append(state)
         States_Next.append(state_new)
         Actions.append(action)
-
+        # print(type(action))
         replay.Add_Exp(state, action, reward, state_new, steps, episode_finished)
 
         train_agent()
@@ -785,7 +806,7 @@ while T < args.t_max:
         if not args.plain_print:
             print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
 
-    eval_agent()
+    # eval_agent()
 
     episode += 1
     Episode_Rewards.append(episode_reward)
