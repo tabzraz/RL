@@ -4,6 +4,7 @@ FROM nvidia/cuda:8.0-cudnn5-devel
 MAINTAINER Tabish Rashid
 
 # Nvidia driver so it works in screen...
+RUN apt-get update
 RUN apt-get install -y nvidia-375
 
 RUN apt-get update
