@@ -3,10 +3,6 @@ FROM nvidia/cuda:8.0-cudnn5-devel
 
 MAINTAINER Tabish Rashid
 
-# Nvidia driver so it works in screen...
-RUN apt-get update
-RUN apt-get install -y nvidia-375
-
 RUN apt-get update
 RUN apt-get install -y software-properties-common python-software-properties
 RUN add-apt-repository ppa:jonathonf/python-3.6
@@ -20,6 +16,9 @@ RUN ln -s /usr/bin/pip3 /usr/bin/pip
 RUN pip install --upgrade pip
 
 RUN apt-get install -y vim screen htop
+
+# Fix screen Library path
+RUN echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64" >> ~/.bashrc
 
 # Needed for some gym dependencies
 # RUN apt-get update
