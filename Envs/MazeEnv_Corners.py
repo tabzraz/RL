@@ -258,8 +258,8 @@ class MazeEnv(gym.Env):
                     q_colour = green_colour
                 else:
                     q_colour = blue_colour
-                pygame.draw.rect(drawing_surface, q_colour, (10 + int((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, int((self.maze.shape[0] * scaling - 20) / 4), q_size), 0)
-                pygame.draw.rect(drawing_surface, white_colour, (10 + int((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, int((self.maze.shape[0] * scaling - 20) / 4), q_size), 2)
+                pygame.draw.rect(drawing_surface, q_colour, (10 + ((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, ((self.maze.shape[0] * scaling - 20) / actions), q_size), 0)
+                pygame.draw.rect(drawing_surface, white_colour, (10 + ((self.maze.shape[0] * scaling - 20) / actions) * i, self.maze.shape[1] * scaling + 10 + 100 - q_size, ((self.maze.shape[0] * scaling - 20) / actions), q_size), 1)
 
         if not offline:
             pygame.display.update()

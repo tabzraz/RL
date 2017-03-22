@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class DQN(nn.Module):
 
-    def __init__(self, input_size=(1, 7, 7)):
+    def __init__(self, input_size=(1, 7, 7), actions=4):
         super(DQN, self).__init__()
         img_size = int(input_size[1])
         # print(img_size)
@@ -18,7 +18,7 @@ class DQN(nn.Module):
         # print(img_size)
         # self.flatten_size = img_size * img_size * 8
         self.fc1 = nn.Linear(img_size * img_size * 16, img_size * img_size * 4)
-        self.fc2 = nn.Linear(img_size * img_size * 4, 4)
+        self.fc2 = nn.Linear(img_size * img_size * 4, actions)
 
     def forward(self, x):
         if next(self.parameters()).is_cuda:

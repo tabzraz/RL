@@ -8,8 +8,8 @@ from .Torch import DQN_Maze
 # DQN Maze
 # torch_models["Maze-1"] = DQN_Maze.DQN
 for s in range(10):
-    def model_creator(size=s):
-        return DQN_Maze.DQN(input_size=(1, size * 7, size * 7))
+    def model_creator(actions, size=s):
+        return DQN_Maze.DQN(input_size=(1, size * 7, size * 7), actions=actions)
     torch_models["Maze-{}-v1".format(s)] = model_creator
 
 

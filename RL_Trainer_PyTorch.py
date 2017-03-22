@@ -34,22 +34,23 @@ from Models.Models import get_torch_models as get_models
 
 from Hierarchical.MazeOptions import MazeOptions
 from Hierarchical.Primitive_Options import Primitive_Options
+from Hierarchical.Random_Macro_Actions import Random_Macro_Actions
 
 import Envs
 
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(2e5))
+parser.add_argument("--t-max", type=int, default=int(10e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(2e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--render", action="store_true", default=False)
 parser.add_argument("--slow-render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(1e5))
+parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(7e5))
 parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
 parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
 parser.add_argument("--batch-size", "--batch", type=int, default=32)
@@ -69,10 +70,13 @@ parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=3)
 parser.add_argument("--debug-eval", action="store_true", default=False)
 parser.add_argument("--cts-size", type=int, default=7)
-parser.add_argument("--cts-conv", action="store_true", default=True)
+parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 parser.add_argument("--clip-reward", action="store_true", default=False)
-parser.add_argument("--options", action="store_true", default=False)
+parser.add_argument("--options", type=str, default="Primitive")
+parser.add_argument("--num-macros", type=int, default=10)
+parser.add_argument("--max-macro-length", type=int, default=10)
+parser.add_argument("--macro-seed", type=int, default=12)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -132,15 +136,37 @@ args.actions = env.action_space.n
 replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # Options
-if args.options:
+if args.options == "Random_Macros":
+    macro_lengths = []
+    ll = args.max_macro_length
+    while ll > 1:
+        macro_lengths.append(ll)
+        ll = int(ll / 2)
+    lengths = [m for m in macro_lengths]
+    macro_lengths *= int(args.num_macros / len(macro_lengths))
+    macro_lengths += macro_lengths[:args.num_macros - len(macro_lengths)]
+    print("\n{} Macro actions of lengths: {}".format(len(macro_lengths), lengths))
+    # print(macro_lengths, "\n")
+    macro_lengths = sorted(macro_lengths)
+    options = Random_Macro_Actions(num_primitive_actions=args.actions, lengths_of_macros=macro_lengths, seed=args.macro_seed)
+    args.actions = len(macro_lengths)
+    if not os.path.exists("{}/macros".format(LOGDIR)):
+        os.makedirs("{}/macros".format(LOGDIR))
+    with open("{}/macros/random_macros.txt".format(LOGDIR), "ab") as file:
+        for macro in options.macros:
+            np.savetxt(file, macro, delimiter=" ", fmt="%d", newline=" ")
+            file.write(str.encode("\n"))
+elif args.options == "Maze_Good":
     options = MazeOptions()
 else:
     options = Primitive_Options()
 
+print("\nOptions Being Used: {}\n".format(args.options))
+
 # DQN
 print("\nGetting Models.\n")
-dqn = get_models(args.model)()
-target_dqn = get_models(args.model)()
+dqn = get_models(args.model)(actions=args.actions)
+target_dqn = get_models(args.model)(actions=args.actions)
 
 if args.gpu:
     print("Moving models to GPU.")
@@ -444,8 +470,9 @@ def exploration_bonus(state, training=True):
         # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
         # Change to the pseudo_count they use in neural density models:
         pg = min(10, pg)
+        pg = max(0, pg)
         pseudo_count = 1 / (np.expm1(pg))
-        pseudo_count = max(pseudo_count, 0)
+        # pseudo_count = max(pseudo_count, 0)
         bonus = args.beta / sqrt(pseudo_count + 0.01)
 
         # Save suprising states after the first quarter of training
@@ -552,7 +579,7 @@ def select_action(state, training=True):
             # crayon_exp.add_scalar_dict(q_val_dict, step=T)
 
     if np.random.random() < epsilon:
-        action = env.action_space.sample()
+        action = np.random.randint(low=0, high=args.actions)
     else:
         action = q_values.max(0)[1][0]  # Torch...
 
