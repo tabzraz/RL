@@ -794,6 +794,9 @@ while T < args.t_max:
             option_terminated = np.random.binomial(1, p=option_beta) == 1 or episode_finished
             environment_specific_stuff()
             if args.train_primitives:
+                if np.all(state_timestep == state):
+                    # We add in the exploration bonus out of state
+                    option_reward += exp_bonus
                 primitive_replay.Add_Exp(state_timestep, primitive_action, option_reward, state_new, 1, episode_finished)
             state_timestep = state_new
 
