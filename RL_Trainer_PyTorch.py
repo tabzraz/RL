@@ -43,7 +43,7 @@ parser.add_argument("--t-max", type=int, default=int(10e5))
 parser.add_argument("--env", type=str, default="Maze-2-v1")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
+parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e2))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gpu", action="store_true", default=False)
 parser.add_argument("--model", type=str, default="")
@@ -651,7 +651,7 @@ def train_agent():
     # TODO: Use a named tuple for experience replay
     batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     if args.train_primitives:
-        batch += primitive_replay.Sample_N(args.batch_size, args.n_step, args.gamma)
+        batch = batch + primitive_replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
 
     states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -669,8 +669,8 @@ def train_agent():
     target_dqn_qvals_data = Variable(target_dqn_qvals.data)
     new_states_qvals_data = Variable(new_states_qvals.data)
 
-    q_value_targets = (Variable(torch.ones(args.batch_size)) - terminal_states)
-    inter = Variable(torch.ones(args.batch_size) * args.gamma)
+    q_value_targets = (Variable(torch.ones(terminal_states.size()[0])) - terminal_states)
+    inter = Variable(torch.ones(terminal_states.size()[0]) * args.gamma)
     # print(steps)
     q_value_targets = q_value_targets * torch.pow(inter, steps)
     # Double Q Learning

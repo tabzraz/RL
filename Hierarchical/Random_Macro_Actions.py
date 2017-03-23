@@ -26,4 +26,4 @@ class Random_Macro_Actions:
             beta = 1.0
         else:
             beta = 0.0
-        return action, beta
+        return int(action), beta
