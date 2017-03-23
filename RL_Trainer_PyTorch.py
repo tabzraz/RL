@@ -77,6 +77,7 @@ parser.add_argument("--options", type=str, default="Primitive")
 parser.add_argument("--num-macros", type=int, default=10)
 parser.add_argument("--max-macro-length", type=int, default=10)
 parser.add_argument("--macro-seed", type=int, default=12)
+parser.add_argument("--train-primitives", action="store_true", default=False)
 args = parser.parse_args()
 if args.gpu and not torch.cuda.is_available():
     print("CUDA unavailable! Switching to cpu only")
@@ -131,9 +132,12 @@ if args.model == "":
 # Gym Environment
 env = gym.make(args.env)
 args.actions = env.action_space.n
+args.primitive_actions = args.actions
 
 # Experience Replay
 replay = ExperienceReplay_Options(args.exp_replay_size)
+if args.train_primitives:
+    primitive_replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # Options
 if args.options == "Random_Macros":
@@ -148,7 +152,7 @@ if args.options == "Random_Macros":
     print("\n{} Macro actions of lengths: {}".format(len(macro_lengths), lengths))
     # print(macro_lengths, "\n")
     macro_lengths = sorted(macro_lengths)
-    options = Random_Macro_Actions(num_primitive_actions=args.actions, lengths_of_macros=macro_lengths, seed=args.macro_seed)
+    options = Random_Macro_Actions(num_primitive_actions=args.actions, lengths_of_macros=macro_lengths, seed=args.macro_seed, with_primitives=True)
     args.actions = len(macro_lengths)
     if not os.path.exists("{}/macros".format(LOGDIR)):
         os.makedirs("{}/macros".format(LOGDIR))
@@ -591,6 +595,7 @@ def explore():
     e_steps = 0
     while e_steps < args.exploration_steps:
         s = env.reset()
+        s_t = s
         terminated = False
         while not terminated:
             print(e_steps, end="\r")
@@ -606,6 +611,9 @@ def explore():
                 steps += 1
                 e_steps += 1
                 option_terminated = np.random.binomial(1, p=option_beta) == 1 or terminated
+                if args.train_primitives:
+                    primitive_replay.Add_Exp(s_t, primitive_action, option_reward, sn, 1, terminated)
+                s_t = sn
 
             if "Steps_Termination" in env_info:
                 terminated = True
@@ -642,6 +650,8 @@ def train_agent():
         args.n_step = round(args.n_start + (T / args.t_max) * (args.n_max - args.n_start))
     # TODO: Use a named tuple for experience replay
     batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
+    if args.train_primitives:
+        batch += primitive_replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
 
     states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -725,6 +735,7 @@ print("Training.\n\n\n")
 while T < args.t_max:
 
     state = env.reset()
+    state_timestep = state
     if args.render:
         debug_info = {}
         if args.count:
@@ -782,6 +793,9 @@ while T < args.t_max:
             T += 1
             option_terminated = np.random.binomial(1, p=option_beta) == 1 or episode_finished
             environment_specific_stuff()
+            if args.train_primitives:
+                primitive_replay.Add_Exp(state_timestep, primitive_action, option_reward, state_new, 1, episode_finished)
+            state_timestep = state_new
 
         # If the environment terminated because it reached a limit, we do not want the agent
         # to see that transition, since it makes the env non markovian wrt state

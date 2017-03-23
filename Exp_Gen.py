@@ -19,6 +19,7 @@ gpu = True
 debug_eval = True
 screen = False
 random_macros = True
+with_primitives = True
 files = 4
 write_to_files = True
 
@@ -42,7 +43,7 @@ for env in envs:
                                                         name += "_Batch_{}".format(batch_size)
                                                         if option:
                                                             if random_macros:
-                                                                name += "_Rnd_Macros_{}_Length_{}_Mseed_{}".format(num_macro, max_macro_length, macro_seed)
+                                                                name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
                                                             else:
                                                                 name += "_Options"
                                                         if count:
@@ -57,6 +58,8 @@ for env in envs:
                                                         if option:
                                                             if random_macros:
                                                                 python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
+                                                                if with_primitives:
+                                                                    python_command += " --train-primitives"
                                                             else:
                                                                 python_command += " --options Maze_Good"
                                                         if gpu:
