@@ -1,5 +1,5 @@
-envs = ["Maze-{}-v1".format(size) for size in [6]]
-lrs = [0.00001]
+envs = ["Maze-{}-v1".format(size) for size in [5]]
+lrs = [0.0001]
 counts = [False, True]
 cts_convs = [False]
 betas = [0.01]
@@ -19,8 +19,11 @@ gpu = True
 debug_eval = True
 screen = False
 random_macros = True
+files = 4
+write_to_files = True
 
 uid = 0
+commands = []
 for env in envs:
     for t_max in t_maxs:
         for option in options:
@@ -39,7 +42,7 @@ for env in envs:
                                                         name += "_Batch_{}".format(batch_size)
                                                         if option:
                                                             if random_macros:
-                                                                name += "_Rnd_Macros"
+                                                                name += "_Rnd_Macros_{}_Length_{}_Mseed_{}".format(num_macro, max_macro_length, macro_seed)
                                                             else:
                                                                 name += "_Options"
                                                         if count:
@@ -67,5 +70,12 @@ for env in envs:
                                                             screen_name += "_{}".format(seed)
                                                             python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
                                                         print(python_command)
+                                                        commands.append(python_command)
                                                         uid += 1
                                                     print()
+
+if write_to_files:
+    for i in range(files):
+        with open("exps{}.sh".format(i + 1), "w") as f:
+            for cc in commands[i::files]:
+                f.write("{}\n".format(cc))
