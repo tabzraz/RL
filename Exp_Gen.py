@@ -8,6 +8,7 @@ cts_sizes = [7]
 seeds = [66, 75]
 epsilon_starts = [1]
 batch_sizes = [32]
+xp_replay_sizes = [50000]
 
 options = [True]
 
@@ -28,7 +29,7 @@ commands = []
 for env in envs:
     for t_max in t_maxs:
         for option in options:
-            for batch_size in batch_sizes:
+            for batch_size, xp_replay_size in zip(batch_sizes, xp_replay_sizes):
                 for lr in lrs:
                     for eps in epsilon_starts:
                         for count in counts:
@@ -40,7 +41,7 @@ for env in envs:
                                                 for macro_seed in macro_seeds:
                                                     for seed in seeds:
                                                         name = env.replace("-", "_")[:-3]
-                                                        name += "_Batch_{}".format(batch_size)
+                                                        name += "_Batch_{}_XpSize_{}k".format(batch_size, str(xp_replay_size)[:-3])
                                                         if option:
                                                             if random_macros:
                                                                 name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
@@ -50,7 +51,7 @@ for env in envs:
                                                             name += "_Count_Cts_{}_Conv_{}_Beta_{}_Eps_{}_uid_{}".format(cts_size, cts_conv, beta, eps, uid)
                                                         else:
                                                             name += "_DQN_uid_{}".format(uid)
-                                                        python_command = "python3 RL_Trainer_PyTorch.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {}".format(name, env, lr, seed, t_max, eps, batch_size)
+                                                        python_command = "python3 RL_Trainer_PyTorch.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
                                                         if count:
                                                             python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
                                                             if cts_conv:
