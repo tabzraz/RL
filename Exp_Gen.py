@@ -5,16 +5,16 @@ cts_convs = [False]
 betas = [0.01]
 t_maxs = [1000000]
 cts_sizes = [7]
-seeds = [66, 75]
+seeds = [13, 66, 75]
 epsilon_starts = [1]
-batch_sizes = [32]
-xp_replay_sizes = [50000]
+batch_sizes = [32, 64, 128, 256]
+xp_replay_sizes = [10000, 50000, 100000, 200000, 500000]
 
-options = [True]
+options = [False]
 
-num_macros = [10, 50, 200]
-max_macro_lengths = [8, 16, 32]
-macro_seeds = [5, 6]
+num_macros = [1]#[10, 50, 200]
+max_macro_lengths = [1]#[8, 16, 32]
+macro_seeds = [1]#[5, 6]
 
 gpu = True
 debug_eval = True
@@ -29,7 +29,7 @@ commands = []
 for env in envs:
     for t_max in t_maxs:
         for option in options:
-            for batch_size, xp_replay_size in zip(batch_sizes, xp_replay_sizes):
+            for batch_size, xp_replay_size in [(b, x) for b in batch_sizes for x in xp_replay_sizes]:
                 for lr in lrs:
                     for eps in epsilon_starts:
                         for count in counts:
