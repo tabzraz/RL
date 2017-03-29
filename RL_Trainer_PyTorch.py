@@ -232,14 +232,6 @@ if args.count:
     os.makedirs("{}/cts_model".format(LOGDIR))
 
 
-# class Variable(torch.autograd.Variable):
-
-#     def __init__(self, data, *arguments, **kwargs):
-#         if args.gpu:
-#             data = data.cuda()
-#             print(data)
-#         super(Variable, self).__init__(data, *arguments, **kwargs)
-
 # Multiprocessing logger
 def logger(q, finished):
     configure("{}/tb".format(LOGDIR), flush_secs=30)
@@ -364,6 +356,72 @@ def environment_specific_stuff():
                     colour_maze = np.clip(colour_maze, 0, 1) * 255
                     colour_images.append(colour_maze.astype(np.uint8))
                 save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
+
+                # We want to save the positions where the exploration bonus was high
+                if not args.count:
+                    continue
+                colour_images = []
+                for i in range(0, T, interval // 10):
+                    canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
+                    maze_size = env.env.maze.shape[0]
+                    for visit, bonus in zip(Player_Positions_With_Goals[i: i + interval], Exploration_Bonus[i: i + interval]):
+                        if not bonus >= args.exp_bonus_save * max_exp_bonus:
+                            continue
+                        px = visit[0]
+                        py = visit[1]
+                        g1 = visit[2]
+                        g2 = visit[3]
+                        g3 = visit[4]
+                        if not g1 and not g2 and not g3:
+                            # No Goals visited
+                            canvas[px, py, :] += 1
+                        elif g1 and not g2 and not g3:
+                            # Only g1
+                            canvas[px, py + maze_size, 0] += 1
+                        elif not g1 and g2 and not g3:
+                            # Only g2
+                            canvas[px + maze_size, py + maze_size, 1] += 1
+                        elif not g1 and not g2 and g3:
+                            # Only g3
+                            canvas[px + 2 * maze_size, py + maze_size, 2] += 1
+                        elif g1 and g2 and not g3:
+                            # g1 and g2
+                            canvas[px, py + maze_size * 2, 0: 2] += 1
+                        elif g1 and not g2 and g3:
+                            # g1 and g3
+                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] += 1
+                        elif not g1 and g2 and g3:
+                            # g2 and g3
+                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
+                        else:
+                            # print("ERROR", g1, g2, g3)
+                            pass
+                    canvas = np.clip(canvas, 0, 1)
+                    # Colour the unvisited goals
+                    # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
+                    # only g1
+                    canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
+                    canvas[maze_size - 4, maze_size, :] = 1
+                    # only g2
+                    canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
+                    canvas[maze_size + maze_size - 4, maze_size, :] = 1
+                    # only g3
+                    canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
+                    canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
+                    # g1 and g2
+                    canvas[maze_size - 4, 2 * maze_size] = 1
+                    # g1 and g3
+                    canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
+                    # g2 and g2
+                    canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
+                    # Seperate the mazes
+                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
+                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
+                    colour_maze = canvas
+
+                    colour_maze = np.clip(colour_maze, 0, 1) * 255
+                    colour_images.append(colour_maze.astype(np.uint8))
+                save_video("{}/exp_bonus/High_Exp_Bonus__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
 
 # TODO: Async this
