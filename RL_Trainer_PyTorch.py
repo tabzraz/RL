@@ -365,34 +365,34 @@ def environment_specific_stuff():
                     canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
                     maze_size = env.env.maze.shape[0]
                     for visit, bonus in zip(Player_Positions_With_Goals[i: i + interval], Exploration_Bonus[i: i + interval]):
-                        if not bonus >= args.exp_bonus_save * max_exp_bonus:
-                            continue
+                        relative_bonus = bonus / max_exp_bonus
                         px = visit[0]
                         py = visit[1]
                         g1 = visit[2]
                         g2 = visit[3]
                         g3 = visit[4]
+                        # Assign the maximum bonus in that interval to the image
                         if not g1 and not g2 and not g3:
                             # No Goals visited
-                            canvas[px, py, :] += 1
+                            canvas[px, py, :] = max(relative_bonus, canvas[px, py, 0])
                         elif g1 and not g2 and not g3:
                             # Only g1
-                            canvas[px, py + maze_size, 0] += 1
+                            canvas[px, py + maze_size, 0] = max(relative_bonus, canvas[px, py + maze_size, 0])
                         elif not g1 and g2 and not g3:
                             # Only g2
-                            canvas[px + maze_size, py + maze_size, 1] += 1
+                            canvas[px + maze_size, py + maze_size, 1] = max(relative_bonus, canvas[px + maze_size, py + maze_size, 1])
                         elif not g1 and not g2 and g3:
                             # Only g3
-                            canvas[px + 2 * maze_size, py + maze_size, 2] += 1
+                            canvas[px + 2 * maze_size, py + maze_size, 2] = max(relative_bonus, canvas[px + 2 * maze_size, py + maze_size, 2])
                         elif g1 and g2 and not g3:
                             # g1 and g2
-                            canvas[px, py + maze_size * 2, 0: 2] += 1
+                            canvas[px, py + maze_size * 2, 0: 2] = max(relative_bonus, canvas[px, py + maze_size * 2, 0])
                         elif g1 and not g2 and g3:
                             # g1 and g3
-                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] += 1
+                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] = max(relative_bonus, canvas[px + maze_size, py + maze_size * 2, 0])
                         elif not g1 and g2 and g3:
                             # g2 and g3
-                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
+                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] = max(relative_bonus, canvas[px + maze_size * 2, py + maze_size * 2, 1])
                         else:
                             # print("ERROR", g1, g2, g3)
                             pass

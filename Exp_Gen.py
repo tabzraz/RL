@@ -1,14 +1,14 @@
 envs = ["Maze-{}-v1".format(size) for size in [5]]
 lrs = [0.0001]
-counts = [False, True]
-cts_convs = [False]
+counts = [True]
+cts_convs = [True, False]
 betas = [0.01]
 t_maxs = [1000000]
 cts_sizes = [7]
 seeds = [13, 66, 75]
-epsilon_starts = [1]
-batch_sizes = [32, 64, 128, 256]
-xp_replay_sizes = [10000, 50000, 100000, 200000, 500000]
+epsilon_starts = [1, 0.1]
+batch_sizes = [32]
+xp_replay_sizes = [50000]
 
 options = [False]
 
@@ -19,9 +19,9 @@ macro_seeds = [1]#[5, 6]
 gpu = True
 debug_eval = True
 screen = False
-random_macros = True
-with_primitives = True
-files = 4
+random_macros = False
+with_primitives = False
+files = 2
 write_to_files = True
 
 uid = 0
