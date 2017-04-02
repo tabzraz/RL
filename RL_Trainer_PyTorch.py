@@ -35,6 +35,7 @@ from Models.Models import get_torch_models as get_models
 from Hierarchical.MazeOptions import MazeOptions
 from Hierarchical.Primitive_Options import Primitive_Options
 from Hierarchical.Random_Macro_Actions import Random_Macro_Actions
+from Hierarchical.Option_Learner import Option_Learner
 
 import Envs
 
@@ -73,7 +74,12 @@ parser.add_argument("--cts-size", type=int, default=7)
 parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 parser.add_argument("--clip-reward", action="store_true", default=False)
+
 parser.add_argument("--options", type=str, default="Primitive")
+
+parser.add_argument("--max-num-options", type=int, default=20)
+parser.add_argument("--option-exp-replay-size", "--option-xp", type=int, default=int(1e4))
+
 parser.add_argument("--num-macros", type=int, default=10)
 parser.add_argument("--max-macro-length", type=int, default=10)
 parser.add_argument("--macro-seed", type=int, default=12)
@@ -140,6 +146,7 @@ if args.train_primitives:
     primitive_replay = ExperienceReplay_Options(args.exp_replay_size)
 
 # Options
+args.learning_options = False
 if args.options == "Random_Macros":
     macro_lengths = []
     ll = args.max_macro_length
@@ -162,6 +169,12 @@ if args.options == "Random_Macros":
             file.write(str.encode("\n"))
 elif args.options == "Maze_Good":
     options = MazeOptions()
+elif args.options == "Learn":
+    args.learning_options = True
+    # options = ...
+    options = Option_Learner()
+    args.actions += args.max_num_options
+    option_learning_replay = ExperienceReplay_Options(args.option_exp_replay_size)
 else:
     options = Primitive_Options()
 
@@ -193,6 +206,12 @@ States_Next = []
 DQN_Loss = []
 DQN_Grad_Norm = []
 Exploration_Bonus = []
+
+if args.learning_options:
+    Novelty_States = []
+    Learning_Option = False
+    Subgoal_State = None
+    Available_Actions = args.primitive_actions
 
 Last_T_Logged = 1
 Last_Ep_Logged = 1
@@ -549,11 +568,19 @@ def exploration_bonus(state, training=True):
             image = image.swapaxes(0, 1)
             save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
         if training:
+            Add_Novelty_State(state, bonus)
             Exploration_Bonus.append(bonus)
             if args.tb and T % args.tb_interval == 0:
                 log_value("Count_Bonus", bonus, step=T)
     max_exp_bonus = max(max_exp_bonus, bonus)
     return bonus, extra_info
+
+
+def Add_Novelty_State(state, bonus):
+    global Novelty_States
+    Novelty_States.append((state, bonus, T))
+    Novelty_States.sort(key=lambda x: (x[1], x[2]))
+    Novelty_States = Novelty_States[: 10]
 
 
 def start_of_episode():
@@ -604,19 +631,23 @@ def end_of_episode_save():
 
 
 def sync_target_network():
-    for target, source in zip(target_dqn.parameters(), dqn.parameters()):
+    sync_network(target_dqn)
+
+
+def sync_network(target_net):
+    for target, source in zip(target_net.parameters(), dqn.parameters()):
         target.data = source.data
 
 
-def select_random_action():
-    return np.random.choice(args.actions)
-
-
-def select_action(state, training=True):
+def select_action(state, training=True, net=None):
+    if net is None:
+        net = dqn
     dqn.eval()
     state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
     q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
     q_values_numpy = q_values.numpy()
+    if args.learning_options:
+        q_values_numpy = q_values_numpy[: Available_Actions]
 
     global max_q_value
     global min_q_value
@@ -633,17 +664,21 @@ def select_action(state, training=True):
         if args.tb:
             # crayon_exp.add_histogram_value("DQN/Q_Values", q_values_numpy.tolist(), tobuild=True, step=T)
             # q_val_dict = {}
-            for index in range(args.actions):
+            for index, q_val in enumerate(q_values_numpy):
                 # q_val_dict["DQN/Action_{}_Q_Value".format(index)] = float(q_values_numpy[index])
                 if T % args.tb_interval == 0:
-                    log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
+                    log_value("DQN/Action_{}_Q_Value".format(index), q_val, step=T)
             # print(q_val_dict)
             # crayon_exp.add_scalar_dict(q_val_dict, step=T)
 
     if np.random.random() < epsilon:
-        action = np.random.randint(low=0, high=args.actions)
+        high_action = args.actions
+        if args.learning_options:
+            high_action = Available_Actions
+        action = np.random.randint(low=0, high=high_action)
     else:
-        action = q_values.max(0)[1][0]  # Torch...
+        # action = q_values.max(0)[1][0]  # Torch...
+        action = np.max(q_values_numpy)
 
     return action, q_values_numpy
 
@@ -651,13 +686,16 @@ def select_action(state, training=True):
 def explore():
     print("\nExploratory phase for {} steps.".format(args.exploration_steps))
     e_steps = 0
+    action_choice = args.actions
+    if args.learning_options:
+        action_choice = Available_Actions
     while e_steps < args.exploration_steps:
         s = env.reset()
         s_t = s
         terminated = False
         while not terminated:
             print(e_steps, end="\r")
-            a = select_random_action()
+            a = np.random.choice(action_choice)
             option_terminated = False
             reward = 0
             steps = 0
@@ -769,6 +807,42 @@ def train_agent():
         log_value("DQN/Gradient_Norm", total_norm, step=T)
         log_value("DQN/Loss", l2_loss.data[0], step=T)
         log_value("DQN/TD_Error", td_error.mean().data[0], step=T)
+
+def learn_option(subgoal_state):
+
+    Option_DQN = get_models(args.model)(actions=args.actions)
+    # Seperate env
+    sub_env = gym.make(args.env)
+    state = sub_env.reset()
+
+    # Greedy policy
+    reached_goal = False
+    while not reached_goal:
+        Sub_T = 0
+        Sub_ep_finished = False
+        while not Sub_ep_finished:
+            option_terminated = False
+            action, q_values = select_action(state, training=False, net=Option_DQN)
+            option_reward = 0
+            steps = 0
+            options.choose_option(action)
+            while not option_terminated:
+                primitive_action, option_beta = options.act(env)
+                state_new, action_reward, Sub_ep_finished, env_info = env.step(primitive_action)
+                Sub_T += 1 
+                steps += 1
+                option_terminated = np.random.binomial(1, p=option_beta) == 1 or Sub_ep_finished
+                # L2 distance as reward
+                state_reward = 1 / (np.linalg.norm(subgoal_state - state_new) + 1)
+                option_reward += state_reward
+            if "Steps_Termination" in env_info:
+                Sub_ep_finished = True
+                break
+            option_learning_replay.Add_Exp(state, action, option_reward, steps, Sub_ep_finished)            
+            state = state_new
+
+
+
 
 
 ######################
