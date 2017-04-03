@@ -15,3 +15,9 @@ class Primitive_Options:
         self.steps += 1
         beta = 1.0
         return self.action, beta
+
+    def action(self, state):
+        return self.action
+
+    def terminate(self, state):
+        return True

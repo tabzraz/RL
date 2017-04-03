@@ -156,7 +156,7 @@ if args.options == "Random_Macros":
     lengths = [m for m in macro_lengths]
     macro_lengths *= int(args.num_macros / len(macro_lengths))
     macro_lengths += macro_lengths[:args.num_macros - len(macro_lengths)]
-    print("\n{} Macro actions of lengths: {}".format(len(macro_lengths), lengths))
+    print("\n{} Macro actions of lengths: {}".format(kjlen(macro_lengths), lengths))
     # print(macro_lengths, "\n")
     macro_lengths = sorted(macro_lengths)
     options = Random_Macro_Actions(num_primitive_actions=args.actions, lengths_of_macros=macro_lengths, seed=args.macro_seed, with_primitives=True)
@@ -445,7 +445,7 @@ def environment_specific_stuff():
 
 # TODO: Async this
 def eval_agent(last=False):
-    global epsilon
+    # global epsilon
     # epsilon = 0
 
     global eval_images
@@ -467,7 +467,7 @@ def eval_agent(last=False):
             debug_states = [pygame_image(env.env.surface)]
 
         while not terminated:
-            action, q_vals = select_action(state, training=False)
+            action, q_vals = select_action(state, epsilon=epsilon, training=False)
 
             Eval_Q_Values.append(q_vals)
 
@@ -579,7 +579,7 @@ def exploration_bonus(state, training=True):
 def Add_Novelty_State(state, bonus):
     global Novelty_States
     Novelty_States.append((state, bonus, T))
-    Novelty_States.sort(key=lambda x: (x[1], x[2]))
+    Novelty_States.sort(key=lambda x: (x[1], x[2]), reverse=True)
     Novelty_States = Novelty_States[: 10]
 
 
@@ -631,15 +631,15 @@ def end_of_episode_save():
 
 
 def sync_target_network():
-    sync_network(target_dqn)
+    sync_network(dqn, target_dqn)
 
 
-def sync_network(target_net):
+def sync_network(source_net, target_net):
     for target, source in zip(target_net.parameters(), dqn.parameters()):
         target.data = source.data
 
 
-def select_action(state, training=True, net=None):
+def select_action(state, epsilon=0, training=True, net=None):
     if net is None:
         net = dqn
     dqn.eval()
@@ -739,13 +739,21 @@ def epsilon_schedule():
     return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - T) / args.epsilon_steps), 0)
 
 
-def train_agent():
-    dqn.eval()
+def train_agent(net=None, target_net=None, xp_replay=None, optimiser=None):
+    if net is None:
+        net = dqn
+    if target_net is None:
+        target_net = target_dqn
+    if xp_replay is None:
+        xp_replay = replay
+    if optimiser is None:
+        optimiser = optimizer
+    net.eval()
     if args.n_inc:
         # Start at n and increase to n_max over T_MAX
         args.n_step = round(args.n_start + (T / args.t_max) * (args.n_max - args.n_start))
     # TODO: Use a named tuple for experience replay
-    batch = replay.Sample_N(args.batch_size, args.n_step, args.gamma)
+    batch = xp_replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     if args.train_primitives:
         batch = batch + primitive_replay.Sample_N(args.batch_size, args.n_step, args.gamma)
     columns = list(zip(*batch))
@@ -759,8 +767,8 @@ def train_agent():
     steps = Variable(torch.FloatTensor(columns[4]))
     new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-    target_dqn_qvals = target_dqn(new_states).cpu()
-    new_states_qvals = dqn(new_states).cpu()
+    target_dqn_qvals = target_net(new_states).cpu()
+    new_states_qvals = net(new_states).cpu()
     # Make a new variable with those values so that these are treated as constants
     target_dqn_qvals_data = Variable(target_dqn_qvals.data)
     new_states_qvals_data = Variable(new_states_qvals.data)
@@ -773,76 +781,95 @@ def train_agent():
     q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
     q_value_targets = q_value_targets + rewards
 
-    dqn.train()
+    net.train()
     if args.gpu:
         actions = actions.cuda()
         q_value_targets = q_value_targets.cuda()
-    model_predictions = dqn(states).gather(1, actions.view(-1, 1))
+    model_predictions = net(states).gather(1, actions.view(-1, 1))
 
     td_error = model_predictions - q_value_targets
     l2_loss = (td_error).pow(2).mean()
-    DQN_Loss.append(l2_loss.data[0])
+    if net == dqn:
+        DQN_Loss.append(l2_loss.data[0])
 
     # Update
-    optimizer.zero_grad()
+    optimiser.zero_grad()
     l2_loss.backward()
 
     # Taken from pytorch clip_grad_norm
     # Remove once the pip version it up to date with source
     total_norm = 0
-    for p in dqn.parameters():
+    for p in net.parameters():
         param_norm = p.grad.data.norm(2)
         total_norm += param_norm ** 2
     total_norm = total_norm ** (1. / 2)
-    DQN_Grad_Norm.append(total_norm)
+    if net == dqn:
+        DQN_Grad_Norm.append(total_norm)
     clip_coef = float(args.clip_value) / (total_norm + 1e-6)
     if clip_coef < 1:
-        for p in dqn.parameters():
+        for p in net.parameters():
             p.grad.data.mul_(clip_coef)
 
-    optimizer.step()
+    optimiser.step()
 
-    # Crayon
-    if args.tb and T % args.tb_interval == 0:
+    if net == dqn and args.tb and T % args.tb_interval == 0:
         log_value("DQN/Gradient_Norm", total_norm, step=T)
         log_value("DQN/Loss", l2_loss.data[0], step=T)
         log_value("DQN/TD_Error", td_error.mean().data[0], step=T)
 
+
 def learn_option(subgoal_state):
 
     Option_DQN = get_models(args.model)(actions=args.actions)
+    Option_DQN_target = get_models(args.model)(actions=args.actions)
+    Option_optim = optim.Adam(Option_DQN.parameters(), lr=args.lr)
+    Option_optim.load_state_dict(optimizer.state_dict())
+    # Sync new networks
+    sync_network(dqn, Option_DQN)
+    sync_network(Option_DQN, Option_DQN_target)
     # Seperate env
     sub_env = gym.make(args.env)
     state = sub_env.reset()
+    option_target_sync = 0
 
     # Greedy policy
     reached_goal = False
     while not reached_goal:
         Sub_T = 0
-        Sub_ep_finished = False
-        while not Sub_ep_finished:
-            option_terminated = False
-            action, q_values = select_action(state, training=False, net=Option_DQN)
-            option_reward = 0
-            steps = 0
-            options.choose_option(action)
-            while not option_terminated:
-                primitive_action, option_beta = options.act(env)
-                state_new, action_reward, Sub_ep_finished, env_info = env.step(primitive_action)
-                Sub_T += 1 
-                steps += 1
-                option_terminated = np.random.binomial(1, p=option_beta) == 1 or Sub_ep_finished
-                # L2 distance as reward
-                state_reward = 1 / (np.linalg.norm(subgoal_state - state_new) + 1)
-                option_reward += state_reward
-            if "Steps_Termination" in env_info:
-                Sub_ep_finished = True
-                break
-            option_learning_replay.Add_Exp(state, action, option_reward, steps, Sub_ep_finished)            
-            state = state_new
+        for epsilon in [0.1, 0]:
+            Sub_ep_finished = False
+            while not Sub_ep_finished:
+                option_terminated = False
+                action, q_values = select_action(state, epsilon=epsilon, training=False, net=Option_DQN)
+                option_reward = 0
+                steps = 0
+                options.choose_option(action)
+                while not option_terminated:
+                    primitive_action, option_beta = options.act(env)
+                    state_new, action_reward, Sub_ep_finished, env_info = env.step(primitive_action)
+                    Sub_T += 1
+                    steps += 1
+                    option_terminated = np.random.binomial(1, p=option_beta) == 1 or Sub_ep_finished
+                    # L2 distance as reward
+                    state_reward = 1 / (np.linalg.norm(subgoal_state - state_new) + 1)
+                    option_reward += state_reward
+                    if epsilon == 0 and state_new == subgoal_state:
+                        reached_goal = True
+                        Sub_ep_finished = True
+                        env_info["Steps_Termination"] = True
+                        # We have reached the goal with a greedy policy, stop learning on this option
 
+                if "Steps_Termination" in env_info:
+                    Sub_ep_finished = True
+                    break
+                option_learning_replay.Add_Exp(state, action, option_reward, steps, Sub_ep_finished)
+                train_agent(net=Option_DQN, target_net=Option_DQN_target, xp_replay=option_learning_replay, optimiser=Option_optim)
+                if Sub_T - option_target_sync > args.target:
+                    sync_network(Option_DQN, Option_DQN_target)
+                    option_target_sync = Sub_T
+                state = state_new
 
-
+    # We have reached the subgoal with a greedy policy, now make this an action avaialable to the agent
 
 
 ######################
@@ -891,7 +918,7 @@ while T < args.t_max:
     print_time()
 
     while not episode_finished:
-        action, q_values = select_action(state)
+        action, q_values = select_action(state, epsilon=epsilon)
 
         exp_bonus, exp_info = exploration_bonus(state)
 
