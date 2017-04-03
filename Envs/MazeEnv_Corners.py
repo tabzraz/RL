@@ -128,7 +128,7 @@ class MazeEnv(gym.Env):
 
         pygame.display.update()
 
-    def debug_render(self, debug_info=None, offline=False, close=False):
+    def debug_render(self, debug_info={}, offline=False, close=False):
         if close:
             pygame.quit()
             return
@@ -176,9 +176,6 @@ class MazeEnv(gym.Env):
                     colour = (255 * maze[x, y] / 3, 255 * maze[x, y] / 3, 255 * maze[x, y] / 3)
                     # colour = (255 - colour[0], 255 - colour[1], 255 - colour[2])
                     pygame.draw.rect(drawing_surface, colour, (y * scaling, x * scaling, scaling, scaling))
-
-        if debug_info is None:
-            return
 
         white_colour = (255, 255, 255)
         red_colour = (255, 0, 0)

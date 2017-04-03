@@ -22,7 +22,7 @@ class Option_Subgoal:
             q_vals = self.net(Variable(state, volatile=True)).cpu().data[0]
             q_vals_numpy = q_vals.numpy()
             q_vals_numpy = q_vals_numpy[:self.allowed_actions]
-            action = np.max(q_vals_numpy)
+            action = np.argmax(q_vals_numpy)
             self.executing_option = self.options[action]
 
         return self.executing_option.action(state)
@@ -35,7 +35,7 @@ class Option_Subgoal:
         if self.executing:
             return False
         else:
-            if state == self.subgoal_state:
+            if np.allclose(state, self.subgoal_state, atol=1e-3):
                 return True
             else:
                 return False

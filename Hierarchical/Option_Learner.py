@@ -1,34 +1,25 @@
-import numpy as np
-import torch
-from torch.autograd import Variable
+from .Option_Subgoal import Option_Subgoal
+from .Primitive_Option import Primitive_Option
+import copy
 
 
 class Option_Learner:
 
-    def __init__(self, primitive_actions, extra_actions):
-        self.primitive_actions = primitive_actions
-        self.options = [None for _ in range(extra_actions)]
+    def __init__(self, primitive_actions):
+        self.options = [Primitive_Option(i) for i in range(primitive_actions)]
 
-    def choose_option(self, action):
-        self.higher_action = action
-        self.current_action = self.higher_action
-        self.option_stack = []
+    def choose_option(self, option):
+        self.option = self.options[option]
+        # print("Chosen:", option)
 
-    def act(self, env):
-        action = self.current_action
-        while action >= self.primitive_actions:
-            state = env.env.state
-            option = action - self.primitive_actions
-            net, goal_state, allowed_actions = self.options[option]
-            beta = 0.0
-            if state == goal_state:
-                beta = 1.0
-            net.eval()
-            state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-            q_vals = net(Variable(state, volatile=True)).cpu().data[0]
-            q_vals_numpy = q_vals.numpy()
-            q_vals_numpy = q_vals_numpy[:allowed_actions]
-            action = np.max(q_vals_numpy)
+    def add_option(self, net, subgoal_state):
+        current_options = copy.deepcopy(self.options)
+        allowed_actions = len(current_options)
+        option = Option_Subgoal(net, allowed_actions, subgoal_state, current_options)
+        self.options.append(option)
 
-        if self.action < self.primitive_actions:
-            return self.action, 1.0
+    def action(self, state):
+        return self.option.action(state)
+
+    def terminate(self, state):
+        return self.option.terminate(state)
