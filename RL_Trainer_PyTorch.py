@@ -38,148 +38,32 @@ from Hierarchical.Random_Macro_Actions import Random_Macro_Actions
 
 import Envs
 
-parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(10e5))
-parser.add_argument("--env", type=str, default="Maze-2-v1")
-parser.add_argument("--logdir", type=str, default="Logs")
-parser.add_argument("--name", type=str, default="nn")
-parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(5e4))
-parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--gpu", action="store_true", default=False)
-parser.add_argument("--model", type=str, default="")
-parser.add_argument("--lr", type=float, default=0.0001)
-parser.add_argument("--render", action="store_true", default=False)
-parser.add_argument("--slow-render", action="store_true", default=False)
-parser.add_argument("--epsilon-steps", "--eps-steps", type=int, default=int(7e5))
-parser.add_argument("--epsilon-start", "--eps-start", type=float, default=1.0)
-parser.add_argument("--epsilon-finish", "--eps-finish", type=float, default=0.1)
-parser.add_argument("--batch-size", "--batch", type=int, default=32)
-parser.add_argument("--gamma", type=float, default=0.99)
-parser.add_argument("--target", type=int, default=100)
-parser.add_argument("--count", action="store_true", default=False)
-parser.add_argument("--beta", type=float, default=0.01)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
-parser.add_argument("--n-step", "--n", type=int, default=1)
-parser.add_argument("--n-inc", action="store_true", default=False)
-parser.add_argument("--n-max", type=int, default=10)
-parser.add_argument("--plain-print", action="store_true", default=False)
-parser.add_argument("--clip-value", type=float, default=5)
-parser.add_argument("--no-tb", action="store_true", default=False)
-parser.add_argument("--no-eval-images", action="store_true", default=False)
-parser.add_argument("--eval-images-interval", type=int, default=4)
-parser.add_argument("--tb-interval", type=int, default=10)
-parser.add_argument("--debug-eval", action="store_true", default=False)
-parser.add_argument("--cts-size", type=int, default=7)
-parser.add_argument("--cts-conv", action="store_true", default=False)
-parser.add_argument("--exp-bonus-save", type=float, default=0.75)
-parser.add_argument("--clip-reward", action="store_true", default=False)
-parser.add_argument("--options", type=str, default="Primitive")
-parser.add_argument("--num-macros", type=int, default=10)
-parser.add_argument("--max-macro-length", type=int, default=10)
-parser.add_argument("--macro-seed", type=int, default=12)
-parser.add_argument("--train-primitives", action="store_true", default=False)
-args = parser.parse_args()
-if args.gpu and not torch.cuda.is_available():
-    print("CUDA unavailable! Switching to cpu only")
-# print("Settings:\n", args, "\n")
-print("\n" + "=" * 40)
-print(15 * " " + "Settings:" + " " * 15)
-print("=" * 40)
-for arg in vars(args):
-    print(" {}: {}".format(arg, getattr(args, arg)))
-print("=" * 40)
-print()
+from Agent.DDQN_Agent import DDQN_Agent
+from Exploration.Pseudo_Count import PseudoCount
 
-NAME_DATE = "{}_{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-LOGDIR = "{}/{}".format(args.logdir, NAME_DATE)
+class Trainer:
 
-while os.path.exists(LOGDIR):
-    LOGDIR += "_"
+    def __init__(self, args, env):
+        self.args = args
+        self.env = env
 
-print("Logging to:\n{}\n".format(LOGDIR))
+        if self.args.gpu and not torch.cuda.is_available():
+            print("CUDA unavailable! Switching to cpu only")
 
-if not os.path.exists(LOGDIR):
-    os.makedirs(LOGDIR)
-if not os.path.exists("{}/logs".format(LOGDIR)):
-    os.makedirs("{}/logs".format(LOGDIR))
-if not os.path.exists("{}/evals".format(LOGDIR)):
-    os.makedirs("{}/evals".format(LOGDIR))
-if not os.path.exists("{}/exp_bonus".format(LOGDIR)):
-    os.makedirs("{}/exp_bonus".format(LOGDIR))
-if not os.path.exists("{}/visitations".format(LOGDIR)):
-    os.makedirs("{}/visitations".format(LOGDIR))
+        # Seed everything
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        if args.gpu:
+            torch.cuda.manual_seed_all(args.seed)
 
-with open("{}/settings.txt".format(LOGDIR), "w") as f:
-    f.write(str(args))
+        print("\nGetting Models.\n")
+        model = get_models(args.model)(actions=args.actions)
+        self.agent = DDQN_Agent(model, args)
 
-# Seed everything
-np.random.seed(args.seed)
-torch.manual_seed(args.seed)
-if args.gpu:
-    torch.cuda.manual_seed_all(args.seed)
+        if args.count:
+            self.exp_model = PseudoCount(args)
 
-# N step start
-args.n_start = args.n_step
-
-# TB
-args.tb = not args.no_tb
-# Saving the evaluation policies as images
-args.eval_images = not args.no_eval_images
-# Model
-if args.model == "":
-    args.model = args.env
-
-# Gym Environment
-env = gym.make(args.env)
-args.actions = env.action_space.n
-args.primitive_actions = args.actions
-
-# Experience Replay
-replay = ExperienceReplay_Options(args.exp_replay_size)
-if args.train_primitives:
-    primitive_replay = ExperienceReplay_Options(args.exp_replay_size)
-
-# Options
-if args.options == "Random_Macros":
-    macro_lengths = []
-    ll = args.max_macro_length
-    while ll > 1:
-        macro_lengths.append(ll)
-        ll = int(ll / 2)
-    lengths = [m for m in macro_lengths]
-    macro_lengths *= int(args.num_macros / len(macro_lengths))
-    macro_lengths += macro_lengths[:args.num_macros - len(macro_lengths)]
-    print("\n{} Macro actions of lengths: {}".format(len(macro_lengths), lengths))
-    # print(macro_lengths, "\n")
-    macro_lengths = sorted(macro_lengths)
-    options = Random_Macro_Actions(num_primitive_actions=args.actions, lengths_of_macros=macro_lengths, seed=args.macro_seed, with_primitives=True)
-    args.actions = len(macro_lengths)
-    if not os.path.exists("{}/macros".format(LOGDIR)):
-        os.makedirs("{}/macros".format(LOGDIR))
-    with open("{}/macros/random_macros.txt".format(LOGDIR), "ab") as file:
-        for macro in options.macros:
-            np.savetxt(file, macro, delimiter=" ", fmt="%d", newline=" ")
-            file.write(str.encode("\n"))
-elif args.options == "Maze_Good":
-    options = MazeOptions()
-else:
-    options = Primitive_Options()
-
-print("\nOptions Being Used: {}\n".format(args.options))
-
-# DQN
-print("\nGetting Models.\n")
-dqn = get_models(args.model)(actions=args.actions)
-target_dqn = get_models(args.model)(actions=args.actions)
-
-if args.gpu:
-    print("Moving models to GPU.")
-    dqn.cuda()
-    target_dqn.cuda()
-
-
-# Optimizer
-optimizer = optim.Adam(dqn.parameters(), lr=args.lr)
+        self.log_queue = Queue()
 
 # Stuff to log
 Q_Values = []
@@ -196,7 +80,6 @@ Exploration_Bonus = []
 
 Last_T_Logged = 1
 Last_Ep_Logged = 1
-
 
 # Variables and stuff
 T = 1
@@ -221,45 +104,29 @@ log_queue = Queue()
 # gif_queue = Queue()
 eval_images = -args.t_max
 
-if args.count:
-    # Use half the env size
-    # env_size = env.shape[0] * 7
-    # cts_model_shape = (env_size // 2, env_size // 2)
-    # Use a (14, 14) model anyway
-    cts_model_shape = (args.cts_size, args.cts_size)
-    print("\nCTS Model has size: " + str(cts_model_shape) + "\n")
-    cts_model = CTS.DensityModel(frame_shape=cts_model_shape, context_functor=CTS.L_shaped_context, conv=args.cts_conv)
-    os.makedirs("{}/cts_model".format(LOGDIR))
 
 
-# Multiprocessing logger
-def logger(q, finished):
-    configure("{}/tb".format(LOGDIR), flush_secs=30)
-    # Crayon stuff
-    # crayon_client = CrayonClient(hostname="localhost")
-    # crayon_exp = crayon_client.create_experiment(NAME_DATE)
-    while finished.value < 1:
-        (name, value, step) = q.get(block=True)
-        tb_log_value(name, value, step=step)
-        # crayon_exp.add_scalar_value(name, value, step=step)
+    # Multiprocessing logger
+    def logger(self, q, finished):
+        configure("{}/tb".format(self.args.log_path), flush_secs=30)
+        while finished.value < 1:
+            (name, value, step) = q.get(block=True)
+            tb_log_value(name, value, step=step)
 
 
-def log_value(name, value, step):
-    log_queue.put((name, value, step))
+    def log_value(self, name, value, step):
+        self.log_queue.put((name, value, step))
 
 
-def save_video(name, images):
-    # name = name + ".mkv"
-    name = name + ".gif"
-    # TODO: Pad the images to macro block size
-    imageio.mimsave(name, images, subrectangles=True)
-    # imageio.mimsave(name, images, ffmpeg_log_level="error", quality=10)
+    def save_video(self, name, images):
+        name = name + ".gif"
+        # TODO: Pad the images to macro block size
+        imageio.mimsave(name, images, subrectangles=True)
 
 
-def save_image(name, image):
-    name = name + ".png"
-    imageio.imsave(name, image)
-
+    def save_image(self, name, image):
+        name = name + ".png"
+        imageio.imsave(name, image)
 
 # Methods
 def environment_specific_stuff():
@@ -511,34 +378,15 @@ def save_eval_states(states, debug=False):
         states = [s.swapaxes(0, 1) for s in states]
     else:
         states = [s[:, :, 0] * 255 for s in states]
-    # gif_queue.put((states, "{}/evals/Greedy_Policy__T_{}__Ep_{}.gif".format(LOGDIR, T, episode)))
-    # Don't really need the async for this since it is relatively infrequent
-    save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(LOGDIR, epsilon, T, episode), states)
+    save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon, T, episode), states)
 
 
-def exploration_bonus(state, training=True):
-    bonus = 0
-    extra_info = {}
-    global max_exp_bonus
-    if args.count:
-        state = resize(state[:, :, 0], cts_model_shape, mode="F")
-        # rho_old = np.exp(cts_model.update(state))
-        rho_old, rho_old_pixels = cts_model.update(state)
-        # rho_new = np.exp(cts_model.log_prob(state))
-        rho_new, rho_new_pixels = cts_model.log_prob(state)
-        pg = rho_new - rho_old
-        pg_pixel = rho_new_pixels - rho_old_pixels
-        extra_info["Pixel_PG"] = pg_pixel
-        # pseudo_count = (rho_old * (1 - rho_new)) / (rho_new - rho_old)
-        # Change to the pseudo_count they use in neural density models:
-        pg = min(10, pg)
-        pg = max(0, pg)
-        pseudo_count = 1 / (np.expm1(pg))
-        # pseudo_count = max(pseudo_count, 0)
-        bonus = args.beta / sqrt(pseudo_count + 0.01)
+    def exploration_bonus(self, state, training=True):
+
+        bonus, extra_info = self.exp_model.bonus(state)
 
         # Save suprising states after the first quarter of training
-        if T > args.t_max / 4 and bonus >= args.exp_bonus_save * max_exp_bonus:
+        if self.T > self.args.t_max / 4 and bonus >= self.args.exp_bonus_save * self.max_exp_bonus:
             debug_dict = {}
             debug_dict["Max_Exp_Bonus"] = max_exp_bonus
             debug_dict["Exp_Bonus"] = bonus
@@ -547,105 +395,90 @@ def exploration_bonus(state, training=True):
             env.env.debug_render(debug_info=debug_dict, offline=True)
             image = pygame_image(env.env.surface)
             image = image.swapaxes(0, 1)
-            save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(LOGDIR, episode, T, bonus), image)
+            save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(self.args.log_path, self.episode, self.T, bonus), image)
+
         if training:
-            Exploration_Bonus.append(bonus)
-            if args.tb and T % args.tb_interval == 0:
-                log_value("Count_Bonus", bonus, step=T)
-    max_exp_bonus = max(max_exp_bonus, bonus)
-    return bonus, extra_info
+            self.Exploration_Bonus.append(bonus)
+            if self.args.tb and self.T % self.args.tb_interval == 0:
+                self.log_value("Count_Bonus", bonus, step=T)
+
+        self.max_exp_bonus = max(self.max_exp_bonus, bonus)
+
+        return bonus, extra_info
 
 
-def start_of_episode():
-    if args.tb:
-        log_value("Epsilon", epsilon, step=T)
+    def start_of_episode(self):
+        if self.args.tb:
+            self.log_value("Epsilon", self.epsilon, step=self.T)
 
 
-def end_of_episode():
-    if args.tb:
-        log_value("Episode_Reward", episode_reward, step=T)
-        log_value("Episode_Bonus_Only_Reward", episode_bonus_only_reward, step=T)
-        log_value("Episode_Length", episode_steps, step=T)
+    def end_of_episode(self):
+        if self.args.tb:
+            self.log_value("Episode_Reward", self.episode_reward, step=self.T)
+            self.log_value("Episode_Bonus_Only_Reward", self.episode_bonus_only_reward, step=self.T)
+            self.log_value("Episode_Length", self.episode_steps, step=self.T)
 
 
-def save_values():
-    global Last_Ep_Logged
-    if episode > Last_Ep_Logged:
-        with open("{}/logs/Episode_Rewards.txt".format(LOGDIR), "ab") as file:
-            np.savetxt(file, Episode_Rewards[Last_Ep_Logged - 1:], delimiter=" ", fmt="%f")
+def save_values(self):
 
-        with open("{}/logs/Episode_Lengths.txt".format(LOGDIR), "ab") as file:
-            np.savetxt(file, Episode_Lengths[Last_Ep_Logged - 1:], delimiter=" ", fmt="%d")
+    if self.episode > self.Last_Ep_Logged:
+        with open("{}/logs/Episode_Rewards.txt".format(self.args.log_path), "ab") as file:
+            np.savetxt(file, self.Episode_Rewards[self.Last_Ep_Logged - 1:], delimiter=" ", fmt="%f")
 
-        Last_Ep_Logged = episode
+        with open("{}/logs/Episode_Lengths.txt".format(self.args.log_path), "ab") as file:
+            np.savetxt(file, self.Episode_Lengths[self.Last_Ep_Logged - 1:], delimiter=" ", fmt="%d")
 
-    global Last_T_Logged
-    if T > Last_T_Logged:
-        with open("{}/logs/Q_Values_T.txt".format(LOGDIR), "ab") as file:
-            np.savetxt(file, Q_Values[Last_T_Logged - 1:], delimiter=" ", fmt="%f")
+        self.Last_Ep_Logged = self.episode
+
+    if self.T > self.Last_T_Logged:
+        with open("{}/logs/Q_Values_T.txt".format(self.args.log_path), "ab") as file:
+            np.savetxt(file, self.Q_Values[self.Last_T_Logged - 1:], delimiter=" ", fmt="%f")
             file.write(str.encode("\n"))
 
-        with open("{}/logs/DQN_Loss_T.txt".format(LOGDIR), "ab") as file:
-            np.savetxt(file, DQN_Loss[Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
+        with open("{}/logs/DQN_Loss_T.txt".format(self.args.log_path), "ab") as file:
+            np.savetxt(file, self.DQN_Loss[self.Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
             file.write(str.encode("\n"))
 
-        if args.count:
-            with open("{}/logs/Exploration_Bonus_T.txt".format(LOGDIR), "ab") as file:
-                np.savetxt(file, Exploration_Bonus[Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
+        if self.args.count:
+            with open("{}/logs/Exploration_Bonus_T.txt".format(self.args.log_path), "ab") as file:
+                np.savetxt(file, self.Exploration_Bonus[self.Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
                 file.write(str.encode("\n"))
 
-        Last_T_Logged = T
+        self.Last_T_Logged = self.T
 
 
-def end_of_episode_save():
-    if args.count:
-        with open("{}/cts_model/cts_model_end.pkl".format(LOGDIR), "wb") as file:
-            pickle.dump(cts_model, file, pickle.HIGHEST_PROTOCOL)
+    def end_of_episode_save(self):
+        if self.args.count:
+            self.exp_model.save_model()
 
 
-def sync_target_network():
-    for target, source in zip(target_dqn.parameters(), dqn.parameters()):
-        target.data = source.data
-
-
-def select_random_action():
-    return np.random.choice(args.actions)
+    def select_random_action(self):
+        return np.random.choice(self.args.actions)
 
 
 def select_action(state, training=True):
-    dqn.eval()
-    state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-    q_values = dqn(Variable(state, volatile=True)).cpu().data[0]
-    q_values_numpy = q_values.numpy()
+    action, extra_info = self.agent.act(state, self.epsilon, self.exp_model)
 
-    global max_q_value
-    global min_q_value
-    # Decay it so that it reflects a recentish maximum q value
-    max_q_value *= 0.9999
-    min_q_value *= 0.9999
-    max_q_value = max(max_q_value, np.max(q_values_numpy))
-    min_q_value = min(min_q_value, np.min(q_values_numpy))
+    if "Q_Values" in extra_info:
 
-    if training:
-        Q_Values.append(q_values_numpy)
+        q_values_numpy = extra_info["Q_Values"]
 
-        # Log the q values
-        if args.tb:
-            # crayon_exp.add_histogram_value("DQN/Q_Values", q_values_numpy.tolist(), tobuild=True, step=T)
-            # q_val_dict = {}
-            for index in range(args.actions):
-                # q_val_dict["DQN/Action_{}_Q_Value".format(index)] = float(q_values_numpy[index])
-                if T % args.tb_interval == 0:
-                    log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=T)
-            # print(q_val_dict)
-            # crayon_exp.add_scalar_dict(q_val_dict, step=T)
+        # Decay it so that it reflects a recentish maximum q value
+        self.max_q_value *= 0.9999
+        self.min_q_value *= 0.9999
+        self.max_q_value = max(self.max_q_value, np.max(q_values_numpy))
+        self.min_q_value = min(self.min_q_value, np.min(q_values_numpy))
 
-    if np.random.random() < epsilon:
-        action = np.random.randint(low=0, high=args.actions)
-    else:
-        action = q_values.max(0)[1][0]  # Torch...
+        if training:
+            self.Q_Values.append(q_values_numpy)
 
-    return action, q_values_numpy
+            # Log the q values
+            if self.gs.tb:
+                for index in range(self.args.actions):
+                    if self.T % self.args.tb_interval == 0:
+                        self.log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=self.T)
+
+    return action, extra_info
 
 
 def explore():
@@ -683,22 +516,22 @@ def explore():
     print("Exploratory phase finished. Starting learning.\n")
 
 
-def print_time():
-    if args.plain_print:
-        print(T, end="\r")
-    else:
-        time_elapsed = time.time() - start_time
-        time_left = time_elapsed * (args.t_max - T) / T
-        # Just in case its over 100 days
-        time_left = min(time_left, 60 * 60 * 24 * 100)
-        last_reward = "N\A"
-        if len(Episode_Rewards) > 10:
-            last_reward = "{:.2f}".format(np.mean(Episode_Rewards[-10:-1]))
-        print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(episode, T, args.t_max, epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+    def print_time(self):
+        if self.args.plain_print:
+            print(self.T, end="\r")
+        else:
+            time_elapsed = time.time() - start_time
+            time_left = time_elapsed * (self.args.t_max - self.T) / self.T
+            # Just in case its over 100 days
+            time_left = min(time_left, 60 * 60 * 24 * 100)
+            last_reward = "N\A"
+            if len(self.Episode_Rewards) > 10:
+                last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-10:-1]))
+            print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(self.episode, self.T, self.args.t_max, self.epsilon, self.last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
 
-def epsilon_schedule():
-    return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - T) / args.epsilon_steps), 0)
+    def epsilon_schedule(self):
+        return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - T) / args.epsilon_steps), 0)
 
 
 def train_agent():
