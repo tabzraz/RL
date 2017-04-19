@@ -301,7 +301,7 @@ def environment_specific_stuff():
             ep_reward = 0
             steps = 0
             state = env.reset()
-            states = [state]
+            states = []
             Eval_Q_Values = []
 
             while not terminated:
@@ -312,64 +312,36 @@ def environment_specific_stuff():
 
                 if will_save_states:
                     # Only do this stuff if we're actually gonna save it
-                    if args.debug_eval:
-                        debug_dict = {}
-                        debug_dict["Q_Values"] = q_vals
-                        debug_dict["Max_Q_Value"] = max_q_value
-                        debug_dict["Min_Q_Value"] = min_q_value
-                        debug_dict["Action"] = action
-                        if args.count:
-                            exp_bonus, exp_info = exploration_bonus(state, training=False)
-                            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-                            debug_dict["Exp_Bonus"] = exp_bonus
-                            cts_state = resize(state[:, :, 0], cts_model_shape, mode="F")
-                            debug_dict["CTS_State"] = cts_state
-                            debug_dict["CTS_PG"] = exp_info["Pixel_PG"]
-                        # env.env.debug_render(debug_info=debug_dict, offline=True)
-                        # debug_states.append(pygame_image(env.env.surface))
-                    states.append(state)
+                    debug_state = state
+                    if self.args.debug_eval:
+                        debug_info = {}
+                        debug_info.update(action_info)
+                        if self.args.count:
+                            exp_bonus, exp_info = self.exploration_bonus(state, training=False)
+                            debug_info.update(exp_info)
+                        debug_state = debug_render(state, debug_info)
 
-                option_terminated = False
-                reward = 0
-                options.choose_option(action)
-                while not option_terminated:
-                    if will_save_states and args.debug_eval:
-                        env.env.debug_render(debug_info=debug_dict, offline=True)
-                        debug_states.append(pygame_image(env.env.surface))
-                    primitive_action, option_beta = options.act(env)
-                    state_new, option_reward, terminated, env_info = env.step(primitive_action)
-                    reward += option_reward
-                    steps += 1
-                    option_terminated = np.random.binomial(1, p=option_beta) == 1 or terminated
+                    states.append(debug_state)
+
+                state_new, reward, terminated, env_info = env.step(action)
+                steps += 1
 
                 ep_reward += reward
-                # steps += 1
 
                 state = state_new
 
             if will_save_states:
-                if args.debug_eval:
-                    save_eval_states(debug_states, debug=True)
-                else:
-                    save_eval_states(states)
-                eval_images = T
+                save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon_value, self.T, self.episode), states)
+                self.eval_video_T = self.T
 
-            if epsilon != epsilons[-1]:
-                with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(LOGDIR, epsilon), "ab") as file:
+            if epsilon_value != epsilons[-1]:
+                with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(self.args.log_path, epsilon_value), "ab") as file:
                     np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
                     file.write(str.encode("\n"))
 
-                if args.tb:
-                    log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon), ep_reward, step=T)
-                    log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon), steps, step=T)
-
-
-    def save_eval_states(states, debug=False):
-        if debug:
-            states = [s.swapaxes(0, 1) for s in states]
-        else:
-            states = [s[:, :, 0] * 255 for s in states]
-        save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon, T, episode), states)
+                if self.args.tb:
+                    self.log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon_value), ep_reward, step=self.T)
+                    self.log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon_value), steps, step=self.T)
 
     def exploration_bonus(self, state, training=True):
 
@@ -535,17 +507,7 @@ def environment_specific_stuff():
         while self.T < self.args.t_max:
 
             state = env.reset()
-            # if self.args.render:
-            #     debug_info = {}
-            #     if args.count:
-            #         debug_info["Exp_Bonuses"] = True
-            #         debug_info["CTS_Size"] = args.cts_size
-            #     env.env.debug_render(debug_info)
-            # if args.count:
-            #     debug_info = {}
-            #     debug_info["Exp_Bonuses"] = True
-            #     debug_info["CTS_Size"] = args.cts_size
-            #     env.env.debug_render(debug_info, offline=True)
+
             episode_finished = False
             self.episode_reward = 0
             self.episode_bonus_only_reward = 0
