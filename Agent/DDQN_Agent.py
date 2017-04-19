@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.optim import optim
+from torch.optim import Adam
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options import ExperienceReplay_Options
@@ -26,10 +26,10 @@ class DDQN_Agent:
             self.target_dqn.cuda()
 
         # Optimizer
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=args.lr)
+        self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
 
         self.T = 0
-        self.target_sync_T = -self.arg.t_max
+        self.target_sync_T = -self.args.t_max
 
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
@@ -95,10 +95,12 @@ class DDQN_Agent:
             q_value_targets = q_value_targets.cuda()
         model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
 
-        td_error = model_predictions - q_value_targets
-        l2_loss = (td_error).pow(2).mean()
-
         info = {}
+
+        td_error = model_predictions - q_value_targets
+        info["TD_Error"] = td_error.mean().data[0]
+
+        l2_loss = (td_error).pow(2).mean()
         info["Loss"] = l2_loss.data[0]
 
         # Update

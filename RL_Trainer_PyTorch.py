@@ -40,13 +40,13 @@ import Envs
 
 from Agent.DDQN_Agent import DDQN_Agent
 from Exploration.Pseudo_Count import PseudoCount
-from Monitoring.Envs import debug_render
+from Monitoring.Env_Wrapper import EnvWrapper
 
 class Trainer:
 
     def __init__(self, args, env):
         self.args = args
-        self.env = env
+        self.env = EnvWrapper(env)
 
         if args.gpu and not torch.cuda.is_available():
             print("CUDA unavailable! Switching to cpu only")
@@ -305,7 +305,7 @@ class Trainer:
                         if self.args.count:
                             exp_bonus, exp_info = self.exploration_bonus(state, training=False)
                             debug_info.update(exp_info)
-                        debug_state = debug_render(state, debug_info)
+                        debug_state = env.debug_render(debug_info, mode="rgb_array")
 
                     states.append(debug_state)
 
@@ -464,12 +464,15 @@ class Trainer:
 
     def train_agent(self):
 
-        self.agent.train()
+        train_info = self.agent.train()
 
-        if args.tb and T % args.tb_interval == 0:
-            log_value("DQN/Gradient_Norm", total_norm, step=T)
-            log_value("DQN/Loss", l2_loss.data[0], step=T)
-            log_value("DQN/TD_Error", td_error.mean().data[0], step=T)
+        if self.args.tb and self.T % self.args.tb_interval == 0:
+            if "Norm" in train_info:
+                self.log_value("DQN/Gradient_Norm", train_info["Norm"], step=self.T)
+            if "Loss" in train_info:
+                self.log_value("DQN/Loss", train_info["Loss"], step=self.T)
+            if "TD_Error" in train_info:
+                self.log_value("DQN/TD_Error", train_info["TD_Error"], step=self.T)
 
 
 ######################

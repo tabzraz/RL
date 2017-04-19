@@ -87,28 +87,33 @@ class MazeEnv(gym.Env):
         return self.maze[:, :, np.newaxis] / 3
 
     def _render(self, mode="human", close=False):
-        if close:
-            pygame.quit()
-            return
-        if not self.made_screen:
-            pygame.init()
-            screen_size = (self.maze.shape[0] * 20, self.maze.shape[1] * 20)
-            screen = pygame.display.set_mode(screen_size)
-            self.screen = screen
-            self.made_screen = True
+        if mode == "rgb_array":
+            maze = self.maze
+            image = np.zeros(shape=(maze.shape[0], maze.shape[1], 3))
+            for x in range(maze.shape[0]):
+                for y in range(maze.shape[1]):
+                    if maze[x, y] != 0:
+                        image[x, y] = (255 * maze[x, y] / 3, 255 * maze[x, y] / 3, 255 * maze[x, y] / 3)
+            return image
 
-        self.screen.fill((0, 0, 0))
-        maze = self.maze
+        if mode == "human":
+            if close:
+                pygame.quit()
+                return
+            if not self.made_screen:
+                pygame.init()
+                screen_size = (self.maze.shape[0] * 20, self.maze.shape[1] * 20)
+                screen = pygame.display.set_mode(screen_size)
+                self.screen = screen
+                self.made_screen = True
 
-        for x in range(maze.shape[0]):
-            for y in range(maze.shape[1]):
-                if maze[x, y] != 0:
-                    if maze[x, y] == 1:
-                        colour = (255, 0, 0)
-                    elif maze[x, y] == 2:
-                        colour = (0, 255, 0)
-                    elif maze[x, y] == 3:
-                        colour = (0, 0, 255)
-                    pygame.draw.rect(self.screen, colour, (y * 20, x * 20, 20, 20))
+            self.screen.fill((0, 0, 0))
+            maze = self.maze
 
-        pygame.display.update()
+            for x in range(maze.shape[0]):
+                for y in range(maze.shape[1]):
+                    if maze[x, y] != 0:
+                        colour = (255 * maze[x, y] / 3, 255 * maze[x, y] / 3, 255 * maze[x, y] / 3)
+                        pygame.draw.rect(self.screen, colour, (y * 20, x * 20, 20, 20))
+
+            pygame.display.update()

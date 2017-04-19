@@ -11,6 +11,7 @@ for s in range(10):
     def model_creator(actions, size=s):
         return DQN_Maze.DQN(input_size=(1, size * 7, size * 7), actions=actions)
     torch_models["Maze-{}-v1".format(s)] = model_creator
+    torch_models["Maze-{}-v0".format(s)] = model_creator
 
 
 def get_torch_models(name):
