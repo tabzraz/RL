@@ -1,7 +1,10 @@
 import argparse
 import datetime
 import gym
+import os
+import time
 import Envs
+from Utils.Utils import time_str
 from RL_Trainer_PyTorch import Trainer
 
 # Argument passing stuff is here
@@ -95,4 +98,10 @@ args.primitive_actions = args.actions
 
 trainer = Trainer(args, env)
 
-trainer.main()
+start_time = time.time()
+
+trainer.train()
+
+end_time = time.time()
+
+print("\nExiting after {}\n".format(time_str(end_time - start_time)))

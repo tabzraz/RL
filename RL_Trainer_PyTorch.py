@@ -58,7 +58,7 @@ class Trainer:
             torch.cuda.manual_seed_all(args.seed)
 
         print("\nGetting Models.\n")
-        model = get_models(args.model)(actions=args.actions)
+        model = get_models(args.model)
         self.agent = DDQN_Agent(model, args)
 
         if args.count:
@@ -68,44 +68,30 @@ class Trainer:
 
         self.eval_video_T = -self.args.t_max
 
-# Stuff to log
-Q_Values = []
-Episode_Rewards = []
-Episode_Bonus_Only_Rewards = []
-Episode_Lengths = []
-Rewards = []
-States = []
-Actions = []
-States_Next = []
-DQN_Loss = []
-DQN_Grad_Norm = []
-Exploration_Bonus = []
+        # Stuff to log
+        self.Q_Values = []
+        self.Episode_Rewards = []
+        self.Episode_Bonus_Only_Rewards = []
+        self.Episode_Lengths = []
+        self.DQN_Loss = []
+        self.DQN_Grad_Norm = []
+        self.Exploration_Bonus = []
 
-Last_T_Logged = 1
-Last_Ep_Logged = 1
+        self.Last_T_Logged = 1
+        self.Last_Ep_Logged = 1
 
-# Variables and stuff
-T = 1
-episode = 1
-epsilon = 1
-episode_reward = 0
-episode_bonus_only_reward = 0
-epsiode_steps = 0
-target_sync_T = 0
+        # Variables and stuff
+        self.T = 1
+        self.episode = 1
+        self.epsilon = 1
+        self.episode_reward = 0
+        self.episode_bonus_only_reward = 0
+        self.epsiode_steps = 0
 
-# Debug stuff
-max_q_value = -1000
-min_q_value = +1000
-max_exp_bonus = 0
-
-# Env specific stuff
-Player_Positions = []
-Player_Positions_With_Goals = []
-
-# Async queue
-# log_queue = Queue()
-# gif_queue = Queue()
-eval_images = -args.t_max
+        # Debug stuff
+        self.max_q_value = -1000
+        self.min_q_value = +1000
+        self.max_exp_bonus = 0
 
     # Multiprocessing logger
     def logger(self, q, finished):
@@ -126,167 +112,167 @@ eval_images = -args.t_max
         name = name + ".png"
         imageio.imsave(name, image)
 
-# Methods
-def environment_specific_stuff():
-    if args.env.startswith("Maze"):
-        player_pos = env.env.player_pos
-        player_pos_with_goals = (player_pos[0], player_pos[1], env.env.maze[3, -1] != 2, env.env.maze[-1, -4] != 2, env.env.maze[-4, 0] != 2)
-        Player_Positions.append(player_pos)
-        Player_Positions_With_Goals.append(player_pos_with_goals)
-        with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
-            file.write(str(player_pos) + "\n")
-        with open("{}/logs/Player_Positions_In_Maze_With_Goals.txt".format(LOGDIR), "a") as file:
-            file.write(str(player_pos_with_goals) + "\n")
+# # Methods
+# def environment_specific_stuff():
+#     if args.env.startswith("Maze"):
+#         player_pos = env.env.player_pos
+#         player_pos_with_goals = (player_pos[0], player_pos[1], env.env.maze[3, -1] != 2, env.env.maze[-1, -4] != 2, env.env.maze[-4, 0] != 2)
+#         Player_Positions.append(player_pos)
+#         Player_Positions_With_Goals.append(player_pos_with_goals)
+#         with open("{}/logs/Player_Positions_In_Maze.txt".format(LOGDIR), "a") as file:
+#             file.write(str(player_pos) + "\n")
+#         with open("{}/logs/Player_Positions_In_Maze_With_Goals.txt".format(LOGDIR), "a") as file:
+#             file.write(str(player_pos_with_goals) + "\n")
 
-        # TODO: Move this out into a post-processing step
-        if T % int(args.t_max / 2) == 0:
-            # Make a gif of the positions
-            for interval_size in [2, 10]:
-                interval = int(args.t_max / interval_size)
-                scaling = 2
-                images = []
-                for i in range(0, T, interval // 10):
-                    canvas = np.zeros((env.env.maze.shape[0], env.env.maze.shape[1]))
-                    for visit in Player_Positions[i: i + interval]:
-                        canvas[visit] += 1
-                    # Bit of a hack
-                    if np.max(canvas) == 0:
-                        break
-                    gray_maze = canvas / (np.max(canvas) / scaling)
-                    gray_maze = np.clip(gray_maze, 0, 1) * 255
-                    images.append(gray_maze.astype(np.uint8))
-                save_video("{}/visitations/Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), images)
+#         # TODO: Move this out into a post-processing step
+#         if T % int(args.t_max / 2) == 0:
+#             # Make a gif of the positions
+#             for interval_size in [2, 10]:
+#                 interval = int(args.t_max / interval_size)
+#                 scaling = 2
+#                 images = []
+#                 for i in range(0, T, interval // 10):
+#                     canvas = np.zeros((env.env.maze.shape[0], env.env.maze.shape[1]))
+#                     for visit in Player_Positions[i: i + interval]:
+#                         canvas[visit] += 1
+#                     # Bit of a hack
+#                     if np.max(canvas) == 0:
+#                         break
+#                     gray_maze = canvas / (np.max(canvas) / scaling)
+#                     gray_maze = np.clip(gray_maze, 0, 1) * 255
+#                     images.append(gray_maze.astype(np.uint8))
+#                 save_video("{}/visitations/Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), images)
 
-                # We want to show visualisations for the agent depending on which goals they've visited as well
-                # Keep it seperate from the other one
-                colour_images = []
-                for i in range(0, T, interval // 10):
-                    canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
-                    maze_size = env.env.maze.shape[0]
-                    for visit in Player_Positions_With_Goals[i: i + interval]:
-                        px = visit[0]
-                        py = visit[1]
-                        g1 = visit[2]
-                        g2 = visit[3]
-                        g3 = visit[4]
-                        if not g1 and not g2 and not g3:
-                            # No Goals visited
-                            canvas[px, py, :] += 1
-                        elif g1 and not g2 and not g3:
-                            # Only g1
-                            canvas[px, py + maze_size, 0] += 1
-                        elif not g1 and g2 and not g3:
-                            # Only g2
-                            canvas[px + maze_size, py + maze_size, 1] += 1
-                        elif not g1 and not g2 and g3:
-                            # Only g3
-                            canvas[px + 2 * maze_size, py + maze_size, 2] += 1
-                        elif g1 and g2 and not g3:
-                            # g1 and g2
-                            canvas[px, py + maze_size * 2, 0: 2] += 1
-                        elif g1 and not g2 and g3:
-                            # g1 and g3
-                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] += 1
-                        elif not g1 and g2 and g3:
-                            # g2 and g3
-                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
-                        else:
-                            # print("ERROR", g1, g2, g3)
-                            pass
-                    if np.max(canvas) == 0:
-                        break
-                    canvas = canvas / (np.max(canvas) / scaling)
-                    # Colour the unvisited goals
-                    # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
-                    # only g1
-                    canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
-                    canvas[maze_size - 4, maze_size, :] = 1
-                    # only g2
-                    canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
-                    canvas[maze_size + maze_size - 4, maze_size, :] = 1
-                    # only g3
-                    canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
-                    canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
-                    # g1 and g2
-                    canvas[maze_size - 4, 2 * maze_size] = 1
-                    # g1 and g3
-                    canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
-                    # g2 and g2
-                    canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
-                    # Seperate the mazes
-                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
-                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
-                    colour_maze = canvas
+#                 # We want to show visualisations for the agent depending on which goals they've visited as well
+#                 # Keep it seperate from the other one
+#                 colour_images = []
+#                 for i in range(0, T, interval // 10):
+#                     canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
+#                     maze_size = env.env.maze.shape[0]
+#                     for visit in Player_Positions_With_Goals[i: i + interval]:
+#                         px = visit[0]
+#                         py = visit[1]
+#                         g1 = visit[2]
+#                         g2 = visit[3]
+#                         g3 = visit[4]
+#                         if not g1 and not g2 and not g3:
+#                             # No Goals visited
+#                             canvas[px, py, :] += 1
+#                         elif g1 and not g2 and not g3:
+#                             # Only g1
+#                             canvas[px, py + maze_size, 0] += 1
+#                         elif not g1 and g2 and not g3:
+#                             # Only g2
+#                             canvas[px + maze_size, py + maze_size, 1] += 1
+#                         elif not g1 and not g2 and g3:
+#                             # Only g3
+#                             canvas[px + 2 * maze_size, py + maze_size, 2] += 1
+#                         elif g1 and g2 and not g3:
+#                             # g1 and g2
+#                             canvas[px, py + maze_size * 2, 0: 2] += 1
+#                         elif g1 and not g2 and g3:
+#                             # g1 and g3
+#                             canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] += 1
+#                         elif not g1 and g2 and g3:
+#                             # g2 and g3
+#                             canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] += 1
+#                         else:
+#                             # print("ERROR", g1, g2, g3)
+#                             pass
+#                     if np.max(canvas) == 0:
+#                         break
+#                     canvas = canvas / (np.max(canvas) / scaling)
+#                     # Colour the unvisited goals
+#                     # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
+#                     # only g1
+#                     canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
+#                     canvas[maze_size - 4, maze_size, :] = 1
+#                     # only g2
+#                     canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
+#                     canvas[maze_size + maze_size - 4, maze_size, :] = 1
+#                     # only g3
+#                     canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
+#                     canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
+#                     # g1 and g2
+#                     canvas[maze_size - 4, 2 * maze_size] = 1
+#                     # g1 and g3
+#                     canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
+#                     # g2 and g2
+#                     canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
+#                     # Seperate the mazes
+#                     canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
+#                     canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
+#                     colour_maze = canvas
 
-                    colour_maze = np.clip(colour_maze, 0, 1) * 255
-                    colour_images.append(colour_maze.astype(np.uint8))
-                save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
+#                     colour_maze = np.clip(colour_maze, 0, 1) * 255
+#                     colour_images.append(colour_maze.astype(np.uint8))
+#                 save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
-                # We want to save the positions where the exploration bonus was high
-                if not args.count:
-                    continue
-                colour_images = []
-                for i in range(0, T, interval // 10):
-                    canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
-                    maze_size = env.env.maze.shape[0]
-                    for visit, bonus in zip(Player_Positions_With_Goals[i: i + interval], Exploration_Bonus[i: i + interval]):
-                        relative_bonus = bonus / max_exp_bonus
-                        px = visit[0]
-                        py = visit[1]
-                        g1 = visit[2]
-                        g2 = visit[3]
-                        g3 = visit[4]
-                        # Assign the maximum bonus in that interval to the image
-                        if not g1 and not g2 and not g3:
-                            # No Goals visited
-                            canvas[px, py, :] = max(relative_bonus, canvas[px, py, 0])
-                        elif g1 and not g2 and not g3:
-                            # Only g1
-                            canvas[px, py + maze_size, 0] = max(relative_bonus, canvas[px, py + maze_size, 0])
-                        elif not g1 and g2 and not g3:
-                            # Only g2
-                            canvas[px + maze_size, py + maze_size, 1] = max(relative_bonus, canvas[px + maze_size, py + maze_size, 1])
-                        elif not g1 and not g2 and g3:
-                            # Only g3
-                            canvas[px + 2 * maze_size, py + maze_size, 2] = max(relative_bonus, canvas[px + 2 * maze_size, py + maze_size, 2])
-                        elif g1 and g2 and not g3:
-                            # g1 and g2
-                            canvas[px, py + maze_size * 2, 0: 2] = max(relative_bonus, canvas[px, py + maze_size * 2, 0])
-                        elif g1 and not g2 and g3:
-                            # g1 and g3
-                            canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] = max(relative_bonus, canvas[px + maze_size, py + maze_size * 2, 0])
-                        elif not g1 and g2 and g3:
-                            # g2 and g3
-                            canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] = max(relative_bonus, canvas[px + maze_size * 2, py + maze_size * 2, 1])
-                        else:
-                            # print("ERROR", g1, g2, g3)
-                            pass
-                    canvas = np.clip(canvas, 0, 1)
-                    # Colour the unvisited goals
-                    # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
-                    # only g1
-                    canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
-                    canvas[maze_size - 4, maze_size, :] = 1
-                    # only g2
-                    canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
-                    canvas[maze_size + maze_size - 4, maze_size, :] = 1
-                    # only g3
-                    canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
-                    canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
-                    # g1 and g2
-                    canvas[maze_size - 4, 2 * maze_size] = 1
-                    # g1 and g3
-                    canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
-                    # g2 and g2
-                    canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
-                    # Seperate the mazes
-                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
-                    canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
-                    colour_maze = canvas
+#                 # We want to save the positions where the exploration bonus was high
+#                 if not args.count:
+#                     continue
+#                 colour_images = []
+#                 for i in range(0, T, interval // 10):
+#                     canvas = np.zeros((env.env.maze.shape[0] * 3, env.env.maze.shape[1] * 3, 3))
+#                     maze_size = env.env.maze.shape[0]
+#                     for visit, bonus in zip(Player_Positions_With_Goals[i: i + interval], Exploration_Bonus[i: i + interval]):
+#                         relative_bonus = bonus / max_exp_bonus
+#                         px = visit[0]
+#                         py = visit[1]
+#                         g1 = visit[2]
+#                         g2 = visit[3]
+#                         g3 = visit[4]
+#                         # Assign the maximum bonus in that interval to the image
+#                         if not g1 and not g2 and not g3:
+#                             # No Goals visited
+#                             canvas[px, py, :] = max(relative_bonus, canvas[px, py, 0])
+#                         elif g1 and not g2 and not g3:
+#                             # Only g1
+#                             canvas[px, py + maze_size, 0] = max(relative_bonus, canvas[px, py + maze_size, 0])
+#                         elif not g1 and g2 and not g3:
+#                             # Only g2
+#                             canvas[px + maze_size, py + maze_size, 1] = max(relative_bonus, canvas[px + maze_size, py + maze_size, 1])
+#                         elif not g1 and not g2 and g3:
+#                             # Only g3
+#                             canvas[px + 2 * maze_size, py + maze_size, 2] = max(relative_bonus, canvas[px + 2 * maze_size, py + maze_size, 2])
+#                         elif g1 and g2 and not g3:
+#                             # g1 and g2
+#                             canvas[px, py + maze_size * 2, 0: 2] = max(relative_bonus, canvas[px, py + maze_size * 2, 0])
+#                         elif g1 and not g2 and g3:
+#                             # g1 and g3
+#                             canvas[px + maze_size, py + maze_size * 2, 0: 3: 2] = max(relative_bonus, canvas[px + maze_size, py + maze_size * 2, 0])
+#                         elif not g1 and g2 and g3:
+#                             # g2 and g3
+#                             canvas[px + maze_size * 2, py + maze_size * 2, 1: 3] = max(relative_bonus, canvas[px + maze_size * 2, py + maze_size * 2, 1])
+#                         else:
+#                             # print("ERROR", g1, g2, g3)
+#                             pass
+#                     canvas = np.clip(canvas, 0, 1)
+#                     # Colour the unvisited goals
+#                     # player_pos_with_goals = (player_pos[0], player_pos[1], env.maze[3, -1] != 2, env.maze[-1, -4] != 2, env.maze[-4, 0] != 2)
+#                     # only g1
+#                     canvas[maze_size - 1, maze_size + maze_size - 4, :] = 1
+#                     canvas[maze_size - 4, maze_size, :] = 1
+#                     # only g2
+#                     canvas[maze_size + 3, maze_size + maze_size - 1, :] = 1
+#                     canvas[maze_size + maze_size - 4, maze_size, :] = 1
+#                     # only g3
+#                     canvas[2 * maze_size + 3, maze_size + maze_size - 1, :] = 1
+#                     canvas[2 * maze_size + maze_size - 1, maze_size + maze_size - 4, :] = 1
+#                     # g1 and g2
+#                     canvas[maze_size - 4, 2 * maze_size] = 1
+#                     # g1 and g3
+#                     canvas[maze_size + maze_size - 1, 2 * maze_size + maze_size - 4] = 1
+#                     # g2 and g2
+#                     canvas[2 * maze_size + 3, 2 * maze_size + maze_size - 1] = 1
+#                     # Seperate the mazes
+#                     canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=0)
+#                     canvas = np.insert(canvas, [maze_size, 2 * maze_size], 0.5, axis=1)
+#                     colour_maze = canvas
 
-                    colour_maze = np.clip(colour_maze, 0, 1) * 255
-                    colour_images.append(colour_maze.astype(np.uint8))
-                save_video("{}/exp_bonus/High_Exp_Bonus__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
+#                     colour_maze = np.clip(colour_maze, 0, 1) * 255
+#                     colour_images.append(colour_maze.astype(np.uint8))
+#                 save_video("{}/exp_bonus/High_Exp_Bonus__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
     def eval_agent(self, last=False):
         env = self.env
@@ -455,7 +441,7 @@ def environment_specific_stuff():
                     terminated = True
                     break
 
-                self.agent.experience(s, a, reward, sn, steps, terminated)
+                self.agent.experience(s, a, reward, sn, 1, terminated)
                 s = sn
 
         print("Exploratory phase finished. Starting learning.\n")
@@ -477,6 +463,8 @@ def environment_specific_stuff():
         return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - T) / args.epsilon_steps), 0)
 
     def train_agent(self):
+
+        self.agent.train()
 
         if args.tb and T % args.tb_interval == 0:
             log_value("DQN/Gradient_Norm", total_norm, step=T)
@@ -549,12 +537,12 @@ def environment_specific_stuff():
 
                 self.agent.experience(state, action, reward, state_new, steps, episode_finished)
 
-                self.agent.train()
+                self.train_agent()
 
                 state = state_new
 
                 if not self.args.plain_print:
-                    print("\x1b[K" + "." * ((episode_steps // 20) % 40), end="\r")
+                    print("\x1b[K" + "." * ((self.episode_steps // 20) % 40), end="\r")
 
             self.eval_agent()
 
