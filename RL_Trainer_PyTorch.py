@@ -42,11 +42,12 @@ from Agent.DDQN_Agent import DDQN_Agent
 from Exploration.Pseudo_Count import PseudoCount
 from Monitoring.Env_Wrapper import EnvWrapper
 
+
 class Trainer:
 
     def __init__(self, args, env):
         self.args = args
-        self.env = EnvWrapper(env)
+        self.env = EnvWrapper(env, True)
 
         if args.gpu and not torch.cuda.is_available():
             print("CUDA unavailable! Switching to cpu only")
@@ -61,6 +62,7 @@ class Trainer:
         model = get_models(args.model)
         self.agent = DDQN_Agent(model, args)
 
+        self.exp_model = None
         if args.count:
             self.exp_model = PseudoCount(args)
 
@@ -304,6 +306,7 @@ class Trainer:
                         debug_info.update(action_info)
                         if self.args.count:
                             exp_bonus, exp_info = self.exploration_bonus(state, training=False)
+                            exp_info["Max_Bonus"] = self.max_exp_bonus
                             debug_info.update(exp_info)
                         debug_state = env.debug_render(debug_info, mode="rgb_array")
 
@@ -317,7 +320,7 @@ class Trainer:
                 state = state_new
 
             if will_save_states:
-                save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon_value, self.T, self.episode), states)
+                self.save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon_value, self.T, self.episode), states)
                 self.eval_video_T = self.T
 
             if epsilon_value != epsilons[-1]:
@@ -331,26 +334,24 @@ class Trainer:
 
     def exploration_bonus(self, state, training=True):
 
-        bonus, extra_info = self.exp_model.bonus(state)
+        bonus = 0
+        extra_info = {}
 
-        # Save suprising states after the first quarter of training
-        if self.T > self.args.t_max / 4 and bonus >= self.args.exp_bonus_save * self.max_exp_bonus:
-            debug_dict = {}
-            debug_dict["Max_Exp_Bonus"] = max_exp_bonus
-            debug_dict["Exp_Bonus"] = bonus
-            debug_dict["CTS_State"] = state
-            debug_dict["CTS_PG"] = pg_pixel
-            image = debug_render(state, debug_dict)
-            image = pygame_image(env.env.surface)
-            image = image.swapaxes(0, 1)
-            save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(self.args.log_path, self.episode, self.T, bonus), image)
+        if self.args.count:
+            bonus, extra_info = self.exp_model.bonus(state)
 
-        if training:
-            self.Exploration_Bonus.append(bonus)
-            if self.args.tb and self.T % self.args.tb_interval == 0:
-                self.log_value("Count_Bonus", bonus, step=T)
+            if training:
+                self.Exploration_Bonus.append(bonus)
+                if self.args.tb and self.T % self.args.tb_interval == 0:
+                    self.log_value("Count_Bonus", bonus, step=self.T)
 
-        self.max_exp_bonus = max(self.max_exp_bonus, bonus)
+            self.max_exp_bonus = max(self.max_exp_bonus, bonus)
+            extra_info["Max_Bonus"] = self.max_exp_bonus
+
+            # Save suprising states after the first quarter of training
+            if self.T > self.args.t_max / 4 and bonus >= self.args.exp_bonus_save * self.max_exp_bonus:
+                image = self.env.debug_render(extra_info, mode="rgb_array")
+                self.save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(self.args.log_path, self.episode, self.T, bonus), image)
 
         return bonus, extra_info
 
@@ -424,7 +425,7 @@ class Trainer:
 
     def explore(self):
         env = self.env
-        print("\nExploratory phase for {} steps.".format(args.exploration_steps))
+        print("\nExploratory phase for {} steps.".format(self.args.exploration_steps))
         e_steps = 0
         while e_steps < self.args.exploration_steps:
             s = env.reset()
@@ -450,17 +451,18 @@ class Trainer:
         if self.args.plain_print:
             print(self.T, end="\r")
         else:
-            time_elapsed = time.time() - start_time
+            time_elapsed = time.time() - self.start_time
             time_left = time_elapsed * (self.args.t_max - self.T) / self.T
             # Just in case its over 100 days
             time_left = min(time_left, 60 * 60 * 24 * 100)
             last_reward = "N\A"
             if len(self.Episode_Rewards) > 10:
                 last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-10:-1]))
-            print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(self.episode, self.T, self.args.t_max, self.epsilon, self.last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
+            print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(self.episode, self.T, self.args.t_max, self.epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
     def epsilon_schedule(self):
-        return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - T) / args.epsilon_steps), 0)
+        args = self.args
+        return args.epsilon_finish + (args.epsilon_start - args.epsilon_finish) * max(((args.epsilon_steps - self.T) / args.epsilon_steps), 0)
 
     def train_agent(self):
 
@@ -491,7 +493,7 @@ class Trainer:
 
         self.explore()
 
-        start_time = time.time()
+        self.start_time = time.time()
 
         print("Training.\n\n\n")
 
@@ -538,7 +540,7 @@ class Trainer:
                 # TODO: Update this to store pseudo-counts seperately
                 reward += exp_bonus
 
-                self.agent.experience(state, action, reward, state_new, steps, episode_finished)
+                self.agent.experience(state, action, reward, state_new, 1, episode_finished)
 
                 self.train_agent()
 

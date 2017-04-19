@@ -10,7 +10,7 @@ from RL_Trainer_PyTorch import Trainer
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(1e4))
+parser.add_argument("--t-max", type=int, default=int(1e3))
 parser.add_argument("--env", type=str, default="Maze-2-v0")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
@@ -29,7 +29,7 @@ parser.add_argument("--gamma", type=float, default=0.99)
 parser.add_argument("--target", type=int, default=100)
 parser.add_argument("--count", action="store_true", default=False)
 parser.add_argument("--beta", type=float, default=0.01)
-parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e4))
+parser.add_argument("--exploration-steps", "--exp-steps", type=int, default=int(5e2))
 parser.add_argument("--n-step", "--n", type=int, default=1)
 parser.add_argument("--n-inc", action="store_true", default=False)
 parser.add_argument("--n-max", type=int, default=10)
@@ -40,7 +40,7 @@ parser.add_argument("--no-eval-images", action="store_true", default=False)
 parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=10)
 parser.add_argument("--debug-eval", action="store_true", default=False)
-parser.add_argument("--cts-size", type=int, default=7)
+parser.add_argument("--cts-size", type=int, default=2)
 parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 parser.add_argument("--clip-reward", action="store_true", default=False)
@@ -73,7 +73,7 @@ LOGDIR = "{}/{}".format(args.logdir, NAME_DATE)
 while os.path.exists(LOGDIR):
     LOGDIR += "_"
 
-args.logs_path = LOGDIR
+args.log_path = LOGDIR
 
 print("Logging to:\n{}\n".format(LOGDIR))
 

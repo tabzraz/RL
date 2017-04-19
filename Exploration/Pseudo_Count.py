@@ -11,6 +11,7 @@ class PseudoCount:
     def __init__(self, args):
 
         self.beta = args.beta
+        self.args = args
 
         self.cts_model_shape = (args.cts_size, args.cts_size)
         print("\nCTS Model has size: " + str(self.cts_model_shape) + "\n")
