@@ -50,6 +50,8 @@ class DDQN_Agent:
         else:
             action = q_values.max(0)[1][0]  # Torch...
 
+        extra_info["Action"] = action
+
         return action, extra_info
 
     def experience(self, state, action, reward, state_next, steps, terminated):

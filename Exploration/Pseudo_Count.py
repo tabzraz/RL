@@ -43,7 +43,7 @@ class PseudoCount:
         pseudo_count = 1 / (np.expm1(pg))
 
         bonus = self.beta / sqrt(pseudo_count + 0.01)
-        # extra_info["Bonus"] = bonus
+        extra_info["Bonus"] = bonus
 
         return bonus, extra_info
 

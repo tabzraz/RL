@@ -411,6 +411,8 @@ class Trainer:
             self.min_q_value *= 0.9999
             self.max_q_value = max(self.max_q_value, np.max(q_values_numpy))
             self.min_q_value = min(self.min_q_value, np.min(q_values_numpy))
+            extra_info["Max_Q_Value"] = self.max_q_value
+            extra_info["Min_Q_Value"] = self.min_q_value
 
             if training:
                 self.Q_Values.append(q_values_numpy)
