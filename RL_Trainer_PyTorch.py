@@ -108,10 +108,12 @@ class Trainer:
     def save_video(self, name, images):
         name = name + ".gif"
         # TODO: Pad the images to macro block size
+        images = [image.astype(np.uint8) for image in images]
         imageio.mimsave(name, images, subrectangles=True)
 
     def save_image(self, name, image):
         name = name + ".png"
+        image = image.astype(np.uint8)
         imageio.imsave(name, image)
 
 # # Methods
@@ -529,6 +531,7 @@ class Trainer:
 
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
+                self.episode_steps += 1
 
                 # If the environment terminated because it reached a limit, we do not want the agent
                 # to see that transition, since it makes the env non markovian wrt state
