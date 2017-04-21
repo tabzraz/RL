@@ -6,12 +6,13 @@ import pygame
 
 class EnvWrapper(gym.Env):
 
-    def __init__(self, env, debug):
+    def __init__(self, env, debug, args):
         self.wrapped_env = env
         self.metadata = env.metadata
         self.made_screen = False
         self.debug = debug
         self.scaling = 8
+        self.args = args
 
     def _step(self, a):
         return self.wrapped_env.step(a)
@@ -21,6 +22,25 @@ class EnvWrapper(gym.Env):
 
     def _render(self, mode="human", close=False):
         return self.wrapped_env.render(mode, close)
+
+    def visitations(self, player_positions):
+        return self.wrapped_env.env.player_visits(player_positions, self.args)
+        try:
+            return self.wrapped_env.env.player_visits(player_positions, self.args)
+        except AttributeError:
+            print("Attribute Error")
+
+    def explorations(self, player_positions, exploration_bonuses):
+        try:
+            return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, self.args)
+        except AttributeError:
+            pass
+
+    def log_visitation(self):
+        try:
+            return self.wrapped_env.env.log_player_pos()
+        except AttributeError:
+            pass
 
     def debug_render(self, debug_info={}, mode="human", close=False):
         if self.debug:
@@ -139,3 +159,4 @@ class EnvWrapper(gym.Env):
         image[4:, -cts_image.shape[1]:, :] = np.fliplr(np.swapaxes(cts_colour_image, 0, 1))
 
         return np.fliplr(image)
+

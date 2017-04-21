@@ -30,7 +30,7 @@ class MazeEnv(gym.Env):
 
         self.maze = np.tile(self.tile, self.shape)
         # Player
-        self.maze[0,3] = 3
+        self.maze[0, 3] = 3
         # Goal
         self.maze[-1, -4] = 2
 

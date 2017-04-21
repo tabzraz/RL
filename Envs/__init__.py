@@ -54,3 +54,11 @@ for s in range(15):
             kwargs={'size': (s, s)},
             tags={'wrapper_config.TimeLimit.max_episode_steps': s*s*7*7*3},
     )
+
+for n in range(100):
+    register(
+            id="Room-{}-v0".format(n),
+            entry_point="Envs.BigRoom:BigRoom",
+            kwargs={'size': n},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 5 + 1},
+    )

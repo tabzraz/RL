@@ -10,8 +10,8 @@ from RL_Trainer_PyTorch import Trainer
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(1e3))
-parser.add_argument("--env", type=str, default="Maze-2-v0")
+parser.add_argument("--t-max", type=int, default=int(1e2))
+parser.add_argument("--env", type=str, default="Room-7-v0")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")
 parser.add_argument("--exp-replay-size", "--xp", type=int, default=int(1e4))
@@ -40,7 +40,7 @@ parser.add_argument("--no-eval-images", action="store_true", default=False)
 parser.add_argument("--eval-images-interval", type=int, default=4)
 parser.add_argument("--tb-interval", type=int, default=10)
 parser.add_argument("--debug-eval", action="store_true", default=False)
-parser.add_argument("--cts-size", type=int, default=14)
+parser.add_argument("--cts-size", type=int, default=2)
 parser.add_argument("--cts-conv", action="store_true", default=False)
 parser.add_argument("--exp-bonus-save", type=float, default=0.75)
 parser.add_argument("--clip-reward", action="store_true", default=False)
@@ -49,12 +49,16 @@ parser.add_argument("--num-macros", type=int, default=10)
 parser.add_argument("--max-macro-length", type=int, default=10)
 parser.add_argument("--macro-seed", type=int, default=12)
 parser.add_argument("--train-primitives", action="store_true", default=False)
+parser.add_argument("--no-visitations", action="store_true", default=False)
+parser.add_argument("--interval-size", type=int, default=10)
 args = parser.parse_args()
 
 # TB
 args.tb = not args.no_tb
 # Saving the evaluation policies as images
 args.eval_images = not args.no_eval_images
+# Logging the visitations and exploration bonuses
+args.visitations = not args.no_visitations
 # Model
 if args.model == "":
     args.model = args.env
