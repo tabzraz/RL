@@ -433,7 +433,6 @@ class Trainer:
         e_steps = 0
         while e_steps < self.args.exploration_steps:
             s = env.reset()
-            s_t = s
             terminated = False
             while not terminated:
                 print(e_steps, end="\r")
