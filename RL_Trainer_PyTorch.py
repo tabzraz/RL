@@ -58,7 +58,7 @@ class Trainer:
         if args.gpu:
             torch.cuda.manual_seed_all(args.seed)
 
-        print("\nGetting Models.\n")
+        print("\nGetting Models.")
         model = get_models(args.model)
         self.agent = DDQN_Agent(model, args)
 
@@ -414,7 +414,7 @@ class Trainer:
         self.end_of_training_save()
 
         if self.args.render:
-            print("\nClosing render window\n")
+            print("\n\nClosing render window")
             self.env.render(close=True)
 
         print("\nEvaluating Last Agent\n")

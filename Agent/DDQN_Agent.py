@@ -18,6 +18,14 @@ class DDQN_Agent:
         self.dqn = model(actions=args.actions)
         self.target_dqn = model(actions=args.actions)
 
+        dqn_params = 0
+        for weight in self.dqn.parameters():
+            weight_params = 1
+            for s in weight.size():
+                weight_params *= s
+            dqn_params += weight_params
+        print("\nDQN has {:,} parameters.".format(dqn_params))
+
         self.target_dqn.eval()
 
         if args.gpu:

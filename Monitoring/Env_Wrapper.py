@@ -79,7 +79,7 @@ class EnvWrapper(gym.Env):
                 # Draw the Q-Values
                 if "Q_Values" in debug_info:
                     q_vals_image = self.draw_q_values(debug_info, env_image.shape[0], 48)
-                    image[1:env_image.shape[0] + 1, env_image.shape[1] + 2:env_image.shape[1] + 50, :] = q_vals_image
+                    image[0:env_image.shape[0] + 1, env_image.shape[1] + 2:env_image.shape[1] + 50, :] = q_vals_image
 
                 # Draw the Pseudo-Count stuff
                 if "CTS_State" in debug_info:
