@@ -234,6 +234,9 @@ class Trainer:
     def end_of_training_save(self):
         if self.args.count:
             self.exp_model.save_model()
+            bonuses = self.env.explorations(self.Player_Positions, self.Exploration_Bonus, self.max_exp_bonus)
+            if bonuses is not None:
+                self.save_video("{}/exp_bonus/Bonuses__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), bonuses)
         visits = self.env.visitations(self.Player_Positions)
         if visits is not None:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), visits)
@@ -410,6 +413,10 @@ class Trainer:
 
         self.end_of_training_save()
 
+        if self.args.render:
+            print("\nClosing render window\n")
+            self.env.render(close=True)
+
         print("\nEvaluating Last Agent\n")
         self.eval_agent(last=True)
         print("Last Evaluation Finished")
@@ -417,8 +424,8 @@ class Trainer:
         # Close out the logging queue
         print("\nClosing queue")
         finished_training.value = 10
-        time.sleep(5)
         self.log_queue.close()
+        time.sleep(5)
         p_log.join(timeout=1)
 
         print("\nFinished\n")

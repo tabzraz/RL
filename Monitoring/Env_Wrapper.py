@@ -30,9 +30,9 @@ class EnvWrapper(gym.Env):
         except AttributeError:
             print("Attribute Error")
 
-    def explorations(self, player_positions, exploration_bonuses):
+    def explorations(self, player_positions, exploration_bonuses, max_bonus):
         try:
-            return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, self.args)
+            return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, max_bonus, self.args)
         except AttributeError:
             pass
 
