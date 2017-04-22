@@ -415,7 +415,7 @@ class Trainer:
 
         if self.args.render:
             print("\n\nClosing render window")
-            self.env.render(close=True)
+            self.env.debug_render(close=True)
 
         print("\nEvaluating Last Agent\n")
         self.eval_agent(last=True)
