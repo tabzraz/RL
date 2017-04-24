@@ -96,13 +96,15 @@ class EnvWrapper(gym.Env):
         yellow = (255, 255, 0)
         green = (0, 255, 0)
         blue = (0, 0, 255)
+        purple = (255, 0, 255)
 
         q_values = info["Q_Values"]
         max_q_value = info["Max_Q_Value"]
         min_q_value = info["Min_Q_Value"]
         chosen_action = info["Action"]
+        epsilon = info["Epsilon"]
 
-        q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * height) for q_val in q_values]
+        q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * (height - 4)) + 4 for q_val in q_values]
         greedy_action = np.argmax(q_values)
         actions = len(q_values)
         bar_width = int(width / actions)
@@ -114,11 +116,19 @@ class EnvWrapper(gym.Env):
                 q_color = green
             else:
                 q_color = blue
-            rect_coords = [(i * bar_width, 0), (i * bar_width, q_size), ((i + 1) * bar_width, q_size), ((i + 1) * bar_width, 0)]
+            rect_coords = [(i * bar_width, 4), (i * bar_width, q_size), ((i + 1) * bar_width, q_size), ((i + 1) * bar_width, 4)]
             rect_row = [r[0] for r in rect_coords]
             rect_col = [r[1] for r in rect_coords]
             rect_array_coords = draw.polygon(rect_row, rect_col)
             draw.set_color(image, rect_array_coords, q_color)
+
+        # Epsilon
+        bar_width = int(width * epsilon)
+        bonus_rect_coords = [(0, 0), (0, 3), (bar_width, 3), (bar_width, 0)]
+        rect_row = [r[0] for r in bonus_rect_coords]
+        rect_col = [r[1] for r in bonus_rect_coords]
+        rect_array_coords = draw.polygon(rect_row, rect_col)
+        draw.set_color(image, rect_array_coords, purple)
 
         return np.fliplr(image)
 

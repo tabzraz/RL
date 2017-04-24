@@ -244,8 +244,8 @@ class Trainer:
     def select_random_action(self):
         return np.random.choice(self.args.actions)
 
-    def select_action(self, state, training=True):
-        action, extra_info = self.agent.act(state, self.epsilon, self.exp_model)
+    def select_action(self, state, epsilon, training=True):
+        action, extra_info = self.agent.act(state, epsilon, self.exp_model)
 
         if "Q_Values" in extra_info:
 
@@ -359,9 +359,15 @@ class Trainer:
             self.print_time()
 
             while not episode_finished:
-                action, action_info = self.select_action(state)
-
                 exp_bonus, exp_info = self.exploration_bonus(state)
+                # TODO: Cleanup
+                new_epsilon = self.epsilon
+                if self.args.count_epsilon:
+                    new_epsilon = max(self.epsilon, exp_bonus / self.args.beta)
+                    if self.args.tb:
+                        self.log_value("Epsilon/Count", new_epsilon, step=self.T)
+                action, action_info = self.select_action(state, new_epsilon)
+                action_info["Epsilon"] = new_epsilon
 
                 if self.args.render:
                     debug_info = {}

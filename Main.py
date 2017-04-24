@@ -52,6 +52,7 @@ parser.add_argument("--train-primitives", action="store_true", default=False)
 parser.add_argument("--no-visitations", action="store_true", default=False)
 parser.add_argument("--interval-size", type=int, default=10)
 parser.add_argument("--stale-limit", type=int, default=1000)
+parser.add_argument("--count-epsilon", action="store_true", default=False)
 args = parser.parse_args()
 
 # TB
