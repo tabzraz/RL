@@ -62,3 +62,11 @@ for n in range(100):
             kwargs={'size': n},
             tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 5 + 1},
     )
+
+for n in range(10):
+    register(
+            id="Wide-Maze-{}-v0".format(n),
+            entry_point="Envs.SnakingMaze:SnakingMaze",
+            kwargs={'size': n},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 100 * 5 + 1},
+    )
