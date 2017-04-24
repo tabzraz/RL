@@ -3,16 +3,19 @@ import torch
 from torch.optim import Adam
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
-from Replay.ExpReplay_Options import ExperienceReplay_Options
+from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
 
 
 class DDQN_Agent:
 
-    def __init__(self, model, args):
+    def __init__(self, model, args, exp_model):
         self.args = args
 
+        # Exploration Model
+        self.exp_model = exp_model
+
         # Experience Replay
-        self.replay = ExperienceReplay_Options(args.exp_replay_size)
+        self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model)
 
         # DQN and Target DQN
         self.dqn = model(actions=args.actions)
@@ -62,8 +65,8 @@ class DDQN_Agent:
 
         return action, extra_info
 
-    def experience(self, state, action, reward, state_next, steps, terminated):
-        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated)
+    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0):
+        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward)
 
     def train(self):
         if self.T - self.target_sync_T > self.args.target:

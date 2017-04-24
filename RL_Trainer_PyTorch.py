@@ -58,13 +58,13 @@ class Trainer:
         if args.gpu:
             torch.cuda.manual_seed_all(args.seed)
 
-        print("\nGetting Models.")
-        model = get_models(args.model)
-        self.agent = DDQN_Agent(model, args)
-
         self.exp_model = None
         if args.count:
             self.exp_model = PseudoCount(args)
+
+        print("Getting Models.")
+        model = get_models(args.model)
+        self.agent = DDQN_Agent(model, args, self.exp_model)
 
         self.log_queue = Queue()
 
@@ -388,10 +388,8 @@ class Trainer:
                 self.episode_reward += reward
 
                 self.episode_bonus_only_reward += exp_bonus
-                # TODO: Update this to store pseudo-counts seperately
-                reward += exp_bonus
 
-                self.agent.experience(state, action, reward, state_new, 1, episode_finished)
+                self.agent.experience(state, action, reward, state_new, 1, episode_finished, exp_bonus)
 
                 self.train_agent()
 

@@ -4,6 +4,7 @@ from scipy.misc import imresize as resize
 import pickle
 import numpy as np
 from math import sqrt
+from copy import deepcopy
 
 
 class PseudoCount:
@@ -19,7 +20,7 @@ class PseudoCount:
         self.cts_model = DensityModel(frame_shape=self.cts_model_shape, context_functor=L_shaped_context, conv=args.cts_conv)
         os.makedirs("{}/cts_model".format(args.log_path))
 
-    def bonus(self, state):
+    def bonus(self, state, dont_remember=False):
         extra_info = {}
 
         if state.shape[2] != 1:
@@ -28,9 +29,15 @@ class PseudoCount:
 
         extra_info["CTS_State"] = state_resized[:, :, np.newaxis] * 255
 
+        if dont_remember:
+            old_cts_model = deepcopy(self.cts_model)
+
         rho_old, rho_old_pixels = self.cts_model.update(state_resized)
 
         rho_new, rho_new_pixels = self.cts_model.log_prob(state_resized)
+
+        if dont_remember:
+            self.cts_model = old_cts_model
 
         pg = rho_new - rho_old
 

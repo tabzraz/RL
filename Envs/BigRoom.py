@@ -9,15 +9,13 @@ class BigRoom(GridWorld):
         super().__init__()
         print("Room of size:", self.grid.shape)
 
+        # No negative reward at each timestep
+        self.negative_reward = 0
+
     def create_grid(self):
         self.grid = np.ones(shape=(self.size, self.size))
         self.grid[1:-1, 1:-1] = 0
-        # self.grid[self.size // 2, 1] = 1
         # Goal
-        self.grid[1, self.size // 2] = 2
-        self.grid[-2, self.size // 2] = 2
-        # self.grid[0,0] = 2
-        # self.grid[self.size // 2, 1] = 2
-        # self.grid[self.size // 2, -2] = 2
+        self.grid[1, -2] = 2
         # Player
-        self.grid[self.size // 2, self.size // 2] = 3
+        self.grid[-2, 1] = 3
