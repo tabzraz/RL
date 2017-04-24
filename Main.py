@@ -10,7 +10,7 @@ from RL_Trainer_PyTorch import Trainer
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
 parser = argparse.ArgumentParser(description="RL Agent Trainer")
-parser.add_argument("--t-max", type=int, default=int(1e5))
+parser.add_argument("--t-max", type=int, default=int(1e2))
 parser.add_argument("--env", type=str, default="Room-14-v0")
 parser.add_argument("--logdir", type=str, default="Logs")
 parser.add_argument("--name", type=str, default="nn")

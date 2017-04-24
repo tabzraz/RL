@@ -81,7 +81,8 @@ class GridWorld(gym.Env):
                         image[x, y] = (255 * grid[x, y] / 3, 255 * grid[x, y] / 3, 255 * grid[x, y] / 3)
             return image
         else:
-            raise Exception("Cannot do human rendering")
+            pass
+            # raise Exception("Cannot do human rendering")
 
     def create_grid(self):
         self.grid = np.array([[3, 0],
