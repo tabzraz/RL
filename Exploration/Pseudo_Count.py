@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from math import sqrt
 from copy import deepcopy
+from multiprocessing import Pool
 
 
 class PseudoCount:
@@ -29,15 +30,15 @@ class PseudoCount:
 
         extra_info["CTS_State"] = state_resized[:, :, np.newaxis] * 255
 
-        if dont_remember:
-            old_cts_model = deepcopy(self.cts_model)
+        # if dont_remember:
+            # old_cts_model = deepcopy(self.cts_model)
 
-        rho_old, rho_old_pixels = self.cts_model.update(state_resized)
+        rho_old, rho_old_pixels = self.cts_model.update(state_resized, remember=not dont_remember)
 
         rho_new, rho_new_pixels = self.cts_model.log_prob(state_resized)
 
-        if dont_remember:
-            self.cts_model = old_cts_model
+        # if dont_remember:
+            # self.cts_model = old_cts_model
 
         pg = rho_new - rho_old
 
@@ -55,5 +56,6 @@ class PseudoCount:
         return bonus, extra_info
 
     def save_model(self):
-        with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
-                pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)
+        return
+        # with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
+                # pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)
