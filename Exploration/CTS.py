@@ -113,11 +113,6 @@ def symbols_to_rgb(frame, output):
 
     return output
 
-from multiprocessing import Pool
-
-def async(cts, cts_func, context, colour):
-    # print(cts_func)
-    return cts, cts_func(context=context, symbol=colour)
 
 class DensityModel(object):
     """A density model for Freeway frames.
@@ -125,14 +120,12 @@ class DensityModel(object):
     pixel location.
     """
 
-    def __init__(self, frame_shape, context_functor, conv=False, alphabet=None, parallel=True):
+    def __init__(self, frame_shape, context_functor, conv=False, alphabet=None):
         """Constructor.
         Args:
             init_frame: A sample frame (numpy array) from which we determine the shape and type of our data.
             context_functor: Function mapping image x position to a context.
         """
-        if parallel:
-            conv = False
         # For efficiency, we'll pre-process the frame into our internal representation.
         self.symbol_frame = np.zeros((frame_shape[0:2]), dtype=np.uint32)
 
@@ -148,60 +141,34 @@ class DensityModel(object):
                     self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
 
         self.context_functor = context_functor
-        self.pool = Pool(processes=4)
 
-    def get_stuff(self, frame, log_prob=True, remember=True):
+    def log_prob(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
         total_log_probability = 0.0
         log_probs = np.zeros(shape=self.symbol_frame.shape)
-
-        async_results = np.empty(shape=log_probs.shape, dtype=np.dtype("O"))
-
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):
                 context = self.context_functor(self.symbol_frame, y, x)
                 colour = self.symbol_frame[y, x]
-                # log_val = self.models[y, x].log_prob(context=context, symbol=colour)
-                if log_prob:
-                    cts_func = self.models[y, x].log_prob
-                else:
-                    # print("Here")
-                    cts_func = self.models[y, x].update
-                async_result = self.pool.apply_async(async, (self.models[y, x], cts_func, context, colour))
-                async_results[y, x] = async_result
-
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                # print(async_results[y, x])
-                # cc, log_val = async_results[y, x]
-                cc, log_val = async_results[y, x].get(timeout=None)
-                if remember and not log_prob:
-                    self.models[y, x] = cc
-                # print(log_val, y, x)
+                log_val = self.models[y, x].log_prob(context=context, symbol=colour)
                 total_log_probability += log_val
                 log_probs[y, x] = log_val
 
         return total_log_probability, log_probs
 
-    def log_prob(self, frame, remember=True):
-        return self.get_stuff(frame, log_prob=True, remember=remember)
+    def update(self, frame):
+        gray_to_symbols(frame, self.symbol_frame)
+        total_log_probability = 0.0
+        log_probs = np.zeros(shape=self.symbol_frame.shape)
+        for y in range(self.symbol_frame.shape[0]):
+            for x in range(self.symbol_frame.shape[1]):
+                context = self.context_functor(self.symbol_frame, y, x)
+                colour = self.symbol_frame[y, x]
+                log_val = self.models[y, x].update(context=context, symbol=colour)
+                total_log_probability += log_val
+                log_probs[y, x] = log_val
 
-    def update(self, frame, remember=True):
-        return self.get_stuff(frame, log_prob=False, remember=remember)
-
-    # def update(self, frame):
-    #     gray_to_symbols(frame, self.symbol_frame)
-    #     total_log_probability = 0.0
-    #     log_probs = np.zeros(shape=self.symbol_frame.shape)
-    #     for y in range(self.symbol_frame.shape[0]):
-    #         for x in range(self.symbol_frame.shape[1]):
-    #             context = self.context_functor(self.symbol_frame, y, x)
-    #             colour = self.symbol_frame[y, x]
-    #             log_val = self.models[y, x].update(context=context, symbol=colour)
-    #             total_log_probability += log_val
-    #             log_probs[y, x] = log_val
-
-    #     return total_log_probability, log_probs
+        return total_log_probability, log_probs
 
     def sample(self):
         output_frame = np.zeros((*self.symbol_frame.shape, 1), dtype=np.float32)

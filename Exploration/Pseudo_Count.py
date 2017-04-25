@@ -30,15 +30,15 @@ class PseudoCount:
 
         extra_info["CTS_State"] = state_resized[:, :, np.newaxis] * 255
 
-        # if dont_remember:
-            # old_cts_model = deepcopy(self.cts_model)
+        if dont_remember:
+            old_cts_model = deepcopy(self.cts_model)
 
-        rho_old, rho_old_pixels = self.cts_model.update(state_resized, remember=not dont_remember)
+        rho_old, rho_old_pixels = self.cts_model.update(state_resized)
 
         rho_new, rho_new_pixels = self.cts_model.log_prob(state_resized)
 
-        # if dont_remember:
-            # self.cts_model = old_cts_model
+        if dont_remember:
+            self.cts_model = old_cts_model
 
         pg = rho_new - rho_old
 
