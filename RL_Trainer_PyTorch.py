@@ -126,7 +126,7 @@ class Trainer:
         epsilons = [0, self.epsilon]
 
         for epsilon_value in epsilons:
-            self.epsilon = epsilon_value
+            # self.epsilon = epsilon_value
             terminated = False
             ep_reward = 0
             steps = 0
@@ -135,7 +135,7 @@ class Trainer:
             Eval_Q_Values = []
 
             while not terminated:
-                action, action_info = self.select_action(state, training=False)
+                action, action_info = self.select_action(state, epsilon_value, training=False)
 
                 if "Q_Values" in action_info:
                     Eval_Q_Values.append(action_info["Q_Values"])
@@ -246,6 +246,7 @@ class Trainer:
 
     def select_action(self, state, epsilon, training=True):
         action, extra_info = self.agent.act(state, epsilon, self.exp_model)
+        extra_info["Epsilon"] = epsilon
 
         if "Q_Values" in extra_info:
 
@@ -367,7 +368,6 @@ class Trainer:
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
                 action, action_info = self.select_action(state, new_epsilon)
-                action_info["Epsilon"] = new_epsilon
 
                 if self.args.render:
                     debug_info = {}
