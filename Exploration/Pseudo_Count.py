@@ -5,7 +5,6 @@ import pickle
 import numpy as np
 from math import sqrt
 from copy import deepcopy
-from multiprocessing import Pool
 
 
 class PseudoCount:
@@ -26,7 +25,7 @@ class PseudoCount:
 
         if state.shape[2] != 1:
             raise Exception("Need to grayscale the input to the CTS model")
-        state_resized = resize(state[:, :, 0], self.cts_model_shape, mode="F")
+        state_resized = resize(state[:, :, 0], self.cts_model_shape, mode="F", interp="bilinear")
 
         extra_info["CTS_State"] = state_resized[:, :, np.newaxis] * 255
 
@@ -56,6 +55,5 @@ class PseudoCount:
         return bonus, extra_info
 
     def save_model(self):
-        return
-        # with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
-                # pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)
+        with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
+                pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)

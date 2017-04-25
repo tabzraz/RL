@@ -1,6 +1,6 @@
 import numpy as np
 import cts.model as model
-
+# from .CTW import CTW as model
 
 def L_shaped_context(image, y, x):
     """This grabs the L-shaped context around a given pixel.
@@ -64,6 +64,7 @@ def gray_to_symbols(frame, output):
     for y in range(frame.shape[0]):
         for x in range(frame.shape[1]):
             output[y, x] = gray_to_symbol(frame[y, x])
+            # print(frame[y, x])
 
     return output
 

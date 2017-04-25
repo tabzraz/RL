@@ -1,42 +1,19 @@
-import argparse
-import gym
-import datetime
 import time
-import os
-import pickle
-from math import sqrt, ceil
-
 import numpy as np
 
 import torch
-import torch.optim as optim
-from torch.autograd import Variable
 
 import imageio
-# from pygame.image import tostring as pygame_tostring
-from pygame.surfarray import array3d as pygame_image
-# import torch.nn.modules.utils.clip_grad_norm as clip_grad
 
-import Exploration.CTS as CTS
-# from skimage.transform import resize
-from scipy.misc import imresize as resize
-
-# from pycrayon import CrayonClient
 from tensorboard_logger import configure
 from tensorboard_logger import log_value as tb_log_value
-from multiprocessing import Process, Queue
+from multiprocessing import Queue as Queue_MP
+from multiprocessing import Process
 from multiprocessing.sharedctypes import Value
-
+import queue
 
 from Utils.Utils import time_str
-from Replay.ExpReplay_Options import ExperienceReplay_Options
 from Models.Models import get_torch_models as get_models
-
-from Hierarchical.MazeOptions import MazeOptions
-from Hierarchical.Primitive_Options import Primitive_Options
-from Hierarchical.Random_Macro_Actions import Random_Macro_Actions
-
-import Envs
 
 from Agent.DDQN_Agent import DDQN_Agent
 from Exploration.Pseudo_Count import PseudoCount
@@ -66,7 +43,7 @@ class Trainer:
         model = get_models(args.model)
         self.agent = DDQN_Agent(model, args, self.exp_model)
 
-        self.log_queue = Queue()
+        self.log_queue = Queue_MP()
 
         self.eval_video_T = -self.args.t_max
 
@@ -100,8 +77,12 @@ class Trainer:
     def logger(self, q, finished):
         configure("{}/tb".format(self.args.log_path), flush_secs=30)
         while finished.value < 1:
-            (name, value, step) = q.get(block=True)
-            tb_log_value(name, value, step=step)
+            try:
+                (name, value, step) = q.get(block=False)
+                tb_log_value(name, value, step=step)
+            except queue.Empty:
+                pass
+        print("Logging loop closed")
 
     def log_value(self, name, value, step):
         self.log_queue.put((name, value, step))
@@ -430,6 +411,8 @@ class Trainer:
         finished_training.value = 10
         self.log_queue.close()
         time.sleep(5)
+        # print("Waiting for queue to finish")
+        # p_log.join()
         p_log.join(timeout=1)
 
         print("\nFinished\n")
