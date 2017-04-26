@@ -131,45 +131,84 @@ class DensityModel(object):
         # For efficiency, we'll pre-process the frame into our internal representation.
         self.symbol_frame = np.zeros((frame_shape[0:2]), dtype=np.uint32)
 
-        context_length = len(context_functor(self.symbol_frame, -1, -1))
-        self.models = np.zeros(frame_shape[0:2], dtype=object)
-        if conv:
-            self.convolutional_model = model.CTS(context_length=context_length, alphabet=alphabet)
-        self.models[0, 0] = model(16, 4, frame_shape[0], frame_shape[1])
-        for y in range(frame_shape[0]):
-            for x in range(frame_shape[1]):
-                if conv:
-                    self.models[y, x] = self.convolutional_model
-                else:
-                    self.models[y, x] = model(16, 4, frame_shape[0], frame_shape[1])
-                    # self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
-
+        # context_length = len(context_functor(self.symbol_frame, -1, -1))
+        self.model = model(16, 4, frame_shape[0], frame_shape[1])
+        # self.models = np.zeros(frame_shape[0:2], dtype=object)
+        # if conv:
+            # self.convolutional_model = model.CTS(context_length=context_length, alphabet=alphabet)
+        # self.models[0, 0] = model(16, 4, frame_shape[0], frame_shape[1])
+        # for y in range(frame_shape[0]):
+        #     for x in range(frame_shape[1]):
+        #         if conv:
+        #             self.models[y, x] = self.convolutional_model
+        #         else:
+        #             self.models[y, x] = model(16, 4, frame_shape[0], frame_shape[1])
+        #             # self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
         self.context_functor = context_functor
+        self.contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+
+    def new_old(self, frame, keep=True):
+        gray_to_symbols(frame, self.symbol_frame)
+        total_log_probability = 0.0
+        log_probs = np.zeros(shape=self.symbol_frame.shape)
+
+        # contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+        for y in range(self.symbol_frame.shape[0]):
+            for x in range(self.symbol_frame.shape[1]):
+                context = self.context_functor(self.symbol_frame, y, x)
+                colour = self.symbol_frame[y, x]
+                self.contexts_vector[y, x, :] = context + [colour]
+
+        # print(contexts_vector)
+        log_probs = self.model.new_old(self.contexts_vector, keep=keep)
+        total_log_probability = np.sum(log_probs)
+
+        # print(log_probs)
+        return total_log_probability, log_probs
+
+    def log_prob(self, frame):
+        gray_to_symbols(frame, self.symbol_frame)
+        total_log_probability = 0.0
+        log_probs = np.zeros(shape=self.symbol_frame.shape)
+
+        # contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+        for y in range(self.symbol_frame.shape[0]):
+            for x in range(self.symbol_frame.shape[1]):
+                context = self.context_functor(self.symbol_frame, y, x)
+                colour = self.symbol_frame[y, x]
+                self.contexts_vector[y, x, :] = context + [colour]
+
+        # print(contexts_vector)
+        log_probs = self.model.log_prob(self.contexts_vector)
+        total_log_probability = np.sum(log_probs)
+
+        return total_log_probability, log_probs
 
     def update(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
         total_log_probability = 0.0
         log_probs = np.zeros(shape=self.symbol_frame.shape)
 
-        contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+        # contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):
                 context = self.context_functor(self.symbol_frame, y, x)
                 colour = self.symbol_frame[y, x]
-                contexts_vector[y, x, :] = context + [colour]
+                self.contexts_vector[y, x, :] = context + [colour]
 
-        print(contexts_vector)
-        log_prob = self.models[0, 0].log_prob(contexts_vector, None)
-
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                colour = self.symbol_frame[y, x]
-                log_val = self.models[y, x].log_prob(context=context, symbol=colour)
-                total_log_probability += log_val
-                log_probs[y, x] = log_val
+        # print(contexts_vector)
+        log_probs = self.model.update(self.contexts_vector)
+        total_log_probability = np.sum(log_probs)
 
         return total_log_probability, log_probs
+        # for y in range(self.symbol_frame.shape[0]):
+        #     for x in range(self.symbol_frame.shape[1]):
+        #         context = self.context_functor(self.symbol_frame, y, x)
+        #         colour = self.symbol_frame[y, x]
+        #         log_val = self.models[y, x].log_prob(context=context, symbol=colour)
+        #         total_log_probability += log_val
+        #         log_probs[y, x] = log_val
+
 
     # def log_prob(self, frame):
     #     gray_to_symbols(frame, self.symbol_frame)
@@ -185,19 +224,19 @@ class DensityModel(object):
 
     #     return total_log_probability, log_probs
 
-    def log_prob(self, frame):
-        gray_to_symbols(frame, self.symbol_frame)
-        total_log_probability = 0.0
-        log_probs = np.zeros(shape=self.symbol_frame.shape)
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                colour = self.symbol_frame[y, x]
-                log_val = self.models[y, x].update(context=context, symbol=colour)
-                total_log_probability += log_val
-                log_probs[y, x] = log_val
+    # def log_prob(self, frame):
+    #     gray_to_symbols(frame, self.symbol_frame)
+    #     total_log_probability = 0.0
+    #     log_probs = np.zeros(shape=self.symbol_frame.shape)
+    #     for y in range(self.symbol_frame.shape[0]):
+    #         for x in range(self.symbol_frame.shape[1]):
+    #             context = self.context_functor(self.symbol_frame, y, x)
+    #             colour = self.symbol_frame[y, x]
+    #             log_val = self.models[y, x].update(context=context, symbol=colour)
+    #             total_log_probability += log_val
+    #             log_probs[y, x] = log_val
 
-        return total_log_probability, log_probs
+    #     return total_log_probability, log_probs
 
     def sample(self):
         output_frame = np.zeros((*self.symbol_frame.shape, 1), dtype=np.float32)
