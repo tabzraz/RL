@@ -1,6 +1,7 @@
 import numpy as np
-import cts.model as model
-# from .CTW import CTW as model
+# import cts.model as model
+# from cts.model.CTS import model
+from .TreeDensity import TreeDensity as model
 
 def L_shaped_context(image, y, x):
     """This grabs the L-shaped context around a given pixel.
@@ -50,11 +51,11 @@ def dilations_context(image, y, x):
 
 
 def gray_to_symbol(channel):
-    return int(channel * 255)
+    return int(channel * 15)
 
 
 def symbol_to_gray(colour):
-    return colour / 255
+    return colour / 15
 
 
 def gray_to_symbols(frame, output):
@@ -134,19 +135,32 @@ class DensityModel(object):
         self.models = np.zeros(frame_shape[0:2], dtype=object)
         if conv:
             self.convolutional_model = model.CTS(context_length=context_length, alphabet=alphabet)
+        self.models[0, 0] = model(16, 4, frame_shape[0], frame_shape[1])
         for y in range(frame_shape[0]):
             for x in range(frame_shape[1]):
                 if conv:
                     self.models[y, x] = self.convolutional_model
                 else:
-                    self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
+                    self.models[y, x] = model(16, 4, frame_shape[0], frame_shape[1])
+                    # self.models[y, x] = model.CTS(context_length=context_length, alphabet=alphabet)
 
         self.context_functor = context_functor
 
-    def log_prob(self, frame):
+    def update(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
         total_log_probability = 0.0
         log_probs = np.zeros(shape=self.symbol_frame.shape)
+
+        contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+        for y in range(self.symbol_frame.shape[0]):
+            for x in range(self.symbol_frame.shape[1]):
+                context = self.context_functor(self.symbol_frame, y, x)
+                colour = self.symbol_frame[y, x]
+                contexts_vector[y, x, :] = context + [colour]
+
+        print(contexts_vector)
+        log_prob = self.models[0, 0].log_prob(contexts_vector, None)
+
         for y in range(self.symbol_frame.shape[0]):
             for x in range(self.symbol_frame.shape[1]):
                 context = self.context_functor(self.symbol_frame, y, x)
@@ -157,7 +171,21 @@ class DensityModel(object):
 
         return total_log_probability, log_probs
 
-    def update(self, frame):
+    # def log_prob(self, frame):
+    #     gray_to_symbols(frame, self.symbol_frame)
+    #     total_log_probability = 0.0
+    #     log_probs = np.zeros(shape=self.symbol_frame.shape)
+    #     for y in range(self.symbol_frame.shape[0]):
+    #         for x in range(self.symbol_frame.shape[1]):
+    #             context = self.context_functor(self.symbol_frame, y, x)
+    #             colour = self.symbol_frame[y, x]
+    #             log_val = self.models[y, x].log_prob(context=context, symbol=colour)
+    #             total_log_probability += log_val
+    #             log_probs[y, x] = log_val
+
+    #     return total_log_probability, log_probs
+
+    def log_prob(self, frame):
         gray_to_symbols(frame, self.symbol_frame)
         total_log_probability = 0.0
         log_probs = np.zeros(shape=self.symbol_frame.shape)
