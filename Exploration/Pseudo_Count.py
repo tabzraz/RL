@@ -1,10 +1,10 @@
-from .CTS import DensityModel, L_shaped_context
+# from .CTS import DensityModel, L_shaped_context
+from .CTS import TreeDensity
 import os
 from scipy.misc import imresize as resize
 import pickle
 import numpy as np
 from math import sqrt
-from copy import deepcopy
 
 
 class PseudoCount:
@@ -17,7 +17,8 @@ class PseudoCount:
         self.cts_model_shape = (args.cts_size, args.cts_size)
         print("\nCTS Model has size: " + str(self.cts_model_shape) + "\n")
 
-        self.cts_model = DensityModel(frame_shape=self.cts_model_shape, context_functor=L_shaped_context, conv=args.cts_conv)
+        # self.cts_model = DensityModel(frame_shape=self.cts_model_shape, context_functor=L_shaped_context, conv=args.cts_conv)
+        self.model = TreeDensity(frame_shape=self.cts_model_shape)
         os.makedirs("{}/cts_model".format(args.log_path))
 
     def bonus(self, state, dont_remember=False):
@@ -39,7 +40,7 @@ class PseudoCount:
         # if dont_remember:
             # self.cts_model = old_cts_model
 
-        pg, pg_pixel = self.cts_model.new_old(state_resized, keep=not dont_remember)
+        pg, pg_pixel = self.model.new_old(state_resized, keep=not dont_remember)
 
         # pg = rho_new - rho_old
 
@@ -50,6 +51,7 @@ class PseudoCount:
         pg = min(10, pg)
         pg = max(0.001, pg)
         pseudo_count = 1 / (np.expm1(pg))
+        extra_info["Pseudo_Count"] = pseudo_count
 
         bonus = self.beta / sqrt(pseudo_count + 0.01)
         extra_info["Bonus"] = bonus
@@ -58,4 +60,4 @@ class PseudoCount:
 
     def save_model(self):
         with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
-                pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)

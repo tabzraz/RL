@@ -164,6 +164,7 @@ class Trainer:
                 self.Exploration_Bonus.append(bonus)
                 if self.args.tb and self.T % self.args.tb_interval == 0:
                     self.log_value("Count_Bonus", bonus, step=self.T)
+                    self.log_value("Count_PseudoCounts", extra_info["Pseudo_Count"], step=self.T)
 
             self.max_exp_bonus = max(self.max_exp_bonus, bonus)
             extra_info["Max_Bonus"] = self.max_exp_bonus
@@ -263,6 +264,11 @@ class Trainer:
                 print(e_steps, end="\r")
                 a = self.select_random_action()
 
+                # Prime the exploration model a little
+                bonus = 0
+                if self.args.count:
+                    bonus, _ = self.exp_model.bonus(s)
+
                 sn, reward, terminated, env_info = env.step(a)
                 e_steps += 1
 
@@ -270,7 +276,7 @@ class Trainer:
                     terminated = True
                     break
 
-                self.agent.experience(s, a, reward, sn, 1, terminated)
+                self.agent.experience(s, a, reward + bonus, sn, 1, terminated)
                 s = sn
 
         print("Exploratory phase finished. Starting learning.\n")
@@ -345,7 +351,7 @@ class Trainer:
                 # TODO: Cleanup
                 new_epsilon = self.epsilon
                 if self.args.count_epsilon:
-                    new_epsilon = max(self.epsilon, exp_bonus / self.args.beta)
+                    new_epsilon = max(self.epsilon, exp_bonus / self.max_exp_bonus)
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
                 action, action_info = self.select_action(state, new_epsilon)
