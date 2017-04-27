@@ -3,6 +3,8 @@ import datetime
 import gym
 import os
 import time
+import tarfile
+import shutil
 import Envs
 from Utils.Utils import time_str
 from RL_Trainer_PyTorch import Trainer
@@ -53,6 +55,7 @@ parser.add_argument("--no-visitations", action="store_true", default=False)
 parser.add_argument("--interval-size", type=int, default=10)
 parser.add_argument("--stale-limit", type=int, default=int(1e6))
 parser.add_argument("--count-epsilon", action="store_true", default=False)
+parser.add_argument("--tar", action="store_true", default=False)
 args = parser.parse_args()
 
 # TB
@@ -78,6 +81,7 @@ LOGDIR = "{}/{}".format(args.logdir, NAME_DATE)
 
 while os.path.exists(LOGDIR):
     LOGDIR += "_"
+    NAME_DATE += "_"
 
 args.log_path = LOGDIR
 
@@ -111,3 +115,12 @@ trainer.train()
 end_time = time.time()
 
 print("Exiting after {}\n".format(time_str(end_time - start_time)))
+
+if args.tar:
+    print("Taring directory.")
+    with tarfile.open(LOGDIR + ".tar.gz", mode="w:gz") as archive:
+        archive.add(LOGDIR, arcname=NAME_DATE)
+    print("Finished taring.")
+    print("Removing directory {}".format(LOGDIR))
+    shutil.rmtree(LOGDIR, ignore_errors=True)
+    print("Directory Removed.")

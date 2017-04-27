@@ -19,7 +19,7 @@ class PseudoCount:
 
         # self.cts_model = DensityModel(frame_shape=self.cts_model_shape, context_functor=L_shaped_context, conv=args.cts_conv)
         self.model = TreeDensity(frame_shape=self.cts_model_shape)
-        os.makedirs("{}/cts_model".format(args.log_path))
+        os.makedirs("{}/exploration_model".format(args.log_path))
 
     def bonus(self, state, dont_remember=False):
         extra_info = {}
@@ -59,5 +59,7 @@ class PseudoCount:
         return bonus, extra_info
 
     def save_model(self):
-        with open("{}/cts_model/cts_model_end.pkl".format(self.args.log_path), "wb") as file:
-            pickle.dump(self.cts_model, file, pickle.HIGHEST_PROTOCOL)
+        pass
+        # The tree model takes up TOO MUCH space to store (~800mb!)
+        # with open("{}/exploration_model/model_end.pkl".format(self.args.log_path), "wb") as file:
+            # pickle.dump(self.model, file, pickle.HIGHEST_PROTOCOL)
