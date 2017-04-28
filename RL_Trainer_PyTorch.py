@@ -57,6 +57,7 @@ class Trainer:
         self.DQN_Grad_Norm = []
         self.Exploration_Bonus = []
         self.Player_Positions = []
+        self.Visited_States = set()
 
         self.Last_T_Logged = 1
         self.Last_Ep_Logged = 1
@@ -312,6 +313,13 @@ class Trainer:
             if "TD_Error" in train_info:
                 self.log_value("DQN/TD_Error", train_info["TD_Error"], step=self.T)
 
+    def visitations(self):
+        player_pos = self.env.log_visitation()
+        self.Player_Positions.append(player_pos)
+        self.Visited_States.add(player_pos)
+        if self.args.tb and self.T % self.args.tb_interval == 0:
+            self.log_value("States_Visited", len(self.Visited_States), step=self.T)
+
 
 ######################
 # Training procedure #
@@ -374,8 +382,7 @@ class Trainer:
                         video_states.append(debug_state)
 
                 if self.args.visitations:
-                    player_pos = self.env.log_visitation()
-                    self.Player_Positions.append(player_pos)
+                    self.visitations()
 
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
