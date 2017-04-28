@@ -46,6 +46,7 @@ class Trainer:
         self.log_queue = Queue_MP()
 
         self.eval_video_T = -self.args.t_max
+        self.training_video_T = -self.args.t_max
 
         # Stuff to log
         self.Q_Values = []
@@ -158,7 +159,7 @@ class Trainer:
         extra_info = {}
 
         if self.args.count:
-            bonus, extra_info = self.exp_model.bonus(state)
+            bonus, extra_info = self.exp_model.bonus(state, dont_remember=not training)
 
             if training:
                 self.Exploration_Bonus.append(bonus)
@@ -347,6 +348,9 @@ class Trainer:
 
             self.print_time()
 
+            will_save_states = self.args.eval_images and self.T - self.training_video_T > (self.args.t_max // self.args.eval_images_interval)
+            video_states = []
+
             while not episode_finished:
                 exp_bonus, exp_info = self.exploration_bonus(state)
                 # TODO: Cleanup
@@ -357,13 +361,17 @@ class Trainer:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
                 action, action_info = self.select_action(state, new_epsilon)
 
-                if self.args.render:
+                if self.args.render or will_save_states:
                     debug_info = {}
                     debug_info.update(action_info)
                     debug_info.update(exp_info)
-                    if self.args.slow_render:
-                        time.sleep(0.1)
-                    self.env.debug_render(debug_info)
+                    if self.args.render:
+                        if self.args.slow_render:
+                            time.sleep(0.1)
+                        self.env.debug_render(debug_info)
+                    if will_save_states:
+                        debug_state = self.env.debug_render(debug_info, mode="rgb_array")
+                        video_states.append(debug_state)
 
                 if self.args.visitations:
                     player_pos = self.env.log_visitation()
@@ -402,6 +410,10 @@ class Trainer:
             self.end_of_episode()
 
             self.save_values()
+
+            if will_save_states:
+                self.save_video("{}/training/Training_Policy__T_{}__Ep_{}".format(self.args.log_path, self.T, self.episode), video_states)
+                self.training_video_T = self.T
 
         self.end_of_training_save()
 

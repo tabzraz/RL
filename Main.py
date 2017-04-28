@@ -91,6 +91,8 @@ if not os.path.exists(LOGDIR):
     os.makedirs(LOGDIR)
 if not os.path.exists("{}/logs".format(LOGDIR)):
     os.makedirs("{}/logs".format(LOGDIR))
+if not os.path.exists("{}/training".format(LOGDIR)):
+    os.makedirs("{}/training".format(LOGDIR))
 if not os.path.exists("{}/evals".format(LOGDIR)):
     os.makedirs("{}/evals".format(LOGDIR))
 if not os.path.exists("{}/exp_bonus".format(LOGDIR)):
