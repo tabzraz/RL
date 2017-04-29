@@ -56,6 +56,8 @@ parser.add_argument("--interval-size", type=int, default=10)
 parser.add_argument("--stale-limit", type=int, default=int(1e6))
 parser.add_argument("--count-epsilon", action="store_true", default=False)
 parser.add_argument("--tar", action="store_true", default=False)
+parser.add_argument("--no-frontier", action="store_true", default=False)
+parser.add_argument("--frontier-interval", type=int, default=100)
 args = parser.parse_args()
 
 # TB
@@ -64,6 +66,8 @@ args.tb = not args.no_tb
 args.eval_images = not args.no_eval_images
 # Logging the visitations and exploration bonuses
 args.visitations = not args.no_visitations
+# No frontier vis
+args.frontier = not args.no_frontier
 # Model
 if args.model == "":
     args.model = args.env

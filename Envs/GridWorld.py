@@ -251,6 +251,44 @@ class GridWorld(gym.Env):
             colour_images.append(colour_maze.astype(np.uint8))
         return colour_images
 
+    def frontier(self, exp_model, args):
+        if self.num_goals > 1:
+            raise Exception("Cannot do frontier for >1 goals atm")
+
+        canvas = np.zeros((self.grid.shape[0] * self.num_goals, self.grid.shape[1] * self.num_goals, 3))
+        grid_x = self.grid.shape[0]
+        grid_y = self.grid.shape[1]
+        grid = self.grid
+
+        for x in range(grid_x):
+            for y in range(grid_y):
+
+                if grid[x, y] == 1 or grid[x, y] == 2:
+                    # If the position is a wall the player cannot ever be there
+                    continue
+
+                state_copy = np.copy(self.grid)
+                state_copy[self.player_pos] = 0
+                state_copy[x, y] = 3
+                # print(state_copy)
+                state_copy = state_copy[:, :, np.newaxis] / 3
+
+                bonus, _ = exp_model.bonus(state_copy, dont_remember=True)
+                # print(x,y,bonus)
+                canvas[x, y, 0] = bonus
+
+        canvas /= np.max(canvas)
+
+        # Walls
+        for x in range(grid_x):
+            for y in range(grid_y):
+                if grid[x, y] == 1 or grid[x, y] == 2:
+                    canvas[x, y, :] = grid[x, y] / 3
+
+        canvas = np.clip(canvas, 0, 1) * 255
+
+        return canvas
+
 # # Methods
 # def environment_specific_stuff():
 #     if args.env.startswith("Maze"):

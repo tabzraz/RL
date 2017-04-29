@@ -48,6 +48,10 @@ class Trainer:
         self.eval_video_T = -self.args.t_max
         self.training_video_T = -self.args.t_max
 
+        # Frontier stuff
+        self.frontier_T = 0
+        self.frontier_images = []
+
         # Stuff to log
         self.Q_Values = []
         self.Episode_Rewards = []
@@ -221,6 +225,8 @@ class Trainer:
             bonuses = self.env.explorations(self.Player_Positions, self.Exploration_Bonus, self.max_exp_bonus)
             if bonuses is not None:
                 self.save_video("{}/exp_bonus/Bonuses__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), bonuses)
+            if len(self.frontier_images) > 0:
+                self.save_video("{}/exp_bonus/Frontier__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.frontier_images)
         visits = self.env.visitations(self.Player_Positions)
         if visits is not None:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), visits)
@@ -293,8 +299,8 @@ class Trainer:
             # Just in case its over 100 days
             time_left = min(time_left, 60 * 60 * 24 * 100)
             last_reward = "N\A"
-            if len(self.Episode_Rewards) > 10:
-                last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-10:-1]))
+            if len(self.Episode_Rewards) > 5:
+                last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-5:-1]))
             print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(self.episode, self.T, self.args.t_max, self.epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
     def epsilon_schedule(self):
@@ -319,6 +325,13 @@ class Trainer:
         self.Visited_States.add(player_pos)
         if self.args.tb and self.T % self.args.tb_interval == 0:
             self.log_value("States_Visited", len(self.Visited_States), step=self.T)
+
+    def frontier_vis(self):
+        if self.args.count and self.T - self.frontier_T > self.args.t_max // self.args.frontier_interval:
+            image = self.env.frontier(self.exp_model)
+            if image is not None:
+                self.frontier_images.append(image)
+            self.frontier_T = self.T
 
 
 ######################
@@ -384,6 +397,9 @@ class Trainer:
                 if self.args.visitations:
                     self.visitations()
 
+                if self.args.frontier:
+                    self.frontier_vis()
+
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
                 self.episode_steps += 1
@@ -405,7 +421,7 @@ class Trainer:
                 state = state_new
 
                 if not self.args.plain_print:
-                    print("\x1b[K" + "." * ((self.episode_steps // 20) % 40), end="\r")
+                    print("\x1b[K_{}_".format(self.T), end="\r")
 
             self.eval_agent()
 

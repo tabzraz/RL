@@ -24,17 +24,22 @@ class EnvWrapper(gym.Env):
         return self.wrapped_env.render(mode, close)
 
     def visitations(self, player_positions):
-        return self.wrapped_env.env.player_visits(player_positions, self.args)
         try:
             return self.wrapped_env.env.player_visits(player_positions, self.args)
         except AttributeError:
-            print("Attribute Error")
+            print("No visitations for this environment")
+
+    def frontier(self, exp_model):
+        try:
+            return self.wrapped_env.env.frontier(exp_model, self.args)
+        except AttributeError:
+            print("No frontier for this environment")
 
     def explorations(self, player_positions, exploration_bonuses, max_bonus):
         try:
             return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, max_bonus, self.args)
         except AttributeError:
-            pass
+            print("No bonus landscape for this environment")
 
     def log_visitation(self):
         try:
