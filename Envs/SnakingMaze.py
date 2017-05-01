@@ -4,9 +4,10 @@ import random
 
 class SnakingMaze(GridWorld):
 
-    def __init__(self, size, rnd_seed=13):
+    def __init__(self, size, rnd_seed=13, corridor_width=10):
         self.size = size
         self.rnd_seed = rnd_seed
+        self.corridor_width = corridor_width
         super().__init__()
         print("Snaking maze of size:", self.grid.shape)
 
@@ -24,6 +25,7 @@ class SnakingMaze(GridWorld):
         # Copied from https://en.wikipedia.org/wiki/Maze_generation_algorithm#Python_code_examples
         num_rows = int(self.size) # number of rows
         num_cols = int(self.size) # number of columns
+        corridor_width = self.corridor_width
         random.seed(self.rnd_seed)
         # The array M is going to hold the array information for each cell.
         # The first four coordinates tell if walls exist on those sides 
@@ -32,13 +34,16 @@ class SnakingMaze(GridWorld):
         M = np.zeros((num_rows,num_cols,5), dtype=np.uint8)
 
         # The array image is going to be the output image to display
-        image = np.zeros((num_rows*10,num_cols*10), dtype=np.uint8)
+        image = np.zeros((num_rows*corridor_width,num_cols*corridor_width), dtype=np.uint8)
 
         # Set starting row and column
         r = 0
         c = 0
         history = [(r,c)] # The history is the stack of visited locations
 
+        max_history_len = 0
+        max_pair = (0, 0)
+        offset = (0, 0)
         # Trace a path though the cells of the maze and open walls along the path.
         # We do this with a while loop, repeating the loop until there is no history, 
         # which would mean we backtracked to the initial start.
@@ -55,6 +60,9 @@ class SnakingMaze(GridWorld):
             if r < num_rows-1 and M[r+1,c,4] == 0:
                 check.append('D')    
             
+            if len(history) > max_history_len:
+                max_pair = (r, c)
+                max_history_len = len(history)
             if len(check): # If there is a valid cell to move to.
                 # Mark the walls between cells as open if we move
                 history.append([r,c])
@@ -89,15 +97,22 @@ class SnakingMaze(GridWorld):
         for row in range(0,num_rows):
             for col in range(0,num_cols):
                 cell_data = M[row,col]
-                for i in range(10*row+1,10*row+9):
-                    image[i,range(10*col+1,10*col+9)] = 1
-                    if cell_data[0] == 1: image[range(10*row+1,10*row+9),10*col] = 1
-                    if cell_data[1] == 1: image[10*row,range(10*col+1,10*col+9)] = 1
-                    if cell_data[2] == 1: image[range(10*row+1,10*row+9),10*col+9] = 1
-                    if cell_data[3] == 1: image[10*row+9,range(10*col+1,10*col+9)] = 1
+                for i in range(corridor_width*row+1,corridor_width*row+corridor_width ):
+                    image[i,range(corridor_width*col+1,corridor_width*col+corridor_width)] = 1
+                    if cell_data[0] == 1: image[range(corridor_width*row+1,corridor_width*row+corridor_width ),corridor_width*col] = 1
+                    if cell_data[1] == 1: image[corridor_width*row,range(corridor_width*col+1,corridor_width*col+corridor_width )] = 1
+                    if cell_data[2] == 1: image[range(corridor_width*row+1,corridor_width*row+corridor_width ),corridor_width*col+corridor_width - 1] = 1
+                    if cell_data[3] == 1: image[corridor_width*row+corridor_width - 1,range(corridor_width*col+1,corridor_width*col+corridor_width )] = 1
 
         image = 1 - image
 
+        # Fill in the bottom and right with walls
+        image[-1, :] = 1
+        image[:, -1] = 1
+
         image[1, 1] = 3
-        image[-2, -2] = 2
+        # print(max_pair)
+        rr, cc = max_pair
+        image[rr * corridor_width + corridor_width - 2, cc * corridor_width + corridor_width - 2] = 2
+        # image[-2, -2] = 2
         self.grid = image
