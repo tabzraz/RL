@@ -46,6 +46,11 @@ class Trainer:
         self.log_queue = Queue_MP()
 
         self.eval_video_T = -self.args.t_max
+        self.training_video_T = -self.args.t_max
+
+        # Frontier stuff
+        self.frontier_T = 0
+        self.frontier_images = []
 
         # Stuff to log
         self.Q_Values = []
@@ -56,6 +61,7 @@ class Trainer:
         self.DQN_Grad_Norm = []
         self.Exploration_Bonus = []
         self.Player_Positions = []
+        self.Visited_States = set()
 
         self.Last_T_Logged = 1
         self.Last_Ep_Logged = 1
@@ -158,7 +164,7 @@ class Trainer:
         extra_info = {}
 
         if self.args.count:
-            bonus, extra_info = self.exp_model.bonus(state)
+            bonus, extra_info = self.exp_model.bonus(state, dont_remember=not training)
 
             if training:
                 self.Exploration_Bonus.append(bonus)
@@ -219,6 +225,8 @@ class Trainer:
             bonuses = self.env.explorations(self.Player_Positions, self.Exploration_Bonus, self.max_exp_bonus)
             if bonuses is not None:
                 self.save_video("{}/exp_bonus/Bonuses__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), bonuses)
+            if len(self.frontier_images) > 0:
+                self.save_video("{}/exp_bonus/Frontier__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.frontier_images)
         visits = self.env.visitations(self.Player_Positions)
         if visits is not None:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), visits)
@@ -291,8 +299,8 @@ class Trainer:
             # Just in case its over 100 days
             time_left = min(time_left, 60 * 60 * 24 * 100)
             last_reward = "N\A"
-            if len(self.Episode_Rewards) > 10:
-                last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-10:-1]))
+            if len(self.Episode_Rewards) > 5:
+                last_reward = "{:.2f}".format(np.mean(self.Episode_Rewards[-5:-1]))
             print("\033[F\033[F\x1b[KEp: {:,}, T: {:,}/{:,}, Epsilon: {:.2f}, Reward: {}, \n\x1b[KElapsed: {}, Left: {}\n".format(self.episode, self.T, self.args.t_max, self.epsilon, last_reward, time_str(time_elapsed), time_str(time_left)), " " * 10, end="\r")
 
     def epsilon_schedule(self):
@@ -310,6 +318,20 @@ class Trainer:
                 self.log_value("DQN/Loss", train_info["Loss"], step=self.T)
             if "TD_Error" in train_info:
                 self.log_value("DQN/TD_Error", train_info["TD_Error"], step=self.T)
+
+    def visitations(self):
+        player_pos = self.env.log_visitation()
+        self.Player_Positions.append(player_pos)
+        self.Visited_States.add(player_pos)
+        if self.args.tb and self.T % self.args.tb_interval == 0:
+            self.log_value("States_Visited", len(self.Visited_States), step=self.T)
+
+    def frontier_vis(self):
+        if self.args.count and self.T - self.frontier_T > self.args.t_max // self.args.frontier_interval:
+            image = self.env.frontier(self.exp_model)
+            if image is not None:
+                self.frontier_images.append(image)
+            self.frontier_T = self.T
 
 
 ######################
@@ -347,6 +369,9 @@ class Trainer:
 
             self.print_time()
 
+            will_save_states = self.args.eval_images and self.T - self.training_video_T > (self.args.t_max // self.args.eval_images_interval)
+            video_states = []
+
             while not episode_finished:
                 exp_bonus, exp_info = self.exploration_bonus(state)
                 # TODO: Cleanup
@@ -357,17 +382,23 @@ class Trainer:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
                 action, action_info = self.select_action(state, new_epsilon)
 
-                if self.args.render:
+                if self.args.render or will_save_states:
                     debug_info = {}
                     debug_info.update(action_info)
                     debug_info.update(exp_info)
-                    if self.args.slow_render:
-                        time.sleep(0.1)
-                    self.env.debug_render(debug_info)
+                    if self.args.render:
+                        if self.args.slow_render:
+                            time.sleep(0.1)
+                        self.env.debug_render(debug_info)
+                    if will_save_states:
+                        debug_state = self.env.debug_render(debug_info, mode="rgb_array")
+                        video_states.append(debug_state)
 
                 if self.args.visitations:
-                    player_pos = self.env.log_visitation()
-                    self.Player_Positions.append(player_pos)
+                    self.visitations()
+
+                if self.args.frontier:
+                    self.frontier_vis()
 
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
@@ -390,7 +421,7 @@ class Trainer:
                 state = state_new
 
                 if not self.args.plain_print:
-                    print("\x1b[K" + "." * ((self.episode_steps // 20) % 40), end="\r")
+                    print("\x1b[K_{}_".format(self.T), end="\r")
 
             self.eval_agent()
 
@@ -402,6 +433,10 @@ class Trainer:
             self.end_of_episode()
 
             self.save_values()
+
+            if will_save_states:
+                self.save_video("{}/training/Training_Policy__T_{}__Ep_{}".format(self.args.log_path, self.T, self.episode), video_states)
+                self.training_video_T = self.T
 
         self.end_of_training_save()
 
