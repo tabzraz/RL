@@ -48,7 +48,7 @@ class PseudoCount:
 
         extra_info["Pixel_PG"] = pg_pixel
 
-        pg = min(10, pg)
+        pg = min(100, pg)
         pg = max(0.001, pg)
         pseudo_count = 1 / (np.expm1(pg))
         extra_info["Pseudo_Count"] = pseudo_count
