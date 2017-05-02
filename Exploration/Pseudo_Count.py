@@ -18,10 +18,14 @@ class PseudoCount:
         print("\nCTS Model has size: " + str(self.cts_model_shape) + "\n")
 
         # self.cts_model = DensityModel(frame_shape=self.cts_model_shape, context_functor=L_shaped_context, conv=args.cts_conv)
-        self.model = TreeDensity(frame_shape=self.cts_model_shape)
+        self.actions = 1
+        if self.args.count_state_action:
+            self.actions = self.args.actions
+        self.models = [TreeDensity(frame_shape=self.cts_model_shape) for _ in range(self.actions)]
+
         os.makedirs("{}/exploration_model".format(args.log_path))
 
-    def bonus(self, state, dont_remember=False):
+    def bonus(self, state, action=0, dont_remember=False):
         extra_info = {}
 
         if state.shape[2] != 1:
@@ -40,7 +44,7 @@ class PseudoCount:
         # if dont_remember:
             # self.cts_model = old_cts_model
 
-        pg, pg_pixel = self.model.new_old(state_resized, keep=not dont_remember)
+        pg, pg_pixel = self.models[action].new_old(state_resized, keep=not dont_remember)
 
         # pg = rho_new - rho_old
 

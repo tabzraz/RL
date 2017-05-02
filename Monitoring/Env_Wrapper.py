@@ -99,6 +99,7 @@ class EnvWrapper(gym.Env):
 
     def draw_q_values(self, info, width, height):
         image = np.zeros((width, height, 3))
+        red = (255, 0, 0)
         yellow = (255, 255, 0)
         green = (0, 255, 0)
         blue = (0, 0, 255)
@@ -109,6 +110,9 @@ class EnvWrapper(gym.Env):
         min_q_value = info["Min_Q_Value"]
         chosen_action = info["Action"]
         epsilon = info["Epsilon"]
+        forced_action = -1
+        if "Forced_Action" in info:
+            forced_action = info["Forced_Action"]
 
         q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * (height - 4)) + 4 for q_val in q_values]
         greedy_action = np.argmax(q_values)
@@ -116,7 +120,9 @@ class EnvWrapper(gym.Env):
         bar_width = int(width / actions)
 
         for i, q_size in enumerate(q_val_sizes):
-            if i == greedy_action:
+            if i == forced_action:
+                q_color = red
+            elif i == greedy_action:
                 q_color = yellow
             elif i == chosen_action:
                 q_color = green

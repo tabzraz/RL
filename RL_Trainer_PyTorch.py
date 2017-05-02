@@ -132,7 +132,7 @@ class Trainer:
                     debug_info = {}
                     debug_info.update(action_info)
                     if self.args.count:
-                        exp_bonus, exp_info = self.exploration_bonus(state, training=False)
+                        exp_bonus, exp_info = self.exploration_bonus(state, action, training=False)
                         exp_info["Max_Bonus"] = self.max_exp_bonus
                         debug_info.update(exp_info)
                     debug_state = env.debug_render(debug_info, mode="rgb_array")
@@ -159,14 +159,17 @@ class Trainer:
                     self.log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon_value), ep_reward, step=self.T)
                     self.log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon_value), steps, step=self.T)
 
-    def exploration_bonus(self, state, training=True):
+    def exploration_bonus(self, state, action, training=True):
 
         bonus = 0
         extra_info = {}
 
         if self.args.count:
-            bonus, extra_info = self.exp_model.bonus(state, dont_remember=not training)
+            if not self.args.count_state_action:
+                action = 0
+            bonus, extra_info = self.exp_model.bonus(state, action, dont_remember=not training)
 
+            # TODO: Log for different actions
             if training:
                 self.Exploration_Bonus.append(bonus)
                 if self.args.tb and self.T % self.args.tb_interval == 0:
@@ -179,7 +182,7 @@ class Trainer:
             # Save suprising states after the first quarter of training
             if self.T > self.args.t_max / 4 and bonus >= self.args.exp_bonus_save * self.max_exp_bonus:
                 image = self.env.debug_render(extra_info, mode="rgb_array")
-                self.save_image("{}/exp_bonus/Ep_{}__T_{}__Bonus_{:.3f}".format(self.args.log_path, self.episode, self.T, bonus), image)
+                self.save_image("{}/exp_bonus/Ep_{}__T_{}__Action_{}__Bonus_{:.3f}".format(self.args.log_path, self.episode, self.T, action, bonus), image)
 
         return bonus, extra_info
 
@@ -374,14 +377,18 @@ class Trainer:
             video_states = []
 
             while not episode_finished:
-                exp_bonus, exp_info = self.exploration_bonus(state)
                 # TODO: Cleanup
                 new_epsilon = self.epsilon
                 if self.args.count_epsilon:
+                    exp_bonus, exp_info = self.exploration_bonus(state, action=0)
                     new_epsilon = max(self.epsilon, self.args.epsilon_scaler * exp_bonus / self.max_exp_bonus)
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
+
                 action, action_info = self.select_action(state, new_epsilon)
+
+                if not self.args.count_epsilon:
+                    exp_bonus, exp_info = self.exploration_bonus(state, action)
 
                 if self.args.render or will_save_states:
                     debug_info = {}

@@ -59,8 +59,15 @@ parser.add_argument("--epsilon-scaler", type=float, default=2)
 parser.add_argument("--tar", action="store_true", default=False)
 parser.add_argument("--no-frontier", action="store_true", default=False)
 parser.add_argument("--frontier-interval", type=int, default=100)
+parser.add_argument("--count-state-action", action="store_true", default=False)
+parser.add_argument("--force-low-count-action", action="store_true", default=False)
+parser.add_argument("--min-action-count", type=int, default=10)
+parser.add_argument("--optimistic-init", action="store_true", default=False)
+parser.add_argument("--optimistic-scaler", type=float, default=10)
 args = parser.parse_args()
 
+if args.force_low_count_action or args.optimistic_init:
+    args.count_state_action = True
 # TB
 args.tb = not args.no_tb
 # Saving the evaluation policies as images

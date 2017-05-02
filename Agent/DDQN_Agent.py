@@ -49,6 +49,7 @@ class DDQN_Agent:
     def act(self, state, epsilon, exp_model):
         self.T += 1
         self.dqn.eval()
+        orig_state = state
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
         q_values_numpy = q_values.numpy()
@@ -56,10 +57,27 @@ class DDQN_Agent:
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
 
+        if self.args.optimistic_init:
+            for a in range(self.args.actions):
+                _, info = exp_model.bonus(orig_state, a, dont_remember=True)
+                action_pseudo_count = info["Pseudo_Count"]
+                q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
         else:
             action = q_values.max(0)[1][0]  # Torch...
+
+        if self.args.force_low_count_action:
+            # Calculate the counts for each actions
+            for a in range(self.args.actions):
+                _, info = exp_model.bonus(orig_state, a, dont_remember=True)
+                action_pseudo_count = info["Pseudo_Count"]
+                # Pick the first one out of simplicity
+                if action_pseudo_count < self.args.min_action_count:
+                    action = a
+                    extra_info["Forced_Action"] = a
+                    break
 
         extra_info["Action"] = action
 
