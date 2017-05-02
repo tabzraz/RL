@@ -430,6 +430,8 @@ class Trainer:
 
                 if not self.args.plain_print:
                     print("\x1b[K_{}_".format(self.T), end="\r")
+                    if self.T % 1000 == 0:
+                        self.print_time()
 
             self.eval_agent()
 

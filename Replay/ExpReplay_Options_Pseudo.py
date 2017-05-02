@@ -1,31 +1,65 @@
 import numpy as np
 import collections
+from .Binary_Heap import BinaryHeap
 
 
 class ExperienceReplay_Options_Pseudo:
 
     Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t")
 
-    def __init__(self, N, pseudo_limit, exp_model):
+    def __init__(self, N, pseudo_limit, exp_model, priority=False):
         self.N = N
-        self.Exps = []
+        self.Exps = [None for _ in range(N)]
         self.pseudo_limit = pseudo_limit
         self.exp_model = exp_model
         self.T = 0
+        self.storing_index = 0
+        self.experiences_stored = 0
+
+        self.priority = priority
+        if self.priority:
+            self.alpha = 0.7
+            self.priorities = BinaryHeap(N)
 
     def Clear(self):
-        self.Exps = []
+        self.Exps = [None for _ in range(self.N)]
+        self.storing_index = 0
+        self.experiences_stored = 0
 
     def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0):
-        if len(self.Exps) >= self.N:
-            self.Exps.pop(0)
+        if self.storing_index >= self.N:
+            self.storing_index = 0
+        # if len(self.Exps) >= self.N:
+            # self.Exps.pop(0)
         # Make copies just in case
         new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T)
-        self.Exps.append(new_exp)
-        # self.Exps.append((np.copy(state_now), action, reward, np.copy(state_after), steps, terminal, psuedo_reward, self.T))
+        self.Exps[self.storing_index] = new_exp
+
+        if self.priority:
+            p = self.priorities.get_max_priority()
+            self.priorities.update(p, self.storing_index)
+            if self.storing_index % 1000 == 0:
+                self.priorities.balance_tree()
+
+        self.storing_index += 1
+        self.experiences_stored = max(self.experiences_stored, self.storing_index)
+
+    def sampling_distribution(self):
+        distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.experiences_stored)])
+        prob_sum = np.sum(distrib)
+        return distrib / prob_sum
+
+    def get_indices(self, size):
+        if self.priority:
+            distribution = self.sampling_distribution()
+            sampled_indices = np.random.choice([i + 1 for i in range(self.experiences_stored)], p=distribution, size=size)
+            indices = self.priorities.priority_to_experience(sampled_indices)
+        else:
+            indices = np.random.randint(low=0, high=self.experiences_stored, size=size)
+        return indices
 
     def Recompute_Pseudo_Counts(self, indices):
-        if self.exp_model is None:
+        if self.exp_model is None or self.pseudo_limit == 0:
             # print("No exp model")
             return
         for i in indices:
@@ -36,17 +70,28 @@ class ExperienceReplay_Options_Pseudo:
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T)
                 self.Exps[i] = new_exp
 
+    def Update_Indices(self, indices, ps):
+        if self.priority:
+            # print(ps)
+            for index, priority in zip(indices, ps):
+                # print(index, priority)
+                self.priorities.update(priority[0] + 0.00001, index)
+
     def Sample(self, size):
-        assert(size <= self.N)
-        if len(self.Exps) < size:
-            return self.Exps
-        indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        # assert(size <= self.N)
+        # if len(self.Exps) < size:
+            # return self.Exps
+        # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        self.T += 1
+        indices = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
         # sample = [self.Exps[i] for i in indices]
-        return [self.Exps[i] for i in indices]
+        return [self.Exps[i] for i in indices], indices
 
     def Sample_Sequence(self, size, seq_length):
-        indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        self.T += 1
+        indices = self.get_indices(size)
         states = []
         actions = []
         rewards = []
@@ -75,7 +120,8 @@ class ExperienceReplay_Options_Pseudo:
     def Sample_N(self, size, N, gamma):
         assert(size <= self.N)
         self.T += 1
-        indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        indices = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
         for index in indices:
@@ -100,4 +146,4 @@ class ExperienceReplay_Options_Pseudo:
             new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
             batch_to_return.append(new_exp)
         # [] for indices to match the prioritized replay
-        return batch_to_return
+        return batch_to_return, indices
