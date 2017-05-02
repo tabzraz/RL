@@ -20,6 +20,8 @@ class ExperienceReplay_Options_Pseudo:
         if self.priority:
             self.alpha = 0.7
             self.priorities = BinaryHeap(N)
+            self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
+            self.full_distrib = self.distrib / np.sum(self.distrib)
 
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
@@ -44,15 +46,17 @@ class ExperienceReplay_Options_Pseudo:
         self.storing_index += 1
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
 
-    def sampling_distribution(self):
-        distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.experiences_stored)])
-        prob_sum = np.sum(distrib)
-        return distrib / prob_sum
+    def get_sampling_distribution(self):
+        if self.experiences_stored < self.N:
+            partial = self.distrib[:self.experiences_stored]
+            return partial / np.sum(partial)
+        else:
+            return self.full_distrib
 
     def get_indices(self, size):
         if self.priority:
-            distribution = self.sampling_distribution()
-            sampled_indices = np.random.choice([i + 1 for i in range(self.experiences_stored)], p=distribution, size=size)
+            distribution = self.get_sampling_distribution()
+            sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
             indices = self.priorities.priority_to_experience(sampled_indices)
         else:
             indices = np.random.randint(low=0, high=self.experiences_stored, size=size)
