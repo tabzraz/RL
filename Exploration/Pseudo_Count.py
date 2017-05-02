@@ -48,9 +48,9 @@ class PseudoCount:
 
         extra_info["Pixel_PG"] = pg_pixel
 
-        # Don't want prediction gain to be too large
+        # Don't want prediction gain to be too large or too small
         pg = min(100, pg)
-        pg = max(0.001, pg)
+        pg = max(0.00001, pg)
         pseudo_count = 1 / (np.expm1(pg))
         extra_info["Pseudo_Count"] = pseudo_count
 

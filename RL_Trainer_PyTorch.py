@@ -97,8 +97,9 @@ class Trainer:
         name = name + ".gif"
         # TODO: Pad the images to macro block size
         images = [image.astype(np.uint8) for image in images]
-        # imageio.mimsave(name, images, subrectangles=True)
-        imageio.mimsave(name, images)
+        # Subrectangles to make the gifs smaller
+        imageio.mimsave(name, images, subrectangles=True)
+        # imageio.mimsave(name, images)
 
     def save_image(self, name, image):
         name = name + ".png"
@@ -377,7 +378,7 @@ class Trainer:
                 # TODO: Cleanup
                 new_epsilon = self.epsilon
                 if self.args.count_epsilon:
-                    new_epsilon = max(self.epsilon, exp_bonus / self.max_exp_bonus)
+                    new_epsilon = max(self.epsilon, self.args.epsilon_scaler * exp_bonus / self.max_exp_bonus)
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
                 action, action_info = self.select_action(state, new_epsilon)
