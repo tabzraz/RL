@@ -29,9 +29,9 @@ class EnvWrapper(gym.Env):
         except AttributeError:
             print("No visitations for this environment")
 
-    def frontier(self, exp_model):
+    def frontier(self, exp_model, max_bonus):
         try:
-            return self.wrapped_env.env.frontier(exp_model, self.args)
+            return self.wrapped_env.env.frontier(exp_model, self.args, max_bonus)
         except AttributeError:
             print("No frontier for this environment")
 

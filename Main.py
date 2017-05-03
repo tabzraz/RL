@@ -65,6 +65,7 @@ parser.add_argument("--min-action-count", type=int, default=10)
 parser.add_argument("--optimistic-init", action="store_true", default=False)
 parser.add_argument("--optimistic-scaler", type=float, default=10)
 parser.add_argument("--prioritized", "--priority", action="store_true", default=False)
+parser.add_argument("--no-exploration-bonus", "--no-exp-bonus", action="store_true", default=False)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:

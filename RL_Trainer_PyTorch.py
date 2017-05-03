@@ -332,7 +332,7 @@ class Trainer:
 
     def frontier_vis(self):
         if self.args.count and self.T - self.frontier_T > self.args.t_max // self.args.frontier_interval:
-            image = self.env.frontier(self.exp_model)
+            image = self.env.frontier(self.exp_model, max_bonus=self.max_exp_bonus)
             if image is not None:
                 self.frontier_images.append(image)
             self.frontier_T = self.T
@@ -419,6 +419,10 @@ class Trainer:
                     break
 
                 self.episode_reward += reward
+
+                if self.args.no_exploration_bonus:
+                    # 0 out the exploration bonus
+                    exp_bonus = 0
 
                 self.episode_bonus_only_reward += exp_bonus
 
