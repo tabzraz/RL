@@ -63,7 +63,7 @@ class ExperienceReplay_Options_Pseudo:
         return indices
 
     def Recompute_Pseudo_Counts(self, indices):
-        if self.exp_model is None or self.pseudo_limit == 0:
+        if self.exp_model is None or self.pseudo_limit >= self.N:
             # print("No exp model")
             return
         for i in indices:
