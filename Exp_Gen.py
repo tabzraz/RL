@@ -26,6 +26,7 @@ random_macros = False
 with_primitives = False
 files = 4
 write_to_files = True
+prioritized = False
 
 tar = True
 
@@ -53,6 +54,8 @@ for env in envs:
                                                         name += "_{}_Step".format(n_step)
                                                         name += "_LR_{}".format(lr)
                                                         name += "_Batch_{}_XpSize_{}k".format(batch_size, str(xp_replay_size)[:-3])
+                                                        if prioritized:
+                                                            name += "_Prioritized"
                                                         # if option:
                                                         #     if random_macros:
                                                         #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
@@ -75,6 +78,8 @@ for env in envs:
                                                         python_command = "python3 Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
                                                         python_command += " --eps-steps {}".format(eps_steps)
                                                         python_command += " --n-step {}".format(n_step)
+                                                        if prioritized:
+                                                            python_command += " --priority"
                                                         if count:
                                                             python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
                                                             python_command += " --stale-limit {}".format(stale)
