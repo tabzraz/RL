@@ -129,14 +129,18 @@ class ExperienceReplay_Options_Pseudo:
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
         for index in indices:
-            exps_to_use = self.Exps[index: index + N]
+            exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
             # Check for terminal states
-            index_up_to = N
+            index_up_to = min(self.experiences_stored, index + N) - index
             for i, exp in enumerate(exps_to_use):
+                # print(exp)
                 if exp.terminal:
                     index_up_to = i + 1
                     break
             exps_to_use = exps_to_use[:index_up_to]
+            # We then need to recompute the pseudo-counts for all of these
+            # print([ii for ii in range(index, index + index_up_to)])
+            self.Recompute_Pseudo_Counts([ii for ii in range(index, index + index_up_to)])
 
             state_now = exps_to_use[0].state
             action_now = exps_to_use[0].action
