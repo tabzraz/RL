@@ -144,7 +144,8 @@ class DDQN_Agent:
         # Taken from pytorch clip_grad_norm
         # Remove once the pip version it up to date with source
         gradient_norm = clip_grad_norm(self.dqn.parameters(), self.args.clip_value)
-        info["Norm"] = gradient_norm
+        if gradient_norm is not None:
+            info["Norm"] = gradient_norm
 
         self.optimizer.step()
 
