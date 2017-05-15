@@ -61,6 +61,7 @@ class DDQN_Agent:
             for a in range(self.args.actions):
                 _, info = exp_model.bonus(orig_state, a, dont_remember=True)
                 action_pseudo_count = info["Pseudo_Count"]
+                # TODO: Log the optimism bonuses
                 q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
 
         if np.random.random() < epsilon:
