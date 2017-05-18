@@ -215,7 +215,7 @@ class GridWorld(gym.Env):
 
             if np.max(canvas) == 0:
                 break
-            canvas = canvas / max_bonus
+            canvas = canvas / np.max(canvas)
 
             # TODO: Colour the unvisited goals
             for goal in self.goals_order:
