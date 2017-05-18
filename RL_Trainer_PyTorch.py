@@ -382,8 +382,8 @@ class Trainer:
                 # new_epsilon = self.epsilon
                 if self.args.count_epsilon:
                     exp_bonus, exp_info = self.exploration_bonus(state, action=0)
-                    if args.epsilon_decay:
-                        new_epsilon *= args.decay_rate
+                    if self.args.epsilon_decay:
+                        new_epsilon *= self.args.decay_rate
                     new_epsilon = max(self.epsilon, self.args.epsilon_scaler * exp_bonus / self.max_exp_bonus, new_epsilon)
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
