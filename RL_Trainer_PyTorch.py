@@ -368,6 +368,7 @@ class Trainer:
             self.episode_steps = 0
 
             self.epsilon = self.epsilon_schedule()
+            new_epsilon = self.epsilon
 
             self.start_of_episode()
 
@@ -378,10 +379,12 @@ class Trainer:
 
             while not episode_finished:
                 # TODO: Cleanup
-                new_epsilon = self.epsilon
+                # new_epsilon = self.epsilon
                 if self.args.count_epsilon:
                     exp_bonus, exp_info = self.exploration_bonus(state, action=0)
-                    new_epsilon = max(self.epsilon, self.args.epsilon_scaler * exp_bonus / self.max_exp_bonus)
+                    if args.epsilon_decay:
+                        new_epsilon *= args.decay_rate
+                    new_epsilon = max(self.epsilon, self.args.epsilon_scaler * exp_bonus / self.max_exp_bonus, new_epsilon)
                     if self.args.tb:
                         self.log_value("Epsilon/Count", new_epsilon, step=self.T)
 
