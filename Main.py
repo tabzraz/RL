@@ -73,7 +73,7 @@ args = parser.parse_args()
 if args.force_low_count_action or args.optimistic_init:
     args.count_state_action = True
 
-if args.count_state_action:
+if args.count_state_action or args.count_epsilon:
     args.count = True
 # TB
 args.tb = not args.no_tb
