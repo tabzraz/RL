@@ -9,8 +9,8 @@ class TreeDensity:
         self.x_shape = x_shape
         self.y_shape = y_shape
 
-        self.count = 1
         self.counts = np.ones(shape=(x_shape, y_shape, self.alphabet_size ** (self.context_length + 1)), dtype=np.int)
+        self.count = np.sum(self.counts)
         # print(self.counts.shape)
 
         self.to_index = np.array(list(reversed([alphabet_size ** i for i in range(context_length + 1)])))
