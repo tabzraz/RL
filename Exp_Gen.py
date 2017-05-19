@@ -26,7 +26,7 @@ gpu = True
 screen = False
 random_macros = False
 with_primitives = False
-files = 6
+files = 8
 prioritized = False
 
 write_to_files = True
@@ -91,6 +91,7 @@ for env in envs:
                                                                     python_command += " --stale-limit {}".format(stale)
                                                                     if eps_scaling:
                                                                         python_command += " --count-epsilon"
+                                                                        python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
                                                                     if cts_conv:
                                                                         python_command += " --cts-conv"
                                                                     if state_action_mode == "Plain":

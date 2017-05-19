@@ -68,6 +68,7 @@ parser.add_argument("--prioritized", "--priority", action="store_true", default=
 parser.add_argument("--no-exploration-bonus", "--no-exp-bonus", action="store_true", default=False)
 parser.add_argument("--epsilon-decay", action="store_true", default=False)
 parser.add_argument("--decay-rate", type=float, default=0.99)
+parser.add_argument("--negative-rewards", action="store_true", default=False)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
