@@ -16,7 +16,7 @@ epsilon_decay = [0.9999]
 n_steps = [100]
 optimism_scalers = [0.1]
 negative_rewards = [True]
-negative_reward_scaler = [0.2, 0.1, 0.01]
+negative_reward_scaler = [0.9, 0.7, 0.5]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = [None]#["Optimistic"]
