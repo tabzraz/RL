@@ -11,6 +11,15 @@ class SnakingMaze(GridWorld):
         super().__init__()
         print("Snaking maze of size:", self.grid.shape)
 
+        # Count number of states
+        num_states = 0
+        for x in range(self.grid.shape[0]):
+            for y in range(self.grid.shape[1]):
+                if self.grid[x, y] != 1:
+                    num_states += 1
+
+        print("Number of states: {}".format(num_states))
+
         # No negative reward at each timestep
         self.negative_reward = 0
 

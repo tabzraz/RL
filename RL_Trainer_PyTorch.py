@@ -13,7 +13,6 @@ from multiprocessing.sharedctypes import Value
 import queue
 
 from Utils.Utils import time_str
-from Models.Models import get_torch_models as get_models
 
 from Agent.DDQN_Agent import DDQN_Agent
 from Exploration.Pseudo_Count import PseudoCount
@@ -39,9 +38,7 @@ class Trainer:
         if args.count:
             self.exp_model = PseudoCount(args)
 
-        print("Getting Models.")
-        model = get_models(args.model)
-        self.agent = DDQN_Agent(model, args, self.exp_model)
+        self.agent = DDQN_Agent(args, self.exp_model)
 
         self.log_queue = Queue_MP()
 

@@ -4,11 +4,12 @@ from torch.optim import Adam
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
+from Models.Models import get_torch_models as get_models
 
 
 class DDQN_Agent:
 
-    def __init__(self, model, args, exp_model):
+    def __init__(self, args, exp_model):
         self.args = args
 
         # Exploration Model
@@ -18,6 +19,7 @@ class DDQN_Agent:
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, priority=self.args.prioritized)
 
         # DQN and Target DQN
+        model = get_models(args.model)
         self.dqn = model(actions=args.actions)
         self.target_dqn = model(actions=args.actions)
 
@@ -27,7 +29,7 @@ class DDQN_Agent:
             for s in weight.size():
                 weight_params *= s
             dqn_params += weight_params
-        print("\nDQN has {:,} parameters.".format(dqn_params))
+        print("DQN has {:,} parameters.".format(dqn_params))
 
         self.target_dqn.eval()
 
