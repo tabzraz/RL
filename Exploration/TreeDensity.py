@@ -9,7 +9,8 @@ class TreeDensity:
         self.x_shape = x_shape
         self.y_shape = y_shape
 
-        self.counts = np.ones(shape=(x_shape, y_shape, self.alphabet_size ** (self.context_length + 1)), dtype=np.int)
+        self.counts = np.ones(shape=(x_shape, y_shape, self.alphabet_size ** (self.context_length + 1)), dtype=np.uint32)
+        print("Memory for TreeDensity Model is {} GB".format(self.counts.nbytes / (1024 ** 3)))
         self.count = np.sum(self.counts)
         # print(self.counts.shape)
 

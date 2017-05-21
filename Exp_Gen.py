@@ -28,7 +28,7 @@ gpu = True
 screen = False
 random_macros = False
 with_primitives = False
-files = 6
+files = 8
 prioritized = False
 
 write_to_files = True
