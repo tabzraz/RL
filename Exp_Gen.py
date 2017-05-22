@@ -30,6 +30,7 @@ random_macros = False
 with_primitives = False
 files = 4
 prioritized = False
+gamma = 0.9999
 
 write_to_files = True
 append = False
@@ -61,6 +62,7 @@ for env in envs:
                                                                 name = env.replace("-", "_")[:-3]
                                                                 name += "_{}_Step".format(n_step)
                                                                 name += "_LR_{}".format(lr)
+                                                                name += "_Gamma_{}".format(gamma)
                                                                 name += "_Batch_{}_XpSize_{}k".format(batch_size, str(xp_replay_size)[:-3])
                                                                 if prioritized:
                                                                     name += "_Prioritized"
@@ -86,6 +88,7 @@ for env in envs:
                                                                 else:
                                                                     name += "_DQN_Eps_{}_uid_{}".format(eps, uid)
                                                                 python_command = "python3 Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
+                                                                python_command += " --gamma {}".format(gamma)
                                                                 python_command += " --eps-steps {}".format(eps_steps)
                                                                 python_command += " --n-step {}".format(n_step)
                                                                 if prioritized:
