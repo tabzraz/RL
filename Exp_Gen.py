@@ -11,7 +11,7 @@ epsilon_steps = [200000]
 batch_sizes = [32]
 xp_replay_sizes = [30000]
 stale_limits = [1]
-epsilon_scaling = [False]
+epsilon_scaling = [False, True]
 epsilon_decay = [0.9999]
 n_steps = [100]
 optimism_scalers = [0.0001]
@@ -19,7 +19,7 @@ negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = ["Optimistic"]
+state_action_modes = [None]#["Optimistic"]
 
 options = [False]
 
@@ -28,7 +28,7 @@ gpu = True
 screen = False
 random_macros = False
 with_primitives = False
-files = 7
+files = 4
 prioritized = False
 gamma = 0.9999
 
