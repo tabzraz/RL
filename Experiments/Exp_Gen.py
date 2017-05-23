@@ -87,7 +87,8 @@ for env in envs:
                                                                     name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, uid)
                                                                 else:
                                                                     name += "_DQN_Eps_{}_uid_{}".format(eps, uid)
-                                                                python_command = "python3 Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
+                                                                python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
+                                                                python_command += " --logdir ../Logs"
                                                                 python_command += " --gamma {}".format(gamma)
                                                                 python_command += " --eps-steps {}".format(eps_steps)
                                                                 python_command += " --n-step {}".format(n_step)
