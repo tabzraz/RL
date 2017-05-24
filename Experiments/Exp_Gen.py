@@ -37,6 +37,10 @@ gamma = 0.9999
 write_to_files = True
 append = False
 
+gpus = 8
+exps_per_gpu = 4
+files = gpus * exps_per_gpu
+
 tar = True
 
 uid = 0
@@ -139,7 +143,8 @@ if write_to_files:
 if write_to_files and append:
     print("--APPENDING--")
 
-print("\n--- {} Runs ---\n--- {} Files => {} Runs per file ---\n".format(uid, files, ceil(uid/files)))
+print("\n--- {} Runs ---\n--- {} Files => {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
+print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
 
 if write_to_files:
     for i in range(files):
@@ -149,3 +154,11 @@ if write_to_files:
         with open("exps{}.sh".format(i + 1), file_str) as f:
             for cc in commands[i::files]:
                 f.write("{}\n".format(cc))
+
+    # Write to the file running the experiments
+    exp_num = 1
+    with open("run_experiments.sh", "w") as f:
+        for _ in range(exps_per_gpu):
+            for g in range(gpus):
+                f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
+                exp_num += 1
