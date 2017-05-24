@@ -31,7 +31,7 @@ screen = False
 random_macros = False
 with_primitives = False
 files = 16
-prioritized = True
+prioritized = False
 gamma = 0.9999
 
 write_to_files = True
