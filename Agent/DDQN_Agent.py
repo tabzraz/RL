@@ -89,6 +89,9 @@ class DDQN_Agent:
     def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0):
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward)
 
+    def end_of_trajectory(self):
+        self.replay.end_of_trajectory()
+
     def train(self):
         if self.T - self.target_sync_T > self.args.target:
             self.sync_target_network()
@@ -130,17 +133,18 @@ class DDQN_Agent:
                 steps = triple[2]
                 terminal = exp.terminal
 
-                k_step_return = accum_reward
+                k_step_return = Variable(torch.FloatTensor([accum_reward]*self.args.actions))
                 if not terminal:
                     k_step_return += (self.args.gamma ** steps) * target_dqn_qvals[q_state_index]
                 q_state_index += 1
                 averaged_return += lambda_ * k_step_return
                 lambda_ *= self.args.lambda_
-            if len(seq) < 1:
-                print(seq)
-                print(batch)
-                continue
+            # if len(seq) < 1:
+            #     # print(experiences)
+            #     # print(batch)
+            #     continue
             averaged_return /= sum([self.args.lambda_ ** t for t in range(len(seq))])
+
             max_q_val = averaged_return.data.max(0)[0][0]
             # max_q_val = max_q_val.float()
             q_targets.append(max_q_val)

@@ -188,6 +188,7 @@ class Trainer:
             self.log_value("Epsilon", self.epsilon, step=self.T)
 
     def end_of_episode(self):
+        self.agent.end_of_trajectory()
         if self.args.tb:
             self.log_value("Episode_Reward", self.episode_reward, step=self.T)
             self.log_value("Episode_Bonus_Only_Reward", self.episode_bonus_only_reward, step=self.T)
