@@ -47,7 +47,7 @@ class ExperienceReplay_Options_Pseudo:
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
 
     def end_of_trajectory(self):
-        new_exp = self.Experience(trajectory_end=True)
+        new_exp = self.Experience(state=None, action=0, reward=0, state_next=None, steps=0, terminal=False, pseudo_reward=0, pseudo_reward_t=0, trajectory_end=True)
         self.Exps[self.storing_index] = new_exp
         self.storing_index += 1
         self.experiences_stored = max(self.experiences_stored, self.storing_index)

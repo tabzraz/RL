@@ -133,7 +133,7 @@ class DDQN_Agent:
                 steps = triple[2]
                 terminal = exp.terminal
 
-                k_step_return = Variable(torch.FloatTensor([accum_reward]*self.args.actions))
+                k_step_return = Variable(torch.FloatTensor([accum_reward] * self.args.actions))
                 if not terminal:
                     k_step_return += (self.args.gamma ** steps) * target_dqn_qvals[q_state_index]
                 q_state_index += 1
