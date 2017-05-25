@@ -204,7 +204,7 @@ class ExperienceReplay_Options_Pseudo:
 
             # Work out the state we need a Q Value estimate for
             states_in_seq = []
-            for i in [gap ** m for m in range(num_states)]:
+            for i in [gap ** (m + 1) for m in range(num_states)]:
                 i -= 1
                 if i < len(exps_to_use):
                     accum_reward = 0
