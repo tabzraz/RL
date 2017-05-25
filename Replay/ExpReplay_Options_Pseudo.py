@@ -50,7 +50,7 @@ class ExperienceReplay_Options_Pseudo:
         exp = self.Exps[self.storing_index - 1]
         new_exp = list(exp)
         new_exp[-1] = True  # End of trajectory
-        new_exp_tuple = tuple(new_exp)
+        new_exp_tuple = self.Experience(new_exp)
         self.Exps[self.storing_index - 1] = new_exp_tuple
 
     def get_sampling_distribution(self):
