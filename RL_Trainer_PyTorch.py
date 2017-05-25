@@ -289,6 +289,7 @@ class Trainer:
 
                 self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=0)
                 s = sn
+            self.agent.end_of_trajectory()
 
         print("Exploratory phase finished. Starting learning.\n")
 

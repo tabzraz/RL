@@ -47,10 +47,11 @@ class ExperienceReplay_Options_Pseudo:
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
 
     def end_of_trajectory(self):
-        new_exp = self.Experience(state=None, action=0, reward=0, state_next=None, steps=0, terminal=False, pseudo_reward=0, pseudo_reward_t=0, trajectory_end=True)
-        self.Exps[self.storing_index] = new_exp
-        self.storing_index += 1
-        self.experiences_stored = max(self.experiences_stored, self.storing_index)
+        exp = self.Exps[self.storing_index - 1]
+        new_exp = list(exp)
+        new_exp[-1] = True  # End of trajectory
+        new_exp_tuple = tuple(new_exp)
+        self.Exps[self.storing_index - 1] = new_exp_tuple
 
     def get_sampling_distribution(self):
         if self.experiences_stored < self.N:
@@ -141,11 +142,8 @@ class ExperienceReplay_Options_Pseudo:
             index_up_to = min(self.experiences_stored, index + N) - index
             for i, exp in enumerate(exps_to_use):
                 # print(exp)
-                if exp.terminal:
+                if exp.terminal or exp.trajectory_end:
                     index_up_to = i + 1
-                    break
-                if exp.trajectory_end:
-                    index_up_to = i
                     break
             exps_to_use = exps_to_use[:index_up_to]
             # We then need to recompute the pseudo-counts for all of these
@@ -181,11 +179,8 @@ class ExperienceReplay_Options_Pseudo:
             index_up_to = min(self.experiences_stored, index + N) - index
             for i, exp in enumerate(exps_to_use):
                 # print(exp)
-                if exp.terminal:
+                if exp.terminal or exp.trajectory_end:
                     index_up_to = i + 1
-                    break
-                if exp.trajectory_end:
-                    index_up_to = i
                     break
             exps_to_use = exps_to_use[:index_up_to]
 
