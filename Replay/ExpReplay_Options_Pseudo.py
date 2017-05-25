@@ -169,7 +169,7 @@ class ExperienceReplay_Options_Pseudo:
     def Sample_N_Eligibility_States(self, size, gamma, num_states=5, gap=2):
         assert(size <= self.N)
         self.T += 1
-        N = gap ** (num_states - 1)
+        N = gap ** (num_states)
         # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
         indices = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
@@ -206,6 +206,8 @@ class ExperienceReplay_Options_Pseudo:
             states_in_seq = []
             for i in [gap ** (m + 1) for m in range(num_states)]:
                 i -= 1
+                if i > len(exps_to_use) and len(states_in_seq) == 0:
+                    i = len(exps_to_use) - 1
                 if i < len(exps_to_use):
                     accum_reward = 0
                     for ri in reversed(rewards_to_use[:i]):
