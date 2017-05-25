@@ -70,6 +70,10 @@ parser.add_argument("--epsilon-decay", action="store_true", default=False)
 parser.add_argument("--decay-rate", type=float, default=0.99)
 parser.add_argument("--negative-rewards", action="store_true", default=False)
 parser.add_argument("--negative-reward-threshold", type=float, default=0.2)
+parser.add_argument("--eligibility-trace", "--et", action="store_true", default=False)
+parser.add_argument("--lambda_", type=float, default=0.8)
+parser.add_argument("--num-states", type=int, default=5)
+parser.add_argument("--gap", type=int, default=2)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
