@@ -21,9 +21,9 @@ optimism_scalers = [0.0001]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
-lambdas = [0.1, 0.3, 0.7, 0.9]
-num_states = [3, 5, 7]
-gap = 2
+lambdas = [0.7, 0.9, 1]
+num_states = [4, 5, 6]
+gap = 3
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = [None]#["Optimistic"]
@@ -49,7 +49,7 @@ if "--append" in sys.argv:
     append = True
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 3
 files = gpus * exps_per_gpu
 
 tar = True
