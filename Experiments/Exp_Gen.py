@@ -48,7 +48,7 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-gpus = 8
+gpus = 4
 exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
