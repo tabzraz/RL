@@ -93,6 +93,78 @@ class DDQN_Agent:
         self.replay.end_of_trajectory()
 
     def train(self):
+        if self.args.eligibility_trace:
+            return self.train_elig(self)
+
+        if self.T - self.target_sync_T > self.args.target:
+            self.sync_target_network()
+            self.target_sync_T = self.T
+
+        for _ in range(self.args.iters):
+            self.dqn.eval()
+
+            # TODO: Use a named tuple for experience replay
+            batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
+            columns = list(zip(*batch))
+
+            states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
+            actions = Variable(torch.LongTensor(columns[1]))
+            terminal_states = Variable(torch.FloatTensor(columns[5]))
+            rewards = Variable(torch.FloatTensor(columns[2]))
+            # Have to clip rewards for DQN
+            rewards = torch.clamp(rewards, -1, 1)
+            steps = Variable(torch.FloatTensor(columns[4]))
+            new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
+
+            target_dqn_qvals = self.target_dqn(new_states).cpu()
+            new_states_qvals = self.dqn(new_states).cpu()
+            # Make a new variable with those values so that these are treated as constants
+            target_dqn_qvals_data = Variable(target_dqn_qvals.data)
+            new_states_qvals_data = Variable(new_states_qvals.data)
+
+            q_value_targets = (Variable(torch.ones(terminal_states.size()[0])) - terminal_states)
+            inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
+            # print(steps)
+            q_value_targets = q_value_targets * torch.pow(inter, steps)
+            if self.args.double:
+                # Double Q Learning
+                q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
+            else:
+                q_value_targets = q_value_targets * new_states_qvals_data.max(1)[0]
+            q_value_targets = q_value_targets + rewards
+
+            self.dqn.train()
+            if self.args.gpu:
+                actions = actions.cuda()
+                q_value_targets = q_value_targets.cuda()
+            model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
+
+            info = {}
+
+            td_error = model_predictions - q_value_targets
+            info["TD_Error"] = td_error.mean().data[0]
+
+            # Update the priorities
+            self.replay.Update_Indices(indices, td_error.cpu().data.numpy())
+
+            l2_loss = (td_error).pow(2).mean()
+            info["Loss"] = l2_loss.data[0]
+
+            # Update
+            self.optimizer.zero_grad()
+            l2_loss.backward()
+
+            # Taken from pytorch clip_grad_norm
+            # Remove once the pip version it up to date with source
+            gradient_norm = clip_grad_norm(self.dqn.parameters(), self.args.clip_value)
+            if gradient_norm is not None:
+                info["Norm"] = gradient_norm
+
+            self.optimizer.step()
+
+        return info
+
+    def train_elig(self):
         if self.T - self.target_sync_T > self.args.target:
             self.sync_target_network()
             self.target_sync_T = self.T
