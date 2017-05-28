@@ -39,7 +39,10 @@ class DQN(nn.Module):
 
     def forward(self, x):
         if next(self.parameters()).is_cuda:
-            x = x.cuda()
+            if not x.is_cuda:
+                print("Not CUDA!")
+                print(x)
+            # x = x.cuda()
 
         x = F.relu(self.conv_1(x))
         if self.batchnorm:
