@@ -165,8 +165,8 @@ class DDQN_Agent:
             # Make a new variable with those values so that these are treated as constants
             target_dqn_qvals_data = Variable(target_dqn_qvals.data)
 
-            q_value_targets = (Variable(torch.ones(terminal_states.size()[0])).cuda() - terminal_states).cuda()
-            inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma).cuda()
+            q_value_targets = (Variable(torch.ones(terminal_states.size()[0])).cuda() - terminal_states)
+            inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
             # print(steps)
             q_value_targets = q_value_targets * torch.pow(inter, steps)
             # TODO: Optimise this
