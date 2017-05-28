@@ -76,7 +76,6 @@ parser.add_argument("--eligibility-trace", "--et", action="store_true", default=
 parser.add_argument("--lambda_", type=float, default=0.8)
 parser.add_argument("--num-states", type=int, default=5)
 parser.add_argument("--gap", type=int, default=2)
-parser.add_argument("--cache", type=int, default=1)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:

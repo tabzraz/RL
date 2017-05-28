@@ -44,17 +44,6 @@ class DDQN_Agent:
         self.T = 0
         self.target_sync_T = -self.args.t_max
 
-        # Vram stuff
-        self.batch_states_now = None
-        self.batch_actions = None
-        self.batch_rewards = None
-        self.batch_terminal = None
-        self.batch_steps = None
-        self.batch_states_next = None
-        self.batch_index = 0
-        self.batches_left = 0
-        self.batch_indices = []
-
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
@@ -114,84 +103,49 @@ class DDQN_Agent:
         for _ in range(self.args.iters):
             self.dqn.eval()
 
-            if self.batches_left < 1:
-                # Send the states to vram
-                cache_batch, cache_indices = self.replay.Sample_N(self.args.batch_size * self.args.cache, self.args.n_step, self.args.gamma)
-                columns = list(zip(*cache_batch))
-
-                self.batch_states_now = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
-                self.batch_actions = Variable(torch.LongTensor(columns[1]))
-                self.batch_terminal = Variable(torch.FloatTensor(columns[5]))
-                self.batch_rewards = torch.clamp(Variable(torch.FloatTensor(columns[2])), -1, 1)
-                self.batch_steps = Variable(torch.FloatTensor(columns[4]))
-                self.batch_states_next = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
-
-                self.batch_indices = cache_indices
-
-                if self.args.gpu:
-                    self.batch_states_now.cuda()
-                    self.batch_actions.cuda()
-                    self.batch_terminal.cuda()
-                    self.batch_rewards.cuda()
-                    self.batch_steps.cuda()
-                    self.batch_states_next.cuda()
-
-                self.batches_left = self.args.cache
-                self.batch_index = 0
-
             # TODO: Use a named tuple for experience replay
-            # batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
-            # columns = list(zip(*batch))
+            batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
+            columns = list(zip(*batch))
 
-            states = self.batch_states_now[self.batch_index: self.batch_index + self.args.batch_size]
-            actions = self.batch_actions[self.batch_index: self.batch_index + self.args.batch_size]
-            terminal_states = self.batch_terminal[self.batch_index: self.batch_index + self.args.batch_size]
-            rewards = self.batch_rewards[self.batch_index: self.batch_index + self.args.batch_size]
-            steps = self.batch_steps[self.batch_index: self.batch_index + self.args.batch_size]
-            new_states = self.batch_states_next[self.batch_index: self.batch_index + self.args.batch_size]
-
-            indices = self.batch_indices[self.batch_index: self.batch_index + self.args.batch_size]
-
-            # states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
-            # actions = Variable(torch.LongTensor(columns[1]))
-            # terminal_states = Variable(torch.FloatTensor(columns[5]))
-            # rewards = Variable(torch.FloatTensor(columns[2]))
+            states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
+            actions = Variable(torch.LongTensor(columns[1]))
+            terminal_states = Variable(torch.FloatTensor(columns[5]))
+            rewards = Variable(torch.FloatTensor(columns[2]))
             # Have to clip rewards for DQN
-            # rewards = torch.clamp(rewards, -1, 1)
-            # steps = Variable(torch.FloatTensor(columns[4]))
-            # new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
+            rewards = torch.clamp(rewards, -1, 1)
+            steps = Variable(torch.FloatTensor(columns[4]))
+            new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-            target_dqn_qvals = self.target_dqn(new_states)
+            target_dqn_qvals = self.target_dqn(new_states).cpu()
+            new_states_qvals = self.dqn(new_states).cpu()
             # Make a new variable with those values so that these are treated as constants
             target_dqn_qvals_data = Variable(target_dqn_qvals.data)
+            new_states_qvals_data = Variable(new_states_qvals.data)
 
             q_value_targets = (Variable(torch.ones(terminal_states.size()[0])) - terminal_states)
             inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
             # print(steps)
             q_value_targets = q_value_targets * torch.pow(inter, steps)
             if self.args.double:
-                new_states_qvals = self.dqn(new_states)
-                new_states_qvals_data = Variable(new_states_qvals.data)
                 # Double Q Learning
                 q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
             else:
-                q_value_targets = q_value_targets * target_dqn_qvals.max(1)[0]
+                q_value_targets = q_value_targets * new_states_qvals_data.max(1)[0]
             q_value_targets = q_value_targets + rewards
 
             self.dqn.train()
-            # if self.args.gpu:
-                # actions = actions.cuda()
-                # q_value_targets = q_value_targets.cuda()
+            if self.args.gpu:
+                actions = actions.cuda()
+                q_value_targets = q_value_targets.cuda()
             model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
 
             info = {}
 
             td_error = model_predictions - q_value_targets
-            td_error = td_error.cpu()
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            self.replay.Update_Indices(indices, td_error.data.numpy())
+            self.replay.Update_Indices(indices, td_error.cpu().data.numpy())
 
             l2_loss = (td_error).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
@@ -207,9 +161,6 @@ class DDQN_Agent:
                 info["Norm"] = gradient_norm
 
             self.optimizer.step()
-
-            self.batches_left -= 1
-            self.batch_index += self.args.batch_size
 
         return info
 
