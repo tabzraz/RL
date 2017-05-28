@@ -116,7 +116,7 @@ class DDQN_Agent:
             steps = Variable(torch.FloatTensor(columns[4]))
             new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-            target_dqn_qvals = self.target_dqn(new_states)
+            target_dqn_qvals = self.target_dqn(new_states).cpu()
             # Make a new variable with those values so that these are treated as constants
             target_dqn_qvals_data = Variable(target_dqn_qvals.data)
 
@@ -126,7 +126,7 @@ class DDQN_Agent:
             q_value_targets = q_value_targets * torch.pow(inter, steps)
             if self.args.double:
                 # Double Q Learning
-                new_states_qvals = self.dqn(new_states)
+                new_states_qvals = self.dqn(new_states).cpu()
                 new_states_qvals_data = Variable(new_states_qvals.data)
                 q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
             else:
