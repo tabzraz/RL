@@ -64,7 +64,10 @@ class DDQN_Agent:
         self.dqn.eval()
         orig_state = state
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-        q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
+        state_var = Variable(state, volatile=True)
+        if self.args.gpu:
+            state_var = state_var.cuda()
+        q_values = self.dqn(state_var).cpu().data[0]
         q_values_numpy = q_values.numpy()
 
         extra_info = {}
