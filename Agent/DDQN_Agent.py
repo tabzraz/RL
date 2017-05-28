@@ -129,12 +129,12 @@ class DDQN_Agent:
                 self.batch_indices = cache_indices
 
                 if self.args.gpu:
-                    self.batch_states_now = self.batch_states_now.cuda()
-                    self.batch_actions = self.batch_actions.cuda()
-                    self.batch_terminal = self.batch_terminal.cuda()
-                    self.batch_rewards = self.batch_rewards.cuda()
-                    self.batch_steps = self.batch_steps.cuda()
-                    self.batch_states_next = self.batch_states_next.cuda()
+                    self.batch_states_now.cuda()
+                    self.batch_actions.cuda()
+                    self.batch_terminal.cuda()
+                    self.batch_rewards.cuda()
+                    self.batch_steps.cuda()
+                    self.batch_states_next.cuda()
 
                 self.batches_left = self.args.cache
                 self.batch_index = 0
@@ -165,12 +165,10 @@ class DDQN_Agent:
             # Make a new variable with those values so that these are treated as constants
             target_dqn_qvals_data = Variable(target_dqn_qvals.data)
 
-            q_value_targets = (Variable(torch.ones(terminal_states.size()[0])).cuda() - terminal_states)
+            q_value_targets = (Variable(torch.ones(terminal_states.size()[0])) - terminal_states)
             inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
             # print(steps)
             q_value_targets = q_value_targets * torch.pow(inter, steps)
-            # TODO: Optimise this
-            q_value_targets = q_value_targets.cuda()
             if self.args.double:
                 new_states_qvals = self.dqn(new_states)
                 new_states_qvals_data = Variable(new_states_qvals.data)
