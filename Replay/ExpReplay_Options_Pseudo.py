@@ -141,14 +141,15 @@ class ExperienceReplay_Options_Pseudo:
             exp = self.Exps[i]
         self.special_start = (i + 1) % self.experiences_stored
         self.trajectory_index = self.special_end
+        # print("Special", self.special_end)
 
     def get_special_trajectory_indices(self, size):
         indices = []
-        while len(indices) < size and self.trajectory_index != self.special_start:
+        while len(indices) < size and self.trajectory_index != (self.special_start - 1) % self.experiences_stored:
             indices.append(self.trajectory_index)
             self.trajectory_index -= 1
             self.trajectory_index = self.trajectory_index % self.experiences_stored
-        if self.trajectory_index == self.special_start:
+        if self.trajectory_index == (self.special_start - 1) % self.experiences_stored:
             self.trajectory_index = self.special_end
         return indices
 
