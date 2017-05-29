@@ -132,14 +132,14 @@ class ExperienceReplay_Options_Pseudo:
 
     def special_trajectory(self):
         # Special trajectory is [special_start, special_end]
-        self.special_end = (self.storing_index - 1) % self.N
-        i = (self.special_end - 1) % self.N
+        self.special_end = (self.storing_index - 1) % self.experiences_stored
+        i = (self.special_end - 1) % self.experiences_stored
         exp = self.Exps[i]
         while not (exp.terminal or exp.trajectory_end):
             i -= 1
-            i = i & self.N
+            i = i % self.experiences_stored
             exp = self.Exps[i]
-        self.special_start = (i + 1) % self.N
+        self.special_start = (i + 1) % self.experiences_stored
         self.trajectory_index = self.special_end
 
     def get_special_trajectory_indices(self, size):
