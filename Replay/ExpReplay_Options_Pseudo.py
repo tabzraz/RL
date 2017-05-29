@@ -5,7 +5,7 @@ from .Binary_Heap import BinaryHeap
 
 class ExperienceReplay_Options_Pseudo:
 
-    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t")
+    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t trajectory_end")
 
     def __init__(self, N, pseudo_limit, exp_model, priority=False):
         self.N = N
@@ -34,7 +34,7 @@ class ExperienceReplay_Options_Pseudo:
         # if len(self.Exps) >= self.N:
             # self.Exps.pop(0)
         # Make copies just in case
-        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T)
+        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T, trajectory_end=terminal)
         self.Exps[self.storing_index] = new_exp
 
         if self.priority:
@@ -45,6 +45,13 @@ class ExperienceReplay_Options_Pseudo:
 
         self.storing_index += 1
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
+
+    def end_of_trajectory(self):
+        exp = self.Exps[self.storing_index - 1]
+        new_exp = list(exp)
+        new_exp[-1] = True  # End of trajectory
+        new_exp_tuple = self.Experience(*new_exp)
+        self.Exps[self.storing_index - 1] = new_exp_tuple
 
     def get_sampling_distribution(self):
         if self.experiences_stored < self.N:
@@ -119,6 +126,7 @@ class ExperienceReplay_Options_Pseudo:
 
         return states, actions, rewards, next_states, terminals
 
+
     # Sample an n-step target
     # Intended for use with step sizes of 1 for now
     def Sample_N(self, size, N, gamma):
@@ -134,7 +142,7 @@ class ExperienceReplay_Options_Pseudo:
             index_up_to = min(self.experiences_stored, index + N) - index
             for i, exp in enumerate(exps_to_use):
                 # print(exp)
-                if exp.terminal:
+                if exp.terminal or exp.trajectory_end:
                     index_up_to = i + 1
                     break
             exps_to_use = exps_to_use[:index_up_to]
@@ -155,3 +163,56 @@ class ExperienceReplay_Options_Pseudo:
             batch_to_return.append(new_exp)
         # [] for indices to match the prioritized replay
         return batch_to_return, indices
+
+    def Sample_N_Eligibility_States(self, size, gamma, num_states=5, gap=2):
+        assert(size <= self.N)
+        self.T += 1
+        N = gap ** (num_states)
+        # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
+        indices = self.get_indices(size)
+        self.Recompute_Pseudo_Counts(indices)
+        batch_to_return = []
+        experiences_to_return = []
+        for index in indices:
+            exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
+            # Check for terminal states
+            index_up_to = min(self.experiences_stored, index + N) - index
+            for i, exp in enumerate(exps_to_use):
+                # print(exp)
+                if exp.terminal or exp.trajectory_end:
+                    index_up_to = i + 1
+                    break
+            exps_to_use = exps_to_use[:index_up_to]
+
+            # We then need to recompute the pseudo-counts for all of these
+            # print([ii for ii in range(index, index + index_up_to)])
+            self.Recompute_Pseudo_Counts([ii for ii in range(index, index + index_up_to)])
+
+            state_now = exps_to_use[0].state
+            action_now = exps_to_use[0].action
+            # state_then = exps_to_use[-1].state_next
+            terminate = exps_to_use[-1].terminal
+            rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
+            # steps = len(exps_to_use)
+            new_exp = (state_now, action_now, 0, None, 0, terminate)
+            experiences_to_return.append(new_exp)
+
+            # Work out the state we need a Q Value estimate for
+            states_in_seq = []
+            for i in [gap ** (m + 1) for m in range(num_states)]:
+                i -= 1
+                if i > len(exps_to_use) and len(states_in_seq) == 0:
+                    i = len(exps_to_use) - 1
+                if i < len(exps_to_use):
+                    accum_reward = 0
+                    for ri in reversed(rewards_to_use[:i]):
+                        accum_reward = ri + gamma * accum_reward
+                    states_in_seq.append((exps_to_use[i], accum_reward, i))
+
+            if states_in_seq == []:
+                print(new_exp)
+                print(exps_to_use)
+                print(len(exps_to_use))
+            batch_to_return.append(states_in_seq)
+
+        return batch_to_return, experiences_to_return
