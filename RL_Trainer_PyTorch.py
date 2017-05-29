@@ -430,6 +430,12 @@ class Trainer:
 
                 self.agent.experience(state, action, reward, state_new, 1, episode_finished, exp_bonus)
 
+                if self.args.trajectory:
+                    # Special trajectory training
+                    if exp_bonus >= self.args.exp_bonus_save * self.max_exp_bonus:
+                        self.agent.special_trajectory()
+                    self.agent.train(special_trajectory=True)
+
                 self.train_agent()
 
                 state = state_new

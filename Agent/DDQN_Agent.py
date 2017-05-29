@@ -92,7 +92,10 @@ class DDQN_Agent:
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
 
-    def train(self):
+    def special_trajectory(self):
+        self.replay.special_trajectory()
+
+    def train(self, special_trajectory=False):
         if self.args.eligibility_trace:
             return self.train_elig(self)
 
@@ -104,7 +107,7 @@ class DDQN_Agent:
             self.dqn.eval()
 
             # TODO: Use a named tuple for experience replay
-            batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
+            batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma, special_trajecotry=special_trajectory)
             columns = list(zip(*batch))
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -145,7 +148,8 @@ class DDQN_Agent:
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            self.replay.Update_Indices(indices, td_error.cpu().data.numpy())
+            if not special_trajectory:
+                self.replay.Update_Indices(indices, td_error.cpu().data.numpy())
 
             l2_loss = (td_error).pow(2).mean()
             info["Loss"] = l2_loss.data[0]

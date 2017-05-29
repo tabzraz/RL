@@ -23,6 +23,10 @@ class ExperienceReplay_Options_Pseudo:
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
 
+        self.special_start = 0
+        self.special_end = 0
+        self.trajectory_index = 0
+
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
         self.storing_index = 0
@@ -126,14 +130,40 @@ class ExperienceReplay_Options_Pseudo:
 
         return states, actions, rewards, next_states, terminals
 
+    def special_trajectory(self):
+        # Special trajectory is [special_start, special_end]
+        self.special_end = (self.storing_index - 1) % self.N
+        i = (self.special_end - 1) % self.N
+        exp = self.Exps[i]
+        while not (exp.terminal or exp.trajectory_end):
+            i -= 1
+            i = i & self.N
+            exp = self.Exps[i]
+        self.special_start = (i + 1) % self.N
+        self.trajectory_index = self.special_end
+
+    def get_special_trajectory_indices(self, size):
+        indices = []
+        while len(indices) < size and self.trajectory_index >= self.special_start:
+            indices.append(self.trajectory_index)
+            self.trajectory_index -= 1
+        if self.trajectory_index < self.special_start:
+            self.trajectory_index = self.special_end
+        return indices
 
     # Sample an n-step target
     # Intended for use with step sizes of 1 for now
-    def Sample_N(self, size, N, gamma):
+    def Sample_N(self, size, N, gamma, special_trajectory=False):
         assert(size <= self.N)
-        self.T += 1
+        if not special_trajectory:
+            self.T += 1
+
         # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
-        indices = self.get_indices(size)
+        if special_trajectory:
+            indices = self.get_special_trajectory_indices(size)
+        else:
+            indices = self.get_indices(size)
+
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
         for index in indices:
