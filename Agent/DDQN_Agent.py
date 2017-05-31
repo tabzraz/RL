@@ -4,6 +4,7 @@ from torch.optim import Adam
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
+from Replay.ExpReplay_Options_Pseudo_Sort import ExperienceReplay_Options_Pseudo_Sort as ExpReplaySort
 from Models.Models import get_torch_models as get_models
 
 
@@ -16,7 +17,10 @@ class DDQN_Agent:
         self.exp_model = exp_model
 
         # Experience Replay
-        self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, priority=self.args.prioritized)
+        ReplayToUse = ExpReplay
+        if self.args.exp_count_save:
+            ReplayToUse = ExpReplaySort
+        self.replay = ReplayToUse(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         # DQN and Target DQN
         model = get_models(args.model)
