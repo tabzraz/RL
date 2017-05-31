@@ -94,6 +94,8 @@ for env in envs:
                                                                                 name += "_ETrace_{}_{}_States_{}_Gap".format(lamb, num_state, gap)
                                                                             if count_decay:
                                                                                 name += "_CountDecay_{}_Rate".format(count_decay_rate)
+                                                                            if exp_count_save:
+                                                                                name += "_XpCountSave"
                                                                             # if option:
                                                                             #     if random_macros:
                                                                             #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
@@ -123,6 +125,8 @@ for env in envs:
                                                                             python_command += " --iters {}".format(iters)
                                                                             if count_decay:
                                                                                 python_command += " --decay-count --decay-count-rate {}".format(count_decay_rate)
+                                                                            if exp_count_save:
+                                                                                python_command += " --exp-count-save"
                                                                             if eligibility_trace:
                                                                                 python_command += " --lambda_ {} --num-states {} --gap {}".format(lamb, num_state, gap)
                                                                             if prioritized:
