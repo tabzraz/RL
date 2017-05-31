@@ -43,13 +43,14 @@ class ExperienceReplay_Options_Pseudo_Sort:
                 self.priorities.balance_tree()
 
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
-        if self.storing_index < self.N - 1:
-            self.storing_index += 1
 
-        if self.storing_index == self.N:
+        if self.storing_index == self.N - 1:
             # We have stored the most experiences we can
             # Sort the list by count (pseudo-reward as proxy) now
             self.Exps.sort(key=lambda x: x.pseudo_reward, reverse=True)
+
+        if self.storing_index < self.N - 1:
+            self.storing_index += 1
 
     def end_of_trajectory(self):
         exp = self.Exps[self.storing_index - 1]
