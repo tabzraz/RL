@@ -23,6 +23,12 @@ class EnvWrapper(gym.Env):
     def _render(self, mode="human", close=False):
         return self.wrapped_env.render(mode, close)
 
+    def xp_replay_states(self, player_positions):
+        try:
+            return self.wrapped_env.env.xp_replay_states(player_positions, self.args)
+        except AttributeError:
+            print("No xp replay states for this environment")
+
     def visitations(self, player_positions):
         try:
             return self.wrapped_env.env.player_visits(player_positions, self.args)

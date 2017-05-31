@@ -96,6 +96,82 @@ class GridWorld(gym.Env):
         # print(tuple(joint))
         return tuple(joint)
 
+    def xp_replay_states(self, player_visits, args):
+
+        interval = args.exp_replay_size
+
+        if self.num_goals > 3:
+            raise Exception("Cant do xp replay states for >3 goals atm")
+
+        # We want to show visualisations for the agent depending on which goals they've visited as well
+        # Keep it seperate from the other one
+        colour_images = []
+        for i in range(0, max(1, args.t_max - interval), args.t_max // (args.interval_size * 10)):
+            # Works for num_goals <= 3
+            # print(self.grid.shape)
+            canvas = np.zeros((self.grid.shape[0] * self.num_goals, self.grid.shape[1] * self.num_goals, 3))
+            grid_x = self.grid.shape[0]
+            grid_y = self.grid.shape[1]
+
+            for visit in player_visits[i: i + interval]:
+                px = visit[0]
+                py = visit[1]
+
+                np_goals = np.array(visit[2:])
+                goal_colours = [ig for ig, c in enumerate(visit[2:]) if c == True]
+                if goal_colours == []:
+                    goal_colours = [0, 1, 2]
+                x_place = px + grid_x * (np_goals == False).sum()
+                yy = 0
+                if (np_goals == False).sum() == 1:
+                    yy = np.argwhere(np_goals == False)[0]
+                elif (np_goals == False).sum() == 2:
+                    yy = np.argwhere(np_goals == True)[0]
+                y_place = py + grid_y * yy
+
+                # print(x_place, y_place, goal_colours, canvas.shape)
+                canvas[x_place, y_place, goal_colours] = 1
+
+            # if np.max(canvas) == 0:
+                # break
+            # canvas = canvas / (np.max(canvas) / scaling)
+
+            # TODO: Colour the unvisited goals
+            for goal in self.goals_order:
+                canvas[goal[0], goal[1], :] = 2 / 3
+            if self.num_goals >= 2:
+                for g in range(self.num_goals):
+                    for go_i, goal in enumerate(self.goals_order):
+                        if go_i != g:
+                            canvas[goal[0] + grid_x, goal[1] + g * grid_y, :] = 2 / 3
+            if self.num_goals >= 3:
+                for g in range(self.num_goals):
+                    for go_i, goal in enumerate(self.goals_order):
+                        if go_i == g:
+                            canvas[goal[0] + 2 * grid_x, goal[1] + g * grid_y, :] = 2 / 3
+
+            # The walls
+            for x in range(grid_x):
+                for y in range(grid_y):
+                    if self.grid[x, y] == 1:
+                        canvas[x, y, :] = 1 / 3
+                        for zx in range(1, self.num_goals):
+                            for zy in range(self.num_goals):
+                                canvas[zx * grid_x + x, zy * grid_y + y, :] = 1 / 3
+
+            # Seperate the mazes
+            canvas = np.insert(canvas, [(z + 1) * grid_x for z in range(self.num_goals - 1)], 1, axis=0)
+            canvas = np.insert(canvas, [(z + 1) * grid_x for z in range(self.num_goals - 1)], 1, axis=1)
+            canvas[0:grid_x, grid_y + 1:, :] = 0
+            colour_maze = canvas
+
+            colour_maze = np.clip(colour_maze, 0, 1) * 255
+            # colour_maze = np.swapaxes(colour_maze, 0, 1)
+            colour_images.append(colour_maze.astype(np.uint8))
+        print(len(colour_images), "\n")
+        return colour_images
+        # save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
+
     def player_visits(self, player_visits, args):
         # Log the visitations
         with open("{}/logs/Player_Positions.txt".format(args.log_path), "w") as file:

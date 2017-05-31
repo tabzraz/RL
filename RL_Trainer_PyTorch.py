@@ -232,6 +232,9 @@ class Trainer:
         visits = self.env.visitations(self.Player_Positions)
         if visits is not None:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), visits)
+        xp_states = self.env.xp_replay_states(self.Player_Positions)
+        if xp_states is not None:
+            self.save_video("{}/visitations/Xp_Replay_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), xp_states)
 
     def select_random_action(self):
         return np.random.choice(self.args.actions)
