@@ -168,7 +168,6 @@ class GridWorld(gym.Env):
             colour_maze = np.clip(colour_maze, 0, 1) * 255
             # colour_maze = np.swapaxes(colour_maze, 0, 1)
             colour_images.append(colour_maze.astype(np.uint8))
-        print(len(colour_images), "\n")
         return colour_images
         # save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
