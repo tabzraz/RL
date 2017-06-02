@@ -17,7 +17,7 @@ stale_limits = [1]
 epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 n_steps = [100]
-optimism_scalers = [0.00005, 0.0001, 0.0005, 0.001]
+optimism_scalers = [0.005, 0.01, 0.05, 0.1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
@@ -48,7 +48,7 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-gpus = 4
+gpus = 8
 exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
