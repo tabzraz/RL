@@ -132,10 +132,13 @@ class ExperienceReplay_Options_Pseudo:
 
     def special_trajectory(self):
         # Special trajectory is [special_start, special_end]
+        self.exps_traj = []
         self.special_end = (self.storing_index - 1) % self.experiences_stored
+        self.exps_traj.append(self.Exps[self.special_end])
         i = (self.special_end - 1) % self.experiences_stored
         exp = self.Exps[i]
         while not (exp.terminal or exp.trajectory_end):
+            self.exps_traj.append(self.Exps[self.special_end])
             i -= 1
             i = i % self.experiences_stored
             exp = self.Exps[i]
@@ -144,6 +147,7 @@ class ExperienceReplay_Options_Pseudo:
         # print("Special", self.special_end)
 
     def get_special_trajectory_indices(self, size):
+        return np.random.randint(low=0, high=len(self.exps_traj), size=size)
         indices = []
         while len(indices) < size and self.trajectory_index != (self.special_start - 1) % self.experiences_stored:
             indices.append(self.trajectory_index)
@@ -169,7 +173,10 @@ class ExperienceReplay_Options_Pseudo:
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
         for index in indices:
-            exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
+            if special_trajectory:
+                exps_to_use = self.exps_traj[index: min(len(self.exps_traj), index + N)]
+            else:
+                exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
             # Check for terminal states
             index_up_to = min(self.experiences_stored, index + N) - index
             for i, exp in enumerate(exps_to_use):
