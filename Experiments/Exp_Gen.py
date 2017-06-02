@@ -53,7 +53,7 @@ if "--append" in sys.argv:
     append = True
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
 tar = True
