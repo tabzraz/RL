@@ -180,3 +180,4 @@ if write_to_files:
             for g in range(gpus):
                 f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
                 exp_num += 1
+        f.write("# {} Experiments total".format(uid))
