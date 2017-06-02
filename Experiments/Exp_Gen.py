@@ -20,7 +20,7 @@ n_steps = [100]
 optimism_scalers = [0.0001]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
-trajs = [(False, 1), (True, 0.2), (True, 0.5), (True, 0.75), (True, 0.8), (True, 0.9)]
+trajs = [(True, 0.4), (True, 0.5), (True, 0.6), (True, 0.7)]
 
 lambdas = [1]
 num_states = [1]
@@ -49,7 +49,7 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-gpus = 8
+gpus = 4
 exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
