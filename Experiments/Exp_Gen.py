@@ -13,14 +13,14 @@ epsilon_starts = [0.1]
 epsilon_steps = [200000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [30, 60, 90]]
-stale_limits = [1]
+stale_limits = [0]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 n_steps = [100]
 optimism_scalers = [0.0001]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
-count_decay_rates = [0.9999, 1]
+count_decay_rates = [0.9999]
 
 lambdas = [1]
 num_states = [1]
@@ -52,8 +52,8 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-gpus = 7
-exps_per_gpu = 1
+gpus = 8
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 tar = True
