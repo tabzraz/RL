@@ -150,6 +150,7 @@ class ExperienceReplay_Options_Pseudo_Sort:
                 self.priorities.update(priority[0] + 0.00001, index)
 
     def Sample_N(self, size, N, gamma):
+        print(self.experiences_stored)
         assert(size <= self.N)
         self.T += 1
         # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
@@ -157,9 +158,9 @@ class ExperienceReplay_Options_Pseudo_Sort:
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
 
-        exps_to_use = self.Exps[indices]
+        # exps_to_use = self.Exps[indices]
 
-        for exp in exps_to_use:
+        for exp in [self.Exps[i] for i in indices]:
             state_now = exp.state
             action_now = exp.action
             accum_reward = exp.reward + exp.pseudo_reward
