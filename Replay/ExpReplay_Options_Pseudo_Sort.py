@@ -150,7 +150,6 @@ class ExperienceReplay_Options_Pseudo_Sort:
                 self.priorities.update(priority[0] + 0.00001, index)
 
     def Sample_N(self, size, N, gamma):
-        print(self.experiences_stored)
         assert(size <= self.N)
         self.T += 1
         # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
