@@ -26,7 +26,8 @@ num_states = [1]
 gap = 3
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None]# ["Optimistic"]
+state_action_modes = [None] #["Optimistic"]
+bandit_no_epsilon_scaling = True #HACK
 
 options = [False]
 
@@ -48,8 +49,10 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
+start_at = 0
+
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 3
 files = gpus * exps_per_gpu
 
 tar = True
@@ -77,6 +80,8 @@ for env in envs:
 
                                                                         if state_action_mode != None and count is False:
                                                                             continue
+                                                                        if bandit_no_epsilon_scaling and state_action_mode == "Optimistic":
+                                                                            eps_scaling = False
 
                                                                         name = env.replace("-", "_")[:-3]
                                                                         name += "_{}_Step".format(n_step)
@@ -161,17 +166,23 @@ if write_to_files:
 if write_to_files and append:
     print("--APPENDING--")
 
-print("\n--- {} Runs ---\n--- {} Files => {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
+print("\n--- {} Runs ---\n--- {} Files => Upto {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
 print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
 
 if write_to_files:
     for i in range(files):
+        i += start_at
+        i = i % files
         file_str = "w"
         if append:
             file_str = "a"
         with open("exps{}.sh".format(i + 1), file_str) as f:
-            for cc in commands[i::files]:
+            # for cc in commands[i::files]:
+            if len(commands) > 0:
+                print("Writing to exps{}.sh".format(i + 1))
+                cc = commands[0]
                 f.write("{}\n".format(cc))
+                commands = commands[1:]
 
     # Write to the file running the experiments
     exp_num = 1
