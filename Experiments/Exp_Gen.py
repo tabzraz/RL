@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -14,11 +14,11 @@ epsilon_steps = [200000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [1]
-epsilon_scaling = [False]
+epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 n_steps = [100]
-optimism_scalers = [0.005, 0.01, 0.05, 0.1]
-negative_rewards = [(False, 0)]
+optimism_scalers = [1]
+negative_rewards = [(False, 0), (True, 0.5), (True, 0.7)]
 negative_reward_scaler = [0.9]
 
 lambdas = [1]
@@ -26,7 +26,7 @@ num_states = [1]
 gap = 3
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = ["Optimistic"]
+state_action_modes = [None]# ["Optimistic"]
 
 options = [False]
 
