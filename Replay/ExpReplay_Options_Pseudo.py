@@ -86,7 +86,8 @@ class ExperienceReplay_Options_Pseudo:
             # print(ps)
             for index, priority in zip(indices, ps):
                 # print(index, priority)
-                self.priorities.update(priority[0] + 0.00001, index)
+                abs_priority = abs(priority[0] + 0.00001)
+                self.priorities.update(abs_priority, index)
 
     def Sample(self, size):
         # assert(size <= self.N)
