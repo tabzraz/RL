@@ -78,7 +78,7 @@ class ExperienceReplay_Options_Pseudo:
             if self.T - exp.pseudo_reward_t > self.pseudo_limit:
                 # Recompute it
                 new_bonus, _ = self.exp_model.bonus(exp.state, dont_remember=True)
-                new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T)
+                new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
 
     def Update_Indices(self, indices, ps):
