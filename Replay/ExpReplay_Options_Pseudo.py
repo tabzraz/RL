@@ -81,13 +81,17 @@ class ExperienceReplay_Options_Pseudo:
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
 
-    def Update_Indices(self, indices, ps):
+    def Update_Indices(self, indices, ps, no_pseudo_in_priority=False):
         if self.priority:
             # print(ps)
-            for index, priority in zip(indices, ps):
+            for index, priority, pseudo_reward in zip(indices, ps, self.pseudo_rewards_used):
                 # print(index, priority)
-                abs_priority = abs(priority[0]) + 0.00001
-                self.priorities.update(abs_priority, index)
+                priority_value = priority[0]
+                if no_pseudo_in_priority:
+                    # TD Error is (Prediction - Target)
+                    priority_value += pseudo_reward
+                abs_priority = abs(priority_value)
+                self.priorities.update(abs_priority + 0.00001, index)
 
     def Sample(self, size):
         # assert(size <= self.N)
@@ -137,6 +141,7 @@ class ExperienceReplay_Options_Pseudo:
         indices = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
+        pseudo_rewards_used = []
         for index in indices:
             exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
             # Check for terminal states
@@ -157,12 +162,19 @@ class ExperienceReplay_Options_Pseudo:
             terminate = exps_to_use[-1].terminal
             steps = len(exps_to_use)
             rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
+            pseudo_rewards = list(map(lambda x: x.pseudo_reward, exps_to_use))
             accum_reward = 0
-            for ri in reversed(rewards_to_use):
+            accum_psuedo_reward = 0
+            for ri, pri in zip(reversed(rewards_to_use), reversed(pseudo_rewards)):
                 accum_reward = ri + gamma * accum_reward
+                accum_psuedo_reward = pri + gamma * accum_psuedo_reward
             new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
             batch_to_return.append(new_exp)
+            pseudo_rewards_used.append(accum_psuedo_reward)
         # [] for indices to match the prioritized replay
+
+        # Remeber the pseudo rewards used
+        self.pseudo_rewards_used = pseudo_rewards_used
         return batch_to_return, indices
 
     def Sample_N_Eligibility_States(self, size, gamma, num_states=5, gap=2):

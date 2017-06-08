@@ -145,7 +145,7 @@ class DDQN_Agent:
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            self.replay.Update_Indices(indices, td_error.cpu().data.numpy())
+            self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
             l2_loss = (td_error).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
