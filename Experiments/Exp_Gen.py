@@ -127,7 +127,7 @@ for env in envs:
                                                                         if prioritized:
                                                                             python_command += " --priority"
                                                                             if is_weight:
-                                                                                python_command += "--prioritized-is"
+                                                                                python_command += " --prioritized-is"
                                                                         if count:
                                                                             python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
                                                                             python_command += " --stale-limit {}".format(stale)
