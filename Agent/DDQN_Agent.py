@@ -152,6 +152,8 @@ class DDQN_Agent:
                 # print(td_error)
                 weights_tensor = torch.from_numpy(is_weights).float()
                 weights_tensor = Variable(weights_tensor)
+                if self.args.gpu:
+                    weights_tensor = weights_tensor.cuda()
                 # print(weights_tensor)
                 td_error = td_error * weights_tensor
             l2_loss = (td_error).pow(2).mean()
