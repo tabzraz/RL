@@ -61,13 +61,19 @@ class ExperienceReplay_Options_Pseudo:
             return self.full_distrib
 
     def get_indices(self, size):
+        is_weights = None
         if self.priority:
             distribution = self.get_sampling_distribution()
             sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
             indices = self.priorities.priority_to_experience(sampled_indices)
+            is_weights = 1 / (distribution[sampled_indices - 1] * self.experiences_stored)
+            # print(is_weights)
+            is_weights /= 1 / (distribution[-1] * self.experiences_stored)
+            # print(distribution)
+            # print(1 / (distribution[0] * self.experiences_stored))
         else:
             indices = np.random.randint(low=0, high=self.experiences_stored, size=size)
-        return indices
+        return indices, is_weights
 
     def Recompute_Pseudo_Counts(self, indices):
         if self.exp_model is None or self.pseudo_limit >= self.N:
@@ -138,7 +144,7 @@ class ExperienceReplay_Options_Pseudo:
         assert(size <= self.N)
         self.T += 1
         # indices = np.random.randint(low=0, high=len(self.Exps) - 1, size=size)
-        indices = self.get_indices(size)
+        indices, is_weights = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
         pseudo_rewards_used = []
@@ -175,7 +181,7 @@ class ExperienceReplay_Options_Pseudo:
 
         # Remeber the pseudo rewards used
         self.pseudo_rewards_used = pseudo_rewards_used
-        return batch_to_return, indices
+        return batch_to_return, indices, is_weights
 
     def Sample_N_Eligibility_States(self, size, gamma, num_states=5, gap=2):
         assert(size <= self.N)

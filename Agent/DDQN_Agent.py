@@ -104,7 +104,7 @@ class DDQN_Agent:
             self.dqn.eval()
 
             # TODO: Use a named tuple for experience replay
-            batch, indices = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
+            batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
             columns = list(zip(*batch))
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -147,6 +147,13 @@ class DDQN_Agent:
             # Update the priorities
             self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
+            # If using prioritised we need to weight the td_error
+            if self.args.prioritized and self.args.prioritized_is:
+                # print(td_error)
+                weights_tensor = torch.from_numpy(is_weights).float()
+                weights_tensor = Variable(weights_tensor)
+                # print(weights_tensor)
+                td_error = td_error * weights_tensor
             l2_loss = (td_error).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
 
