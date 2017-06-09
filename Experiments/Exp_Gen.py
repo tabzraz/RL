@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -13,11 +13,11 @@ epsilon_starts = [0.1]
 epsilon_steps = [200000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
-stale_limits = [x * 1000 for x in [50, 300]]
+stale_limits = [x * 1000 for x in [300]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 n_steps = [100]
-optimism_scalers = [1]
+optimism_scalers = [0.001, 0.01]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
@@ -26,7 +26,7 @@ num_states = [1]
 gap = 3
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None] #["Optimistic"]
+state_action_modes = ["Optimistic"]
 bandit_no_epsilon_scaling = True #HACK
 
 options = [False]
@@ -38,7 +38,7 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction)
-prioritizeds = [(False, False), (True, True), (True, False)]
+prioritizeds = [(False, False)]
 eligibility_trace = False
 gamma = 0.9999
 
@@ -50,10 +50,10 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-start_at = 0
+start_at = 7
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
 tar = True
@@ -161,7 +161,8 @@ for env in envs:
                                                                                 screen_name = "Count"
                                                                             screen_name += "_{}".format(seed)
                                                                             python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
-                                                                        print(python_command)
+                                                                        if seed == seeds[0]:
+                                                                            print(python_command)
                                                                         commands.append(python_command)
                                                                         uid += 1
                                                                     print()
@@ -175,13 +176,17 @@ print("\n--- {} Runs ---\n--- {} Files => Upto {} Runs per file ---\n".format(ui
 print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
 
 if write_to_files:
-    for i in range(files):
+
+    if not append:
+        for i in range(files):
+            with open("exps{}.sh".format(i + 1), "w") as f:
+                f.write("")
+                print("Cleared exps{}.sh".format(i + 1))
+
+    for i in range(uid):
         i += start_at
         i = i % files
-        file_str = "w"
-        if append:
-            file_str = "a"
-        with open("exps{}.sh".format(i + 1), file_str) as f:
+        with open("exps{}.sh".format(i + 1), "a") as f:
             # for cc in commands[i::files]:
             if len(commands) > 0:
                 print("Writing to exps{}.sh".format(i + 1))
