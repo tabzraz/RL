@@ -1,6 +1,7 @@
 import numpy as np
 import collections
 from .Binary_Heap import BinaryHeap
+import sys
 
 
 class ExperienceReplay_Options_Pseudo:
@@ -15,6 +16,8 @@ class ExperienceReplay_Options_Pseudo:
         self.T = 0
         self.storing_index = 0
         self.experiences_stored = 0
+
+        self.printed_ram_usage = False
 
         self.priority = priority
         if self.priority:
@@ -36,6 +39,15 @@ class ExperienceReplay_Options_Pseudo:
         # Make copies just in case
         new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T, trajectory_end=terminal)
         self.Exps[self.storing_index] = new_exp
+
+        if not self.printed_ram_usage:
+            exps_size = sys.getsizeof(self.Exps) / (1024)
+            state_size = np.copy(state_now).nbytes / (1024 ** 2)
+            print("\n\nState is of size roughly {:.2f} MB".format(state_size))
+            mb_size = state_size * 2 * self.N
+            mb_size += exps_size
+            print("{:,} Experiences will take at least {:.2f} GB\n".format(self.N, mb_size / 1024))
+            self.printed_ram_usage = True
 
         if self.priority:
             p = self.priorities.get_max_priority()

@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
