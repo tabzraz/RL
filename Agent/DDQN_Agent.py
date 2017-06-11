@@ -104,7 +104,10 @@ class DDQN_Agent:
             self.dqn.eval()
 
             # TODO: Use a named tuple for experience replay
-            batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, self.args.n_step, self.args.gamma)
+            n_step_sample = 1
+            if np.random.random() < self.args.n_step_mixing:
+                n_step_sample = self.args.n_step
+            batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
             columns = list(zip(*batch))
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
