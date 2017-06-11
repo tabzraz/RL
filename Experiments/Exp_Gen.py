@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -13,11 +13,11 @@ epsilon_starts = [0.1]
 epsilon_steps = [200000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
-stale_limits = [x * 1000 for x in [50, 300]]
+stale_limits = [x * 1000 for x in [300]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999]
+epsilon_decay = [0.9999, 0.999, 0.99, 0.9]
 n_steps = [100]
-optimism_scalers = [0.01]
+optimism_scalers = [0.1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
@@ -26,7 +26,7 @@ num_states = [1]
 gap = 3
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None] #["Optimistic"]
+state_action_modes = [None]#["Optimistic"]
 bandit_no_epsilon_scaling = True #HACK
 
 options = [False]
@@ -38,7 +38,7 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction)
-prioritizeds = [(False, False), (True, False), (True, True)]
+prioritizeds = [(False, False)]
 eligibility_trace = False
 gamma = 0.9999
 
@@ -50,10 +50,10 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-start_at = 0
+start_at = 15
 
 gpus = 8
-exps_per_gpu = 3
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 tar = True
