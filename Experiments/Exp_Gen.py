@@ -114,7 +114,7 @@ for env in envs:
                                                                         python_command += " --logdir ../Logs"
                                                                         python_command += " --gamma {}".format(gamma)
                                                                         python_command += " --eps-steps {}".format(eps_steps)
-                                                                        python_command += " --n-step {} --n-step-mixing".format(n_step, n_mixing)
+                                                                        python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
                                                                         python_command += " --iters {}".format(iters)
                                                                         if prioritized:
                                                                             python_command += " --priority"
