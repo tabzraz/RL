@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -15,19 +15,17 @@ batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [300]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999, 0.999, 0.99, 0.9]
+epsilon_decay = [0.9999]
 n_steps = [100]
 optimism_scalers = [0.1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 
-lambdas = [1]
-num_states = [1]
-gap = 3
-
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = [None]#["Optimistic"]
 bandit_no_epsilon_scaling = True #HACK
+
+n_step_mixings = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 options = [False]
 
@@ -50,7 +48,7 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-start_at = 15
+start_at = 0
 
 gpus = 8
 exps_per_gpu = 2
@@ -74,9 +72,9 @@ for env in envs:
                                             for stale_val in stale_limits:
                                                 for beta in betas:
                                                     for cts_size in cts_sizes:
-                                                        for neg_reward, neg_reward_scaler in negative_rewards: #[(n, ns) for n in negative_rewards for ns in negative_reward_scaler]:
-                                                            for num_state in num_states:
-                                                                for prioritized, is_weight in prioritizeds:
+                                                        for neg_reward, neg_reward_scaler in negative_rewards:  #[(n, ns) for n in negative_rewards for ns in negative_reward_scaler]:
+                                                            for prioritized, is_weight in prioritizeds:
+                                                                for n_mixing in n_step_mixings:
                                                                     for seed in seeds:
 
                                                                         if state_action_mode != None and count is False:
@@ -85,7 +83,7 @@ for env in envs:
                                                                             eps_scaling = False
 
                                                                         name = env.replace("-", "_")[:-3]
-                                                                        name += "_{}_Step".format(n_step)
+                                                                        name += "_{}_Step_{}_Mix".format(n_step, n_mixing)
                                                                         name += "_LR_{}".format(lr)
                                                                         name += "_Gamma_{}".format(gamma)
                                                                         name += "_Batch_{}_Iters_{}_XpSize_{}k".format(batch_size, iters, str(xp_replay_size)[:-3])
@@ -93,8 +91,6 @@ for env in envs:
                                                                             name += "_Prioritized"
                                                                             if is_weight:
                                                                                 name += "_IS"
-                                                                        if eligibility_trace:
-                                                                            name += "_ETrace_{}_{}_States_{}_Gap".format(lamb, num_state, gap)
                                                                         # if option:
                                                                         #     if random_macros:
                                                                         #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
@@ -109,8 +105,6 @@ for env in envs:
                                                                                 name += "_CountEps_{}_Decay".format(eps_decay)
                                                                             if state_action_mode == "Plain":
                                                                                 name += "_StateAction"
-                                                                            elif state_action_mode == "Force":
-                                                                                name += "_ForceAction"
                                                                             elif state_action_mode == "Optimistic":
                                                                                 name += "_OptimisticAction_{}_Scaler".format(o_scaler)
                                                                             name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, uid)
@@ -120,10 +114,8 @@ for env in envs:
                                                                         python_command += " --logdir ../Logs"
                                                                         python_command += " --gamma {}".format(gamma)
                                                                         python_command += " --eps-steps {}".format(eps_steps)
-                                                                        python_command += " --n-step {}".format(n_step)
+                                                                        python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
                                                                         python_command += " --iters {}".format(iters)
-                                                                        if eligibility_trace:
-                                                                            python_command += " --lambda_ {} --num-states {} --gap {}".format(lamb, num_state, gap)
                                                                         if prioritized:
                                                                             python_command += " --priority"
                                                                             if is_weight:
@@ -138,8 +130,6 @@ for env in envs:
                                                                                 python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
                                                                             if state_action_mode == "Plain":
                                                                                 python_command += " --count-state-action"
-                                                                            elif state_action_mode == "Force":
-                                                                                python_command += " --force-low-count-action"
                                                                             elif state_action_mode == "Optimistic":
                                                                                 python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
                                                                         # if option:
