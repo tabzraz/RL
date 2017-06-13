@@ -79,6 +79,7 @@ parser.add_argument("--num-states", type=int, default=5)
 parser.add_argument("--gap", type=int, default=2)
 parser.add_argument("--count-td-priority", action="store_true", default=False)
 parser.add_argument("--n-step-mixing", type=float, default=1.0)
+parser.add_argument("--set-replay", action="store_true", default=False)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
