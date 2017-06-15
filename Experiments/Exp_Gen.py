@@ -19,14 +19,14 @@ epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 n_steps = [100]
 optimism_scalers = [0.1]
-negative_rewards = [(False, 0)]
+negative_rewards = [(True, 0.1), (True, 0.2)]
 negative_reward_scaler = [0.9]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = [None]#["Optimistic"]
 bandit_no_epsilon_scaling = True #HACK
 
-n_step_mixings = [0.0, 0.3, 0.7, 1.0]
+n_step_mixings = [1.0]
 
 options = [False]
 
@@ -41,7 +41,7 @@ prioritizeds = [(False, False)]
 eligibility_trace = False
 gamma = 0.99
 
-set_replays = [True, False]
+set_replays = [True]
 doubles = [False]
 
 write_to_files = False
@@ -55,7 +55,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 4
+exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
 tar = True
