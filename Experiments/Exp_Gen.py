@@ -55,7 +55,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 4
 files = gpus * exps_per_gpu
 
 tar = True
