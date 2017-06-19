@@ -8,8 +8,9 @@ class ExperienceReplay_Options_Pseudo:
 
     Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t trajectory_end")
 
-    def __init__(self, N, pseudo_limit, exp_model, priority=False):
+    def __init__(self, N, pseudo_limit, exp_model, args, priority=False):
         self.N = N
+        self.args = args
         self.Exps = [None for _ in range(N)]
         self.pseudo_limit = pseudo_limit
         self.exp_model = exp_model
@@ -50,7 +51,10 @@ class ExperienceReplay_Options_Pseudo:
             self.printed_ram_usage = True
 
         if self.priority:
-            p = self.priorities.get_max_priority()
+            if self.args.bonus_priority:
+                p = pseudo_reward
+            else:
+                p = self.priorities.get_max_priority()
             self.priorities.update(p, self.storing_index)
             if self.storing_index % 1000 == 0:
                 self.priorities.balance_tree()
@@ -91,6 +95,7 @@ class ExperienceReplay_Options_Pseudo:
         if self.exp_model is None or self.pseudo_limit >= self.N:
             # print("No exp model")
             return
+        ps = []
         for i in indices:
             exp = self.Exps[i]
             if self.T - exp.pseudo_reward_t > self.pseudo_limit:
@@ -98,6 +103,11 @@ class ExperienceReplay_Options_Pseudo:
                 new_bonus, _ = self.exp_model.bonus(exp.state, dont_remember=True)
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
+                if self.args.bonus_priority:
+                    ps.append(new_bonus)
+
+        if self.args.bonus_priority:
+            self.Update_Indices(indices, ps)
 
     def Update_Indices(self, indices, ps, no_pseudo_in_priority=False):
         if self.priority:

@@ -20,7 +20,7 @@ class DDQN_Agent:
         if self.args.set_replay:
             self.replay = ExpReplaySet(10, 10, exp_model, args, priority=False)
         else:
-            self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, priority=self.args.prioritized)
+            self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         # DQN and Target DQN
         model = get_models(args.model)
@@ -152,7 +152,8 @@ class DDQN_Agent:
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
+            if not self.args.bonus_priority:
+                self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
             # If using prioritised we need to weight the td_error
             if self.args.prioritized and self.args.prioritized_is:
