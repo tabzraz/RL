@@ -2,7 +2,7 @@ import sys
 from math import ceil
 
 envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
-lrs = [0.0001]
+lrs = [0.0001, 0.00001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
@@ -14,10 +14,10 @@ epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
-stale_limits = [x * 1000 for x in [50, 300]]
+stale_limits = [x * 1000 for x in [600]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
-n_steps = [100]
+n_steps = [1, 10, 100]
 optimism_scalers = [0.1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
@@ -37,12 +37,13 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Exp_Bonus_Prioritised)
-prioritizeds = [(True, False, True), (True, True, True)]
+prioritizeds = [(False, False, False)]
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
-set_replays = [False]
+set_replays = [True]
 doubles = [False]
+big_model = True
 
 write_to_files = False
 append = False
@@ -54,8 +55,8 @@ if "--append" in sys.argv:
 
 start_at = 0
 
-gpus = 6
-exps_per_gpu = 1
+gpus = 8
+exps_per_gpu = 3
 files = gpus * exps_per_gpu
 
 tar = True
@@ -97,6 +98,8 @@ for env in envs:
                                                                                 name += "_LR_{}".format(lr)
                                                                                 name += "_Gamma_{}".format(gamma)
                                                                                 name += "_Batch_{}_Iters_{}_XpSize_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
+                                                                                if big_model:
+                                                                                    name += "_Big"
                                                                                 if prioritized:
                                                                                     name += "_Prioritized"
                                                                                     if bonus_pri:
@@ -135,6 +138,8 @@ for env in envs:
                                                                                 python_command += " --eps-steps {}".format(eps_steps)
                                                                                 python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
                                                                                 python_command += " --iters {}".format(iters)
+                                                                                if big_model:
+                                                                                    python_command += " --model Med-Maze-10-v0-Big"
                                                                                 if eligibility_trace:
                                                                                     python_command += " --lambda_ {} --num-states {} --gap {}".format(lamb, num_state, gap)
                                                                                 if set_replay:

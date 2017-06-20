@@ -1,5 +1,5 @@
 # --- Torch models ---
-from .Torch import DQN_Maze
+from .Torch import DQN_Maze, DQN_Maze_Big
 
 # Define all the models here
 torch_models = {}
@@ -30,6 +30,10 @@ for n in range(50):
     def model_creator(actions, size=n):
         return DQN_Maze.DQN(input_size=(1, size * 5, size * 5), actions=actions)
     torch_models["Med-Maze-{}-v0".format(n)] = model_creator
+
+    def model_creator_big(actions, size=n):
+        return DQN_Maze_Big.DQN(input_size=(1, size * 5, size * 5), actions=actions)
+    torch_models["Med-Maze-{}-v0-Big".format(n)] = model_creator_big
 
 # DQN Thin Maze
 for n in range(50):
