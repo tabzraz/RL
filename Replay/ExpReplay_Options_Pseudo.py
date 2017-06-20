@@ -17,6 +17,7 @@ class ExperienceReplay_Options_Pseudo:
         self.T = 0
         self.storing_index = 0
         self.experiences_stored = 0
+        self.pseudo_rewards_used = [0 for _ in range(1000)]
 
         self.printed_ram_usage = False
 
@@ -112,9 +113,11 @@ class ExperienceReplay_Options_Pseudo:
     def Update_Indices(self, indices, ps, no_pseudo_in_priority=False):
         if self.priority:
             # print(ps)
+            # if self.pseudo_rewards_used is None:
+                # self.pseudo_rewards_used = [0 for i in indices]
             for index, priority, pseudo_reward in zip(indices, ps, self.pseudo_rewards_used):
-                # print(index, priority)
-                priority_value = priority[0]
+                # print(index, priority, pseudo_reward)
+                priority_value = priority
                 if no_pseudo_in_priority:
                     # TD Error is (Prediction - Target)
                     priority_value += pseudo_reward
