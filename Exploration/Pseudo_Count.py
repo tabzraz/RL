@@ -61,6 +61,10 @@ class PseudoCount:
         bonus = self.beta / sqrt(pseudo_count + 0.01)
         if self.args.negative_rewards:
             bonus -= self.beta * self.args.negative_reward_threshold
+
+        if bonus < self.beta * self.args.bonus_clip:
+            bonus = 0
+
         extra_info["Bonus"] = bonus
 
         return bonus, extra_info
