@@ -41,25 +41,25 @@ class TabQ_Agent:
             if key in self.q_table:
                 q_value = self.q_table[key]
             else:
-                q_value = 0
+                q_value = np.random.random() / 1000
             q_values.append(q_value)
 
-        q_values = np.array(q_values)
+        q_values_numpy = np.array(q_values)
 
         extra_info = {}
-        extra_info["Q_Values"] = q_values
+        extra_info["Q_Values"] = q_values_numpy
 
         if self.args.optimistic_init:
             for a in range(self.args.actions):
                 _, info = exp_model.bonus(state, a, dont_remember=True)
                 action_pseudo_count = info["Pseudo_Count"]
                 # TODO: Log the optimism bonuses
-                q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+                q_values_numpy[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
         else:
-            action = q_values.argmax()
+            action = q_values_numpy.argmax()
 
         extra_info["Action"] = action
 
@@ -74,7 +74,6 @@ class TabQ_Agent:
     def train(self):
 
         for _ in range(self.args.iters):
-            self.dqn.eval()
 
             # TODO: Use a named tuple for experience replay
             n_step_sample = 1
@@ -84,7 +83,7 @@ class TabQ_Agent:
 
             # (state_now, action_now, accum_reward, state_then, steps, terminate)
             td_errors = []
-            for batch_stuff, is_weight in zip(batch, is_weights):
+            for index, batch_stuff in enumerate(batch):
 
                 state, action, reward, next_state, step, terminal_state = batch_stuff
                 # Work out q_value target
@@ -98,7 +97,8 @@ class TabQ_Agent:
                         if key in self.q_table:
                             q_value = self.q_table[key]
                         else:
-                            q_value = 0
+                            # q_value = 0
+                            q_value = np.random.random() / 1000
                         next_state_max_qval = max(next_state_max_qval, q_value)
 
                     q_value_target += (self.args.gamma ** step) * next_state_max_qval
@@ -114,9 +114,9 @@ class TabQ_Agent:
                 td_errors.append(td_error)
 
                 if self.args.prioritized and self.args.prioritized_is:
-                    td_error * is_weight
+                    td_error * is_weights[index]
 
-                updated_prediction = q_value_prediction - self.args.lr(td_error)
+                updated_prediction = q_value_prediction - self.args.lr * (td_error)
 
                 self.q_table[key] = updated_prediction
 

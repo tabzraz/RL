@@ -82,6 +82,7 @@ parser.add_argument("--n-step-mixing", type=float, default=1.0)
 parser.add_argument("--set-replay", action="store_true", default=False)
 parser.add_argument("--bonus-priority", action="store_true", default=False)
 parser.add_argument("--bonus-clip", type=float, default=0.0)
+parser.add_argument("--tabular", action="store_true", default=False)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:

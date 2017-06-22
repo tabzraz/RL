@@ -120,7 +120,11 @@ class EnvWrapper(gym.Env):
         if "Forced_Action" in info:
             forced_action = info["Forced_Action"]
 
-        q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * (height - 4)) + 4 for q_val in q_values]
+        # Hack
+        if max_q_value == min_q_value:
+            q_val_sizes = [(height - 4) for _ in q_values]
+        else:
+            q_val_sizes = [int((q_val - min_q_value) / (max_q_value - min_q_value) * (height - 4)) + 4 for q_val in q_values]
         greedy_action = np.argmax(q_values)
         actions = len(q_values)
         bar_width = int(width / actions)
