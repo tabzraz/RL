@@ -29,6 +29,7 @@ class TabQ_Agent:
         self.T = 0
 
     def state_to_tuple(self, state):
+        return tuple(np.argwhere(state > 0.9)[0])
         return tuple([tuple([tuple(y) for y in x]) for x in state])
 
     def act(self, state, epsilon, exp_model):
