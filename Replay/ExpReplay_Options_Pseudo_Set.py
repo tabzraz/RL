@@ -32,6 +32,10 @@ class ExperienceReplay_Options_Pseudo_Set:
         self.storing_index = 0
         self.experiences_stored = 0
 
+    def state_to_tuple(self, state):
+        return tuple(np.argwhere(state > 0.9)[0])
+        return tuple([tuple([tuple(y) for y in x]) for x in state])
+
     def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0):
         # if len(self.Exps) >= self.N:
             # self.Exps.pop(0)
@@ -53,7 +57,8 @@ class ExperienceReplay_Options_Pseudo_Set:
         n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=self.args.n_step, terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, pseudo_reward_t=self.T, trajectory_end=n_step_traj_end)
 
         # self.Exps[self.storing_index] = n_step_exp
-        n_step_state_tuple = tuple([tuple([tuple(y) for y in x]) for x in n_step_state])
+        n_step_state_tuple = self.state_to_tuple(n_step_state)
+        # print(n_step_state_tuple)
         # print(n_step_state_tuple)
         self.Exps[(n_step_state_tuple, n_step_action)] = n_step_exp
         # Remove the oldest entry
@@ -76,7 +81,7 @@ class ExperienceReplay_Options_Pseudo_Set:
             n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=len(self.recent_exps), terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, pseudo_reward_t=self.T, trajectory_end=True)
 
             # n_step_state_tuple = tuple([tuple(x) for x in n_step_state])
-            n_step_state_tuple = tuple([tuple([tuple(y) for y in x]) for x in n_step_state])
+            n_step_state_tuple = self.state_to_tuple(n_step_state)
             self.Exps[(n_step_state_tuple, n_step_action)] = n_step_exp
             # self.Exps[(n_step_state, n_step_action)] = n_step_exp
             # Remove the oldest entry
