@@ -42,7 +42,7 @@ prioritizeds = [(False, False, False, False), (True, False, False, True), (True,
 eligibility_trace = False
 gammas = [0.9999]
 
-set_replays = [False]
+set_replays = [(True, 1), (True, 5), (True, 10), (True, 50)]
 doubles = [False]
 
 big_model = False
@@ -82,7 +82,7 @@ for env in envs:
                                                     for neg_reward, neg_reward_scaler in negative_rewards:  #[(n, ns) for n in negative_rewards for ns in negative_reward_scaler]:
                                                         for prioritized, is_weight, bonus_pri, sub_pseudo_reward in prioritizeds:
                                                             for n_mixing in n_step_mixings:
-                                                                for set_replay in set_replays:
+                                                                for set_replay, set_replay_num in set_replays:
                                                                     for double in doubles:
                                                                         for reward_clip in reward_clips:
                                                                             for seed in seeds:
@@ -114,7 +114,7 @@ for env in envs:
                                                                                 if eligibility_trace:
                                                                                     name += "_ETrace_{}_{}_States_{}_Gap".format(lamb, num_state, gap)
                                                                                 if set_replay:
-                                                                                    name += "_SetReplay"
+                                                                                    name += "_SetReplay_{}".format(set_replay_num)
                                                                                 name += "_BonusClip_{}".format(reward_clip)
                                                                                 # if option:
                                                                                 #     if random_macros:
@@ -155,6 +155,7 @@ for env in envs:
                                                                                     python_command += " --lambda_ {} --num-states {} --gap {}".format(lamb, num_state, gap)
                                                                                 if set_replay:
                                                                                     python_command += " --set-replay"
+                                                                                    python_command += " --set-replay-num {}".format(set_replay_num)
                                                                                 if prioritized:
                                                                                     python_command += " --priority"
                                                                                     if is_weight:

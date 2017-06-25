@@ -11,6 +11,7 @@ class ExperienceReplay_Options_Pseudo_Set:
         self.N = N
         # self.Exps = [None for _ in range(N)]
         self.Exps = {}
+        self.state_action_counts = {}
         self.pseudo_limit = pseudo_limit
         self.exp_model = exp_model
         self.T = 0
@@ -60,7 +61,15 @@ class ExperienceReplay_Options_Pseudo_Set:
         n_step_state_tuple = self.state_to_tuple(n_step_state)
         # print(n_step_state_tuple)
         # print(n_step_state_tuple)
-        self.Exps[(n_step_state_tuple, n_step_action)] = n_step_exp
+        sa_count = 0
+        key = (n_step_state_tuple, n_step_action)
+        if key in self.state_action_counts:
+            sa_count = self.state_action_counts[key]
+        self.Exps[(n_step_state_tuple, n_step_action, sa_count)] = n_step_exp
+        sa_count += 1
+        if sa_count >= self.args.set_replay_num:
+            sa_count = 0
+        self.state_action_counts[key] = sa_count
         # Remove the oldest entry
         self.recent_exps = self.recent_exps[1:]
 
@@ -82,7 +91,16 @@ class ExperienceReplay_Options_Pseudo_Set:
 
             # n_step_state_tuple = tuple([tuple(x) for x in n_step_state])
             n_step_state_tuple = self.state_to_tuple(n_step_state)
-            self.Exps[(n_step_state_tuple, n_step_action)] = n_step_exp
+            # self.Exps[(n_step_state_tuple, n_step_action)] = n_step_exp
+            sa_count = 0
+            key = (n_step_state_tuple, n_step_action)
+            if key in self.state_action_counts:
+                sa_count = self.state_action_counts[key]
+            self.Exps[(n_step_state_tuple, n_step_action, sa_count)] = n_step_exp
+            sa_count += 1
+            if sa_count >= self.args.set_replay_num:
+                sa_count = 0
+            self.state_action_counts[key] = sa_count
             # self.Exps[(n_step_state, n_step_action)] = n_step_exp
             # Remove the oldest entry
             self.recent_exps = self.recent_exps[1:]
