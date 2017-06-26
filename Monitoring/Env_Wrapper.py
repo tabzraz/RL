@@ -23,6 +23,12 @@ class EnvWrapper(gym.Env):
     def _render(self, mode="human", close=False):
         return self.wrapped_env.render(mode, close)
 
+    def trained_on_states(self, states):
+        try:
+            return self.wrapped_env.env.trained_on_states(states, self.args)
+        except AttributeError:
+            print("No trained on states vis for this environment")
+
     def xp_replay_states(self, player_positions):
         try:
             return self.wrapped_env.env.xp_replay_states(player_positions, self.args)
@@ -50,6 +56,12 @@ class EnvWrapper(gym.Env):
     def log_visitation(self):
         try:
             return self.wrapped_env.env.log_player_pos()
+        except AttributeError:
+            pass
+
+    def state_to_player_pos(self, state):
+        try:
+            return self.wrapped_env.env.state_to_player_pos(state)
         except AttributeError:
             pass
 

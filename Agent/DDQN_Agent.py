@@ -104,6 +104,8 @@ class DDQN_Agent:
             self.sync_target_network()
             self.target_sync_T = self.T
 
+        info = {}
+
         for _ in range(self.args.iters):
             self.dqn.eval()
 
@@ -146,7 +148,7 @@ class DDQN_Agent:
                 q_value_targets = q_value_targets.cuda()
             model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
 
-            info = {}
+            # info = {}
 
             td_error = model_predictions - q_value_targets
             info["TD_Error"] = td_error.mean().data[0]
@@ -178,6 +180,12 @@ class DDQN_Agent:
                 info["Norm"] = gradient_norm
 
             self.optimizer.step()
+
+            if "States" in info:
+                states_trained = info["States"]
+                info["States"] = states_trained + columns[0]
+            else:
+                info["States"] = columns[0]
 
         return info
 

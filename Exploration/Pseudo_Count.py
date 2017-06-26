@@ -52,8 +52,9 @@ class PseudoCount:
 
         extra_info["Pixel_PG"] = pg_pixel
 
+        # print(density)
         density = min(1, density)
-        density = max(density, 0.000001)
+        density = max(density, 1e-50)
         extra_info["Density"] = density
 
         # Don't want prediction gain to be too large or too small

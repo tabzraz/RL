@@ -135,8 +135,10 @@ class TreeDensity:
                 colour = self.symbol_frame[y, x]
                 self.contexts_vector[y, x, :] = context + [colour]
 
-        log_probs, densities = self.model.new_old(self.contexts_vector, keep=keep)
-        total_log_probability = np.sum(log_probs)
+        delta_log_probs, prev_log_probs = self.model.new_old(self.contexts_vector, keep=keep)
+        total_log_probability = np.sum(delta_log_probs)
+
+        densities = np.sum(prev_log_probs)
 
         return total_log_probability, log_probs, np.exp(densities)
 
