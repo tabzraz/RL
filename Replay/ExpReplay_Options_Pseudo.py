@@ -6,7 +6,7 @@ import sys
 
 class ExperienceReplay_Options_Pseudo:
 
-    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t trajectory_end")
+    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward density pseudo_reward_t trajectory_end")
 
     def __init__(self, N, pseudo_limit, exp_model, args, priority=False):
         self.N = N
@@ -33,13 +33,13 @@ class ExperienceReplay_Options_Pseudo:
         self.storing_index = 0
         self.experiences_stored = 0
 
-    def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0):
+    def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0, density=1):
         if self.storing_index >= self.N:
             self.storing_index = 0
         # if len(self.Exps) >= self.N:
             # self.Exps.pop(0)
         # Make copies just in case
-        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T, trajectory_end=terminal)
+        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, density=density, pseudo_reward_t=self.T, trajectory_end=terminal)
         self.Exps[self.storing_index] = new_exp
 
         if not self.printed_ram_usage:
@@ -101,11 +101,12 @@ class ExperienceReplay_Options_Pseudo:
             exp = self.Exps[i]
             if self.T - exp.pseudo_reward_t > self.pseudo_limit:
                 # Recompute it
-                new_bonus, _ = self.exp_model.bonus(exp.state, dont_remember=True)
-                new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
+                new_bonus, new_bonus_info = self.exp_model.bonus(exp.state, dont_remember=True)
+                density = new_bonus_info["Density"]
+                new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
                 if self.args.bonus_priority:
-                    ps.append(new_bonus)
+                    ps.append((1 / density))
 
         if self.args.bonus_priority:
             self.Update_Indices(indices, ps)

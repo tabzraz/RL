@@ -90,8 +90,8 @@ class DDQN_Agent:
 
         return action, extra_info
 
-    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0):
-        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward)
+    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
+        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()

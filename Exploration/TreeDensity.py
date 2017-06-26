@@ -26,7 +26,7 @@ class TreeDensity:
         if keep:
             self.count += 1
             self.counts[x, y, index] += 1
-        return new_prob - prev_log_prob
+        return new_prob - prev_log_prob, prev_log_prob
 
     def log_prob(self, contexts):
         # print(context, symbol)

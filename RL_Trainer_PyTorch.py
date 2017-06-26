@@ -174,8 +174,9 @@ class Trainer:
             if training:
                 self.Exploration_Bonus.append(bonus)
                 if self.args.tb and self.T % self.args.tb_interval == 0:
-                    self.log_value("Count_Bonus", bonus, step=self.T)
-                    self.log_value("Count_PseudoCounts", extra_info["Pseudo_Count"], step=self.T)
+                    self.log_value("Count/Bonus", bonus, step=self.T)
+                    self.log_value("Count/PseudoCounts", extra_info["Pseudo_Count"], step=self.T)
+                    self.log_value("Count/Density", extra_info["Density"], step=self.T)
 
             self.max_exp_bonus = max(self.max_exp_bonus, bonus)
             extra_info["Max_Bonus"] = self.max_exp_bonus
@@ -399,6 +400,10 @@ class Trainer:
                 if not self.args.count_epsilon:
                     exp_bonus, exp_info = self.exploration_bonus(state, action)
 
+                density = 1
+                if self.args.count:
+                    density = exp_info["Density"]
+
                 if self.args.render or will_save_states:
                     debug_info = {}
                     debug_info.update(action_info)
@@ -435,7 +440,7 @@ class Trainer:
 
                 self.episode_bonus_only_reward += exp_bonus
 
-                self.agent.experience(state, action, reward, state_new, 1, episode_finished, exp_bonus)
+                self.agent.experience(state, action, reward, state_new, 1, episode_finished, exp_bonus, density)
 
                 self.train_agent()
 

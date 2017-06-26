@@ -44,13 +44,14 @@ class PseudoCount:
         # if dont_remember:
             # self.cts_model = old_cts_model
 
-        pg, pg_pixel = self.models[action].new_old(state_resized, keep=not dont_remember)
+        pg, pg_pixel, density = self.models[action].new_old(state_resized, keep=not dont_remember)
 
         # pg = rho_new - rho_old
 
         # pg_pixel = rho_new_pixels - rho_old_pixels
 
         extra_info["Pixel_PG"] = pg_pixel
+        extra_info["Density"] = density
 
         # Don't want prediction gain to be too large or too small
         pg = min(100, pg)
