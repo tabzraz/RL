@@ -51,6 +51,9 @@ class PseudoCount:
         # pg_pixel = rho_new_pixels - rho_old_pixels
 
         extra_info["Pixel_PG"] = pg_pixel
+
+        density = min(1, density)
+        density = max(density, 0.000001)
         extra_info["Density"] = density
 
         # Don't want prediction gain to be too large or too small
