@@ -241,10 +241,10 @@ class Trainer:
         xp_states = self.env.xp_replay_states(self.Player_Positions)
         if xp_states is not None:
             self.save_video("{}/visitations/Xp_Replay_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), xp_states)
-        trained_on_states = self.env.trained_on_states(self.Trained_On_States)
-        # print("\n\n\n\n", len(trained_on_states))
-        if trained_on_states is not None:
-            self.save_video("{}/visitations/Trained_States_In_Xp_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), trained_on_states)
+        if self.args.log_trained_on_states:
+            trained_on_states = self.env.trained_on_states(self.Trained_On_States)
+            if trained_on_states is not None:
+                self.save_video("{}/visitations/Trained_States_In_Xp_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), trained_on_states)
 
     def select_random_action(self):
         return np.random.choice(self.args.actions)
@@ -335,8 +335,9 @@ class Trainer:
             if "TD_Error" in train_info:
                 self.log_value("DQN/TD_Error", train_info["TD_Error"], step=self.T)
 
-        if "States" in train_info:
-            self.Trained_On_States += [self.env.state_to_player_pos(s) for s in train_info["States"]]
+        if self.args.log_trained_on_states:
+            if "States" in train_info:
+                self.Trained_On_States += [self.env.state_to_player_pos(s) for s in train_info["States"]]
 
     def visitations(self):
         player_pos = self.env.log_visitation()
