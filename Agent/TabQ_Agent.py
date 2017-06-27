@@ -67,7 +67,7 @@ class TabQ_Agent:
 
         return action, extra_info
 
-    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0):
+    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward)
 
     def end_of_trajectory(self):
