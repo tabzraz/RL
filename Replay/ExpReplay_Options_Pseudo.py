@@ -18,6 +18,7 @@ class ExperienceReplay_Options_Pseudo:
         self.storing_index = 0
         self.experiences_stored = 0
         self.pseudo_rewards_used = [0 for _ in range(1000)]
+        self.max_reward = 0
 
         self.printed_ram_usage = False
 
@@ -62,6 +63,7 @@ class ExperienceReplay_Options_Pseudo:
 
         self.storing_index += 1
         self.experiences_stored = max(self.experiences_stored, self.storing_index)
+        self.max_reward = max(self.max_reward, pseudo_reward + reward)
 
     def end_of_trajectory(self):
         exp = self.Exps[self.storing_index - 1]
@@ -176,8 +178,17 @@ class ExperienceReplay_Options_Pseudo:
         pseudo_rewards_used = []
         for index in indices:
             exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
+            N_Step = N
+            if self.args.variable_n_step:
+                exp_reward = exps_to_use[0].pseudo_reward + exps_to_use[0].reward
+                if exp_reward > 0:
+                    N_Step = min(N, int(self.max_reward / exp_reward))
+                else:
+                    N_Step = N
+                N_Step = max(N_Step, 1)
+                print(N_Step)
             # Check for terminal states
-            index_up_to = min(self.experiences_stored, index + N) - index
+            index_up_to = min(self.experiences_stored, index + N_Step) - index
             for i, exp in enumerate(exps_to_use):
                 # print(exp)
                 if exp.terminal or exp.trajectory_end:
