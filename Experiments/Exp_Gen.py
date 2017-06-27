@@ -18,6 +18,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 n_steps = [100]
+variable_n_step = False
 optimism_scalers = [1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
@@ -98,6 +99,8 @@ for env in envs:
                                                                                     xp_replay_size_ = xp_replay_size
 
                                                                                 name = env.replace("-", "_")[:-3]
+                                                                                if variable_n_step:
+                                                                                    name += "_Variable"
                                                                                 name += "_{}_Step_{}_Mix".format(n_step, n_mixing)
                                                                                 name += "_LR_{}".format(lr)
                                                                                 name += "_Gamma_{}".format(gamma)
@@ -148,6 +151,8 @@ for env in envs:
                                                                                 python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
                                                                                 python_command += " --iters {}".format(iters)
                                                                                 python_command += " --bonus-clip {}".format(reward_clip)
+                                                                                if variable_n_step:
+                                                                                    python_command += " --variable-n-step"
                                                                                 if tabular:
                                                                                     python_command += " --tabular"
                                                                                 if big_model:

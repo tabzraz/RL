@@ -186,7 +186,7 @@ class ExperienceReplay_Options_Pseudo:
                 else:
                     N_Step = N
                 N_Step = max(N_Step, 1)
-                print(N_Step)
+                # print(N_Step)
             # Check for terminal states
             index_up_to = min(self.experiences_stored, index + N_Step) - index
             for i, exp in enumerate(exps_to_use):
