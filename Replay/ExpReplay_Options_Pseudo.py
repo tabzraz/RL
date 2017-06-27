@@ -121,7 +121,7 @@ class ExperienceReplay_Options_Pseudo:
                 priority_value = priority
                 if no_pseudo_in_priority:
                     # TD Error is (Prediction - Target)
-                    priority_value -= pseudo_reward
+                    priority_value -= pseudo_reward * self.args.count_td_scaling
                 abs_priority = abs(priority_value)
                 self.priorities.update(abs_priority + 0.00001, index)
 
