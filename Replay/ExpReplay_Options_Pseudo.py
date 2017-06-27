@@ -177,16 +177,16 @@ class ExperienceReplay_Options_Pseudo:
         batch_to_return = []
         pseudo_rewards_used = []
         for index in indices:
-            exps_to_use = self.Exps[index: min(self.experiences_stored, index + N)]
             N_Step = N
             if self.args.variable_n_step:
-                exp_reward = exps_to_use[0].pseudo_reward + exps_to_use[0].reward
+                exp_reward = self.Exps[index].pseudo_reward + self.Exps[index].reward
                 if exp_reward > 0:
                     N_Step = min(N, int(self.max_reward / exp_reward))
                 else:
                     N_Step = N
                 N_Step = max(N_Step, 1)
                 # print(N_Step)
+            exps_to_use = self.Exps[index: min(self.experiences_stored, index + N_Step)]
             # Check for terminal states
             index_up_to = min(self.experiences_stored, index + N_Step) - index
             for i, exp in enumerate(exps_to_use):
