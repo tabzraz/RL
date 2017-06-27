@@ -42,7 +42,8 @@ class TabQ_Agent:
             if key in self.q_table:
                 q_value = self.q_table[key]
             else:
-                q_value = np.random.random() / 1000
+                q_value = 1 # HACK for optimistic init
+                # q_value = np.random.random() / 1000
             q_values.append(q_value)
 
         q_values_numpy = np.array(q_values)
