@@ -13,8 +13,8 @@ epsilon_starts = [0.1]
 epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100]]
-stale_limits = [x * 1000 for x in [1000]]
+xp_replay_sizes = [x * 1000 for x in [300]]
+stale_limits = [x * 1000 for x in [50, 300]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
@@ -41,12 +41,12 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Exp_Bonus_Prioritised, Subtract pseudo rewards)
-prioritizeds = [(False, False, False, False)]  # [(True, False, True), (True, True, True)]
-count_td_scalers = [1]
+prioritizeds = [(True, False, False, True), (True, True, False, True)]  # [(True, False, True), (True, True, True)]
+count_td_scalers = [1, -1]
 eligibility_trace = False
 gammas = [0.9999]
 
-set_replays = [(True, 1), (True, 5), (True, 10), (True, 50)]
+set_replays = [(False, 1)]
 doubles = [False]
 
 big_model = False
