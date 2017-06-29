@@ -187,6 +187,12 @@ class DDQN_Agent:
             else:
                 info["States"] = columns[0]
 
+        # Pad out the states to be of size batch_size
+        if len(info["States"]) < self.args.batch_size:
+            old_states = info["States"]
+            new_states = old_states[0] * (self.args.batch_size - len(old_states))
+            info["States"] = new_states
+
         return info
 
     def train_elig(self):

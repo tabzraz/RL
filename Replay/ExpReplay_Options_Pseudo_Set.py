@@ -5,7 +5,7 @@ from .Binary_Heap import BinaryHeap
 
 class ExperienceReplay_Options_Pseudo_Set:
 
-    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward pseudo_reward_t trajectory_end")
+    Experience = collections.namedtuple("Experience", "state action reward state_next steps terminal pseudo_reward density pseudo_reward_t trajectory_end")
 
     def __init__(self, N, pseudo_limit, exp_model, args, priority=False):
         self.N = N
@@ -37,11 +37,11 @@ class ExperienceReplay_Options_Pseudo_Set:
         return tuple(np.argwhere(state > 0.9)[0])
         return tuple([tuple([tuple(y) for y in x]) for x in state])
 
-    def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0):
+    def Add_Exp(self, state_now, action, reward, state_after, steps, terminal, pseudo_reward=0, density=1):
         # if len(self.Exps) >= self.N:
             # self.Exps.pop(0)
         # Make copies just in case
-        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, pseudo_reward_t=self.T, trajectory_end=terminal)
+        new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, density=density, pseudo_reward_t=self.T, trajectory_end=terminal)
         self.recent_exps.append(new_exp)
         if len(self.recent_exps) < self.args.n_step:
             return
@@ -55,7 +55,8 @@ class ExperienceReplay_Options_Pseudo_Set:
         n_step_terminal = self.recent_exps[-1].terminal
         n_step_traj_end = self.recent_exps[-1].trajectory_end
         n_step_next_state = np.copy(self.recent_exps[-1].state_next)
-        n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=self.args.n_step, terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, pseudo_reward_t=self.T, trajectory_end=n_step_traj_end)
+        n_step_density = self.recent_exps[0].density
+        n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=self.args.n_step, terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, density=n_step_density, pseudo_reward_t=self.T, trajectory_end=n_step_traj_end)
 
         # self.Exps[self.storing_index] = n_step_exp
         n_step_state_tuple = self.state_to_tuple(n_step_state)
@@ -87,7 +88,9 @@ class ExperienceReplay_Options_Pseudo_Set:
             n_step_terminal = self.recent_exps[-1].terminal
             # n_step_traj_end = self.recent_exps[-1].trajectory_end
             n_step_next_state = np.copy(self.recent_exps[-1].state_next)
-            n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=len(self.recent_exps), terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, pseudo_reward_t=self.T, trajectory_end=True)
+            n_step_density = self.recent_exps[0].density
+            n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=len(self.recent_exps), terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, density=n_step_density, pseudo_reward_t=self.T, trajectory_end=True)
+            # n_step_exp = self.Experience(state=n_step_state, action=n_step_action, reward=n_step_reward, state_next=n_step_next_state, steps=len(self.recent_exps), terminal=n_step_terminal, pseudo_reward=n_step_psuedo_reward, pseudo_reward_t=self.T, trajectory_end=True)
 
             # n_step_state_tuple = tuple([tuple(x) for x in n_step_state])
             n_step_state_tuple = self.state_to_tuple(n_step_state)
