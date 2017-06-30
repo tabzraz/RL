@@ -121,6 +121,8 @@ class ExperienceReplay_Options_Pseudo:
             for index, priority, pseudo_reward in zip(indices, ps, self.pseudo_rewards_used):
                 # print(index, priority, pseudo_reward)
                 priority_value = priority
+                if priority < 0:
+                    priority_value *= self.args.negative_td_scaler
                 abs_priority = abs(priority_value)
                 if no_pseudo_in_priority:
                     # TD Error is (Prediction - Target)
