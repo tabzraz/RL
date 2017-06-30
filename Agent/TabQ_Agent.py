@@ -127,8 +127,7 @@ class TabQ_Agent:
             info["TD_Error"] = sum(td_errors) / len(td_errors)
 
             # Update the priorities
-            if not self.args.bonus_priority:
-                self.replay.Update_Indices(indices, td_errors, no_pseudo_in_priority=self.args.count_td_priority)
+            self.replay.Update_Indices(indices, td_errors, no_pseudo_in_priority=self.args.count_td_priority)
 
             info["Loss"] = info["TD_Error"]
 

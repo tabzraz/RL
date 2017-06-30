@@ -53,10 +53,7 @@ class ExperienceReplay_Options_Pseudo:
             self.printed_ram_usage = True
 
         if self.priority:
-            if self.args.bonus_priority:
-                p = pseudo_reward
-            else:
-                p = self.priorities.get_max_priority()
+            p = self.priorities.get_max_priority()
             self.priorities.update(p, self.storing_index)
             if self.storing_index % 1000 == 0:
                 self.priorities.balance_tree()
@@ -107,11 +104,11 @@ class ExperienceReplay_Options_Pseudo:
                 density = new_bonus_info["Density"]
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
-                if self.args.bonus_priority:
-                    ps.append((1 / density))
+                # if self.args.bonus_priority:
+                #     ps.append((1 / density))
 
-        if self.args.bonus_priority:
-            self.Update_Indices(indices, ps)
+        # if self.args.bonus_priority:
+        #     self.Update_Indices(indices, ps)
 
     def Update_Indices(self, indices, ps, no_pseudo_in_priority=False):
         if self.priority:
