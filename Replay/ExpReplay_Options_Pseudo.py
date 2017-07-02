@@ -2,6 +2,7 @@ import numpy as np
 import collections
 from .Binary_Heap import BinaryHeap
 import sys
+import random
 
 
 class ExperienceReplay_Options_Pseudo:
@@ -28,6 +29,7 @@ class ExperienceReplay_Options_Pseudo:
             self.priorities = BinaryHeap(N)
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
+            self.densities = np.array([0 for _ in range(self.N)])
 
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
@@ -54,6 +56,9 @@ class ExperienceReplay_Options_Pseudo:
 
         if self.priority:
             p = self.priorities.get_max_priority()
+            if self.args.density_priority:
+                self.densities[self.storing_index] = density
+                p = 1
             self.priorities.update(p, self.storing_index)
             if self.storing_index % 1000 == 0:
                 self.priorities.balance_tree()
@@ -79,12 +84,19 @@ class ExperienceReplay_Options_Pseudo:
     def get_indices(self, size):
         is_weights = None
         if self.priority:
-            distribution = self.get_sampling_distribution()
-            sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
-            indices = self.priorities.priority_to_experience(sampled_indices)
-            is_weights = 1 / (distribution[sampled_indices - 1] * self.experiences_stored)
-            # print(is_weights)
-            is_weights /= 1 / (distribution[-1] * self.experiences_stored)
+
+            if self.args.density_priority:
+                indices = random.choices(np.arange(0, self.experiences_stored), weights=self.densities[:self.experiences_stored], k=size)
+                indices = np.array(indices)
+                is_weights = 1 / (self.densities[indices] * self.experiences_stored)
+                is_weights /= 1 / (np.max(self.densities) * self.experiences_stored)
+            else:
+                distribution = self.get_sampling_distribution()
+                sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
+                indices = self.priorities.priority_to_experience(sampled_indices)
+                is_weights = 1 / (distribution[sampled_indices - 1] * self.experiences_stored)
+                # print(is_weights)
+                is_weights /= 1 / (distribution[-1] * self.experiences_stored)
             # print(distribution)
             # print(1 / (distribution[0] * self.experiences_stored))
         else:

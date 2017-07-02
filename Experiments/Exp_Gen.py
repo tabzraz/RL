@@ -41,8 +41,9 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards)
-prioritizeds = [(True, False, 0, False), (True, False, -1.5, False), (True, False, 1.5, False)]  # [(True, False, True), (True, True, True)]
+prioritizeds = [(True, False, 0, False), (True, True, 0, False)]  # [(True, False, True), (True, True, True)]
 count_td_scalers = [1]
+density_priority = True
 eligibility_trace = False
 gammas = [0.9999]
 
@@ -111,6 +112,8 @@ for env in envs:
                                                                                     name += "_Big"
                                                                                 if prioritized:
                                                                                     name += "_Prioritized_{}_NScaler".format(neg_scaler)
+                                                                                    if density_priority:
+                                                                                        name += "_DensityP"
                                                                                     if is_weight:
                                                                                         name += "_IS"
                                                                                     if sub_pseudo_reward:
@@ -160,6 +163,8 @@ for env in envs:
                                                                                     python_command += " --set-replay-num {}".format(set_replay_num)
                                                                                 if prioritized:
                                                                                     python_command += " --priority --negative-td-scaler {}".format(neg_scaler)
+                                                                                    if density_priority:
+                                                                                        python_command += " --density-priority"
                                                                                     if is_weight:
                                                                                         python_command += " --prioritized-is"
                                                                                     if sub_pseudo_reward:
