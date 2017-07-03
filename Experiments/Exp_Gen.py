@@ -13,7 +13,7 @@ epsilon_starts = [0.1]
 epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [200]]
 stale_limits = [x * 1000 for x in [50]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -41,9 +41,9 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
-prioritizeds = [(True, False, 1.5, False, 0.1),(True, False, 1.5, False, 0.3),(True, False, 1.5, False, 0.5),(True, False, 1.5, False, 0.7), (True, False, 1.5, False, 0.9),]  # [(True, False, True), (True, True, True)]
+prioritizeds = [(True, False, 1, False, 0.7), (True, True, 1, False, 0.7)]  # [(True, False, True), (True, True, True)]
 count_td_scalers = [1]
-density_priority = False
+density_priority = True
 eligibility_trace = False
 gammas = [0.9999]
 
