@@ -57,7 +57,7 @@ class ExperienceReplay_Options_Pseudo:
         if self.priority:
             p = self.priorities.get_max_priority()
             if self.args.density_priority:
-                self.densities[self.storing_index] = density
+                self.densities[self.storing_index] = 1 / density
                 p = 1
             self.priorities.update(p, self.storing_index)
             if self.storing_index % 1000 == 0:
