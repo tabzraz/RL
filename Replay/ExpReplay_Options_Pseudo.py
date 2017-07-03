@@ -29,7 +29,7 @@ class ExperienceReplay_Options_Pseudo:
             self.priorities = BinaryHeap(N)
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
-            self.densities = np.array([0 for _ in range(self.N)])
+            self.densities = np.array([0 for _ in range(self.N)], dtype=np.float128) #128 might be unnecessary
 
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
@@ -86,6 +86,7 @@ class ExperienceReplay_Options_Pseudo:
         if self.priority:
 
             if self.args.density_priority:
+                # print(self.densities[:self.experiences_stored])
                 indices = random.choices(np.arange(0, self.experiences_stored), weights=self.densities[:self.experiences_stored], k=size)
                 indices = np.array(indices)
                 is_weights = 1 / (self.densities[indices] * self.experiences_stored)
