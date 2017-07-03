@@ -29,7 +29,7 @@ class ExperienceReplay_Options_Pseudo:
             self.priorities = BinaryHeap(N)
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
-            self.densities = np.array([0 for _ in range(self.N)], dtype=np.float128) #128 might be unnecessary
+            self.densities = np.array([0 for _ in range(self.N)], dtype=np.float64)
 
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
