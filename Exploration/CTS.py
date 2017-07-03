@@ -70,6 +70,11 @@ def gray_to_symbols(frame, output):
     return output
 
 
+def gray_to_symbols2(frame, output):
+    output = frame * 15
+    return output.astype(int)
+
+
 def symbols_to_gray(frame, output):
     """Inverse of gray_to_symbols.
     """
@@ -123,24 +128,45 @@ class TreeDensity:
         self.context_functor = L_shaped_context
         self.model = model(16, 4, frame_shape[0], frame_shape[1])
         self.contexts_vector = np.zeros(shape=(self.symbol_frame.shape[0], self.symbol_frame.shape[1], 5))
+        self.padded_frame = np.zeros(shape=(frame_shape[0] + 1, frame_shape[1] + 2))
 
     def new_old(self, frame, keep=True):
-        gray_to_symbols(frame, self.symbol_frame)
+        self.symbol_frame = gray_to_symbols2(frame, self.symbol_frame)
         total_log_probability = 0.0
         log_probs = np.zeros(shape=self.symbol_frame.shape)
 
-        for y in range(self.symbol_frame.shape[0]):
-            for x in range(self.symbol_frame.shape[1]):
-                context = self.context_functor(self.symbol_frame, y, x)
-                colour = self.symbol_frame[y, x]
-                self.contexts_vector[y, x, :] = context + [colour]
+        padded_frame = self.padded_frame
+
+        padded_frame[1:, 1:-1] = self.symbol_frame
+
+    # context = [0] * 4
+    # if x > 0:
+    #     context[3] = image[y][x - 1]
+    # if y > 0:
+    #     context[2] = image[y - 1][x]
+    #     context[1] = image[y - 1][x - 1] if x > 0 else 0
+    #     context[0] = image[y - 1][x + 1] if x < image.shape[1] - 1 else 0
+        self.contexts_vector[:,:,0] = padded_frame[0:-1, 2:]
+        self.contexts_vector[:,:,1] = padded_frame[0:-1, 1:-1]
+        self.contexts_vector[:,:,2] = padded_frame[0:-1, 0:-2]
+        self.contexts_vector[:,:,3] = padded_frame[1:, 0:-2]
+        self.contexts_vector[:,:,4] = padded_frame[1:, 1:-1]
+
+        # print(self.contexts_vector)
+        # for y in range(self.symbol_frame.shape[0]):
+        #     for x in range(self.symbol_frame.shape[1]):
+        #         context = self.context_functor(self.symbol_frame, y, x)
+        #         colour = self.symbol_frame[y, x]
+        #         self.contexts_vector[y, x, :] = context + [colour]
+        # print(self.contexts_vector)
 
         delta_log_probs, prev_log_probs = self.model.new_old(self.contexts_vector, keep=keep)
         total_log_probability = np.sum(delta_log_probs)
 
         densities = np.sum(prev_log_probs)
+        # print(prev_log_probs)
 
-        return total_log_probability, log_probs, np.exp(densities)
+        return total_log_probability, delta_log_probs, np.exp(densities)
 
 
 class DensityModel(object):
