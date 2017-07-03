@@ -25,7 +25,7 @@ class ExperienceReplay_Options_Pseudo:
 
         self.priority = priority
         if self.priority:
-            self.alpha = 0.7
+            self.alpha = self.args.alpha
             self.priorities = BinaryHeap(N)
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
