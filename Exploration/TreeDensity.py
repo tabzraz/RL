@@ -11,7 +11,8 @@ class TreeDensity:
 
         self.counts = np.ones(shape=(x_shape, y_shape, self.alphabet_size ** (self.context_length + 1)), dtype=np.uint32)
         print("Memory for TreeDensity Model is {} GB".format(self.counts.nbytes / (1024 ** 3)))
-        self.count = np.sum(self.counts)
+        # self.count = np.sum(self.counts)
+        self.count = 1
         # print(self.counts.shape)
 
         self.to_index = np.array(list(reversed([alphabet_size ** i for i in range(context_length + 1)])))
