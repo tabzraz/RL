@@ -41,13 +41,15 @@ class ExperienceReplay_Options_Pseudo:
             self.storing_index = 0
         # if len(self.Exps) >= self.N:
             # self.Exps.pop(0)
-        # Make copies just in case
+        # Make copies just in case, make them float32 to save on ram
+        state_now = state_now.astype(np.float32)
+        state_after = state_after.astype(np.float32)
         new_exp = self.Experience(state=np.copy(state_now), action=action, reward=reward, state_next=np.copy(state_after), steps=steps, terminal=terminal, pseudo_reward=pseudo_reward, density=density, pseudo_reward_t=self.T, trajectory_end=terminal)
         self.Exps[self.storing_index] = new_exp
 
         if not self.printed_ram_usage:
-            exps_size = sys.getsizeof(self.Exps) / (1024)
-            state_size = np.copy(state_now).nbytes / (1024 ** 2)
+            exps_size = sys.getsizeof(self.Exps) / (1024.0)
+            state_size = np.copy(state_now).nbytes / (1024.0 ** 2)
             print("\n\nState is of size roughly {:.2f} MB".format(state_size))
             mb_size = state_size * 2 * self.N
             mb_size += exps_size
