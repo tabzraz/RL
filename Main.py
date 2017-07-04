@@ -88,7 +88,7 @@ parser.add_argument("--count-td-scaler", type=float, default=1)
 parser.add_argument("--variable-n-step", action="store_true", default=False)
 parser.add_argument("--negative-td-scaler", type=float, default=1)
 parser.add_argument("--density-priority", action="store_true", default=False)
-parser.add_argument("--alpha", type=float, default=0.7)
+parser.add_argument("--alpha", type=float, default=0.5)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
