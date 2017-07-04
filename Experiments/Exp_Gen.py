@@ -13,7 +13,7 @@ epsilon_starts = [0.1]
 epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100, 500]]
+xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [50, 500]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -41,7 +41,7 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
-prioritizeds = [(True, False, 2, False, 0.5), (True, False, -2, False, 0.5)]  # [(True, False, True), (True, True, True)]
+prioritizeds = [(True, False, 2, False, 0.5), (True, False, 0.5, False, 0.5)]  # [(True, False, True), (True, True, True)]
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
@@ -64,7 +64,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
 tar = True
