@@ -238,10 +238,11 @@ if write_to_files:
                 commands = commands[1:]
 
     # Write to the file running the experiments
-    exp_num = 1
-    with open("run_experiments.sh", "w") as f:
-        for _ in range(exps_per_gpu):
-            for g in range(gpus):
-                f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
-                exp_num += 1
-        f.write("# {} Experiments total\n".format(uid))
+    if not append:
+        exp_num = 1
+        with open("run_experiments.sh", "w") as f:
+            for _ in range(exps_per_gpu):
+                for g in range(gpus):
+                    f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
+                    exp_num += 1
+            f.write("# {} Experiments total\n".format(uid))
