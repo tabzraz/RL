@@ -154,7 +154,8 @@ class DDQN_Agent:
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
+            if not self.args.density_priority:
+                self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
             # If using prioritised we need to weight the td_error
             if self.args.prioritized and self.args.prioritized_is:
