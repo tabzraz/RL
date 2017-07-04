@@ -29,7 +29,7 @@ class ExperienceReplay_Options_Pseudo:
             self.priorities = BinaryHeap(N)
             self.distrib = np.array([pow((1 / (i + 1)), self.alpha) for i in range(self.N)])
             self.full_distrib = self.distrib / np.sum(self.distrib)
-            # self.densities = np.array([0 for _ in range(self.N)], dtype=np.float64)
+            self.densities = np.array([0 for _ in range(self.N)], dtype=np.float64)
 
     def Clear(self):
         self.Exps = [None for _ in range(self.N)]
@@ -59,8 +59,8 @@ class ExperienceReplay_Options_Pseudo:
         if self.priority:
             p = self.priorities.get_max_priority()
             if self.args.density_priority:
-                # self.densities[self.storing_index] = 1 / density
-                p = 1 / density
+                self.densities[self.storing_index] = 1 / density
+                p = 1
             self.priorities.update(p, self.storing_index)
             if self.storing_index % 1000 == 0:
                 self.priorities.balance_tree()
@@ -86,12 +86,20 @@ class ExperienceReplay_Options_Pseudo:
     def get_indices(self, size):
         is_weights = None
         if self.priority:
-            distribution = self.get_sampling_distribution()
-            sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
-            indices = self.priorities.priority_to_experience(sampled_indices)
-            is_weights = 1 / (distribution[sampled_indices - 1] * self.experiences_stored)
-            # print(is_weights)
-            is_weights /= 1 / (distribution[-1] * self.experiences_stored)
+
+            if self.args.density_priority:
+                # print(self.densities[:self.experiences_stored])
+                indices = random.choices(np.arange(0, self.experiences_stored), weights=self.densities[:self.experiences_stored], k=size)
+                indices = np.array(indices)
+                is_weights = 1 / (self.densities[indices] * self.experiences_stored)
+                is_weights /= 1 / (np.max(self.densities) * self.experiences_stored)
+            else:
+                distribution = self.get_sampling_distribution()
+                sampled_indices = np.random.choice(np.arange(1, self.experiences_stored + 1), p=distribution, size=size)
+                indices = self.priorities.priority_to_experience(sampled_indices)
+                is_weights = 1 / (distribution[sampled_indices - 1] * self.experiences_stored)
+                # print(is_weights)
+                is_weights /= 1 / (distribution[-1] * self.experiences_stored)
             # print(distribution)
             # print(1 / (distribution[0] * self.experiences_stored))
         else:
@@ -102,7 +110,7 @@ class ExperienceReplay_Options_Pseudo:
         if self.exp_model is None or self.pseudo_limit >= self.N:
             # print("No exp model")
             return
-        ps = []
+        # ps = []
         for i in indices:
             exp = self.Exps[i]
             if self.T - exp.pseudo_reward_t > self.pseudo_limit:
@@ -111,11 +119,12 @@ class ExperienceReplay_Options_Pseudo:
                 density = new_bonus_info["Density"]
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
-                if self.args.density_priority:
-                    ps.append((1 / density))
+                self.densities[i] = 1 / density
+                # if self.args.bonus_priority:
+                #     ps.append((1 / density))
 
-        if self.args.density_priority:
-            self.Update_Indices(indices, ps)
+        # if self.args.bonus_priority:
+        #     self.Update_Indices(indices, ps)
 
     def Update_Indices(self, indices, ps, no_pseudo_in_priority=False):
         if self.priority:
