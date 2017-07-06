@@ -41,7 +41,7 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
-prioritizeds = [(True, False, 2, False, 0.5), (True, False, 0.5, False, 0.5)]  # [(True, False, True), (True, True, True)]
+prioritizeds = [(True, False, 1, False, 0.3), (True, False, 1, False, 0.5)]  # [(True, False, True), (True, True, True)]
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
@@ -64,7 +64,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 tar = True
