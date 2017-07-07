@@ -18,7 +18,7 @@ stale_limits = [x * 1000 for x in [300]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [1, 10]
+n_steps = [100]
 variable_n_step = False
 
 optimism_scalers = [1]
