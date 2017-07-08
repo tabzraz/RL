@@ -21,13 +21,13 @@ epsilon_decay = [0.9999]
 n_steps = [100]
 variable_n_step = False
 
-optimism_scalers = [0.1]
 negative_rewards = [(False, 0)]
 negative_reward_scaler = [0.9]
 reward_clips = [0]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = ["Optimistic"]
+optimism_scalers = [0.1]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
@@ -42,6 +42,14 @@ with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
 prioritizeds = [(True, False, 1, False, 0.5)]  # [(True, False, True), (True, True, True)]
+
+alphas = [0.1, 0.3, 0.5]
+prioritiseds = [True]
+is_corrections = [False]
+negative_td_scalers = [8, 16]
+
+prioritizeds = [(p, p_is, n_td, False, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas]
+
 count_td_scalers = [0.1]
 density_priority = False
 eligibility_trace = False
@@ -61,7 +69,7 @@ if "--write" in sys.argv:
 if "--append" in sys.argv:
     append = True
 
-start_at = 12
+start_at = 8
 
 gpus = 8
 exps_per_gpu = 2
