@@ -27,7 +27,7 @@ reward_clips = [0]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = ["Optimistic"]
-optimism_scalers = [0.001, 0.1, 1, 10]
+optimism_scalers = [0.01, 0.1, 1, 10]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
