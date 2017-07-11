@@ -13,8 +13,8 @@ epsilon_starts = [0.1]
 epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
-stale_limits = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [250]]
+stale_limits = [x * 1000 for x in [250]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
@@ -27,7 +27,7 @@ reward_clips = [0]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 state_action_modes = ["Optimistic"]
-optimism_scalers = [0.1]
+optimism_scalers = [0.001, 0.1, 1, 10]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
@@ -41,12 +41,12 @@ random_macros = False
 with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
-prioritizeds = [(True, False, 1, False, 0.5)]  # [(True, False, True), (True, True, True)]
+prioritizeds = [(True, False, 4, False, 0.5), (True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
-alphas = [0.1, 0.3, 0.5]
+alphas = [0.5]
 prioritiseds = [True]
 is_corrections = [False]
-negative_td_scalers = [8, 16]
+negative_td_scalers = [8]
 
 prioritizeds = [(p, p_is, n_td, False, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas]
 
