@@ -77,9 +77,9 @@ class Trainer:
         self.epsiode_steps = 0
 
         # Debug stuff
-        self.max_q_value = 0.0000001
+        self.max_q_value = -1000
         self.min_q_value = +1000
-        self.max_exp_bonus = 0
+        self.max_exp_bonus = 0.000001
 
     # Multiprocessing logger
     def logger(self, q, finished):
