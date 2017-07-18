@@ -92,7 +92,7 @@ for env in envs:
                                         for stale_val in stale_limits:
                                             for beta in betas:
                                                 for cts_size in cts_sizes:
-                                                    for neg_reward, neg_reward_scaler in negative_rewards:  #[(n, ns) for n in negative_rewards for ns in negative_reward_scaler]:
+                                                    for neg_reward, neg_reward_scaler in negative_rewards:
                                                         for prioritized, is_weight, neg_scaler, sub_pseudo_reward, alpha in prioritizeds:
                                                             for n_mixing in n_step_mixings:
                                                                 for set_replay, set_replay_num in set_replays:

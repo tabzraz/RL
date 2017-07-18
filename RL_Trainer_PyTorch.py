@@ -12,6 +12,8 @@ from multiprocessing import Process
 from multiprocessing.sharedctypes import Value
 import queue
 
+from pympler import asizeof
+
 from Utils.Utils import time_str
 
 from Agent.DDQN_Agent import DDQN_Agent
@@ -52,6 +54,13 @@ class Trainer:
         # Frontier stuff
         self.frontier_T = 0
         self.frontier_images = []
+
+        # Visualisations
+        self.vis_T = 0
+        self.bonus_images = []
+        self.trained_on_states_images = []
+        self.replay_states_images = []
+        self.player_visits_images = []
 
         # Stuff to log
         self.Q_Values = []
@@ -230,21 +239,17 @@ class Trainer:
     def end_of_training_save(self):
         if self.args.count:
             self.exp_model.save_model()
-            bonuses = self.env.explorations(self.Player_Positions, self.Exploration_Bonus, self.max_exp_bonus)
-            if bonuses is not None:
-                self.save_video("{}/exp_bonus/Bonuses__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), bonuses)
+            if len(self.bonus_images) > 0:
+                self.save_video("{}/exp_bonus/Bonuses__Interval_{}".format(self.args.log_path, self.args.interval_size, self.T), self.bonus_images)
             if len(self.frontier_images) > 0:
                 self.save_video("{}/exp_bonus/Frontier__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.frontier_images)
-        visits = self.env.visitations(self.Player_Positions)
-        if visits is not None:
-            self.save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(self.args.log_path, self.args.interval_size, self.T), visits)
-        xp_states = self.env.xp_replay_states(self.Player_Positions)
-        if xp_states is not None:
-            self.save_video("{}/visitations/Xp_Replay_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), xp_states)
+        if len(self.player_visits_images) > 0:
+            self.save_video("{}/visitations/Goal_Visits__Interval_{}".format(self.args.log_path, self.args.interval_size), self.player_visits_images)
+        if len(self.replay_states_images) > 0:
+            self.save_video("{}/visitations/Xp_Replay_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), self.replay_states_images)
         if self.args.log_trained_on_states:
-            trained_on_states = self.env.trained_on_states(self.Trained_On_States)
-            if trained_on_states is not None:
-                self.save_video("{}/visitations/Trained_States_In_Xp_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), trained_on_states)
+            if len(self.trained_on_states_images) > 0:
+                self.save_video("{}/visitations/Trained_States_In_Xp_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), self.trained_on_states_images)
 
     def select_random_action(self):
         return np.random.choice(self.args.actions)
@@ -353,6 +358,48 @@ class Trainer:
                 self.frontier_images.append(image)
             self.frontier_T = self.T
 
+    def bonus_landscape(self):
+        if self.args.count:
+            entries = self.args.t_max // self.args.interval_size
+            image = self.env.explorations(self.Player_Positions[-entries:], self.Exploration_Bonus[-entries:], self.max_exp_bonus)
+            if image is not None:
+                self.bonus_images.append(image)
+
+    def trained_on_states(self):
+        if self.args.log_trained_on_states:
+            entries = self.args.t_max // self.args.interval_size
+            image = self.env.trained_on_states(self.Trained_On_States[-entries:])
+            if image is not None:
+                self.trained_on_states_images.append(image)
+
+    def replay_states(self):
+        image = self.env.xp_replay_states(self.Player_Positions[-self.args.exp_replay_size:])
+        if image is not None:
+            self.replay_states_images.append(image)
+
+    def player_visits(self):
+        entries = self.args.t_max // self.args.interval_size
+        image = self.env.visitations(self.Player_Positions[-entries * self.args.batch_size:])
+        if image is not None:
+            self.player_visits_images.append(image)
+
+    def visualisations(self):
+        if self.args.frontier:
+            self.frontier_vis()
+        if self.T - self.vis_T >= self.args.t_max // self.args.interval_size:
+            # print("\n\n\n", self.T, len(self.Trained_On_States), len(self.Player_Positions),"\n\n\n")
+            self.bonus_landscape()
+            self.trained_on_states()
+            self.replay_states()
+            self.player_visits()
+
+            self.vis_T = self.T
+
+            # Save some ram
+            entries = self.args.t_max // self.args.interval_size
+            self.Trained_On_States = self.Trained_On_States[-entries * self.args.batch_size:]
+            self.Player_Positions = self.Player_Positions[-self.args.exp_replay_size:]
+
 
 ######################
 # Training procedure #
@@ -428,8 +475,7 @@ class Trainer:
                 if self.args.visitations:
                     self.visitations()
 
-                if self.args.frontier:
-                    self.frontier_vis()
+                self.visualisations()
 
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
@@ -476,6 +522,16 @@ class Trainer:
                 self.training_video_T = self.T
 
         self.end_of_training_save()
+
+        print()
+        print("Environment {:.2} GB".format(asizeof.asizeof(self.env) / 1024.0 ** 3))
+        print("Player Positions {:.2} GB".format(asizeof.asizeof(self.Player_Positions) / 1024.0 ** 3))
+        print("Visited state {:.2} GB".format(asizeof.asizeof(self.Visited_States) / 1024.0 ** 3))
+        print("Trained states {:.2} GB".format(asizeof.asizeof(self.Trained_On_States) / 1024.0 ** 3))
+        print("Agent {:.2} GB".format(asizeof.asizeof(self.agent) / 1024.0 ** 3))
+        print("Agent Replay {:.2} GB".format(asizeof.asizeof(self.agent.replay) / 1024.0 ** 3))
+        if self.args.count:
+            print("Exp Model {:.2} GB".format(asizeof.asizeof(self.exp_model) / 1024.0 ** 3))
 
         if self.args.render:
             print("\n\nClosing render window")

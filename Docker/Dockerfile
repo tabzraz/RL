@@ -31,6 +31,8 @@ RUN pip install gym[all]
 RUN pip install pygame
 RUN pip install h5py
 
+RUN pip install pympler
+
 RUN pip install scikit-image
 RUN pip install matplotlib
 
