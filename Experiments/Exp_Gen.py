@@ -255,7 +255,7 @@ if write_to_files:
             for _ in range(exps_per_gpu):
                 for g in range(gpus):
                     if exp_num == exps_per_gpu * gpus:
-                        f.write("CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh".format(g, exp_num))
+                        f.write("CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\n".format(g, exp_num))
                     else:
                         f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
                     exp_num += 1
