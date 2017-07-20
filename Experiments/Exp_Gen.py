@@ -1,12 +1,12 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [10]]
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [600]]
+t_maxs = [x * 1000 for x in [300]]
 cts_sizes = [20]
 num_seeds = 4
 epsilon_starts = [0.1]
@@ -46,15 +46,15 @@ files = 16
 alphas = [0.5]
 prioritiseds = [True]
 is_corrections = [False]
-minus_pseudos = [True]
-negative_td_scalers = [1]
+minus_pseudos = [False]
+negative_td_scalers = [1, 2, 4, 8, 16, 32]
 
 prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos]
 
-count_td_scalers = [0.01, 0.1, 1, 10]
+count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
