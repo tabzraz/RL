@@ -6,15 +6,15 @@ lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [1000]]
+t_maxs = [x * 1000 for x in [600]]
 cts_sizes = [20]
-num_seeds = 8
+num_seeds = 4
 epsilon_starts = [0.1]
 epsilon_finishs = [0.00001]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300, 500]]
-stale_limits = [x * 1000 for x in [500]]
+xp_replay_sizes = [x * 1000 for x in [300]]
+stale_limits = [x * 1000 for x in [300]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
@@ -46,11 +46,12 @@ files = 16
 alphas = [0.5]
 prioritiseds = [True]
 is_corrections = [False]
-negative_td_scalers = [1, 4]
+minus_pseudos = [True]
+negative_td_scalers = [1]
 
-prioritizeds = [(p, p_is, n_td, False, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas]
+prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos]
 
-count_td_scalers = [0.1]
+count_td_scalers = [0.01, 0.1, 1, 10]
 density_priority = False
 eligibility_trace = False
 gammas = [0.9999]
@@ -253,6 +254,9 @@ if write_to_files:
         with open("run_experiments.sh", "w") as f:
             for _ in range(exps_per_gpu):
                 for g in range(gpus):
-                    f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
+                    if exp_num == exps_per_gpu * gpus:
+                        f.write("CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh".format(g, exp_num))
+                    else:
+                        f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
                     exp_num += 1
             f.write("# {} Experiments total\n".format(uid))
