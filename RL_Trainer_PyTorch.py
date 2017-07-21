@@ -368,7 +368,7 @@ class Trainer:
     def trained_on_states(self):
         if self.args.log_trained_on_states:
             entries = self.args.t_max // self.args.interval_size
-            image = self.env.trained_on_states(self.Trained_On_States[-entries:])
+            image = self.env.trained_on_states(self.Trained_On_States[-entries * self.args.batch_size:])
             if image is not None:
                 self.trained_on_states_images.append(image)
 
@@ -379,7 +379,7 @@ class Trainer:
 
     def player_visits(self):
         entries = self.args.t_max // self.args.interval_size
-        image = self.env.visitations(self.Player_Positions[-entries * self.args.batch_size:])
+        image = self.env.visitations(self.Player_Positions[-entries:])
         if image is not None:
             self.player_visits_images.append(image)
 
