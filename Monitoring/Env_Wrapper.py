@@ -23,35 +23,40 @@ class EnvWrapper(gym.Env):
     def _render(self, mode="human", close=False):
         return self.wrapped_env.render(mode, close)
 
-    def trained_on_states(self, states):
+    def trained_on_states(self, states, log=False):
         try:
             return self.wrapped_env.env.trained_on_states(states, self.args)
         except AttributeError:
-            print("No trained on states vis for this environment")
+            if log:
+                print("No trained on states vis for this environment")
 
-    def xp_replay_states(self, player_positions):
+    def xp_replay_states(self, player_positions, log=False):
         try:
             return self.wrapped_env.env.xp_replay_states(player_positions, self.args)
         except AttributeError:
-            print("No xp replay states for this environment")
+            if log:
+                print("No xp replay states for this environment")
 
-    def visitations(self, player_positions):
+    def visitations(self, player_positions, log=False):
         try:
             return self.wrapped_env.env.player_visits(player_positions, self.args)
         except AttributeError:
-            print("No visitations for this environment")
+            if log:
+                print("No visitations for this environment")
 
-    def frontier(self, exp_model, max_bonus):
+    def frontier(self, exp_model, max_bonus, log=False):
         try:
             return self.wrapped_env.env.frontier(exp_model, self.args, max_bonus)
         except AttributeError:
-            print("No frontier for this environment")
+            if log:
+                print("No frontier for this environment")
 
-    def explorations(self, player_positions, exploration_bonuses, max_bonus):
+    def explorations(self, player_positions, exploration_bonuses, max_bonus, log=False):
         try:
             return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, max_bonus, self.args)
         except AttributeError:
-            print("No bonus landscape for this environment")
+            if log:
+                print("No bonus landscape for this environment")
 
     def log_visitation(self):
         try:
@@ -72,6 +77,7 @@ class EnvWrapper(gym.Env):
                 if close:
                     pygame.quit()
                     return
+                self.wrapped_env.render(mode="human")
                 rgb_array = self.debug_render(debug_info, mode="rgb_array")
                 if not self.made_screen:
                     pygame.init()

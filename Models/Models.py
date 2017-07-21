@@ -7,6 +7,7 @@ torch_models = {}
 
 # DQN Atari
 torch_models["Tabz_Venture-v0"] = DQN_Atari.DQN
+torch_models["Tabz_MontezumaRevenge-v0"] = DQN_Atari.DQN
 
 # DQN Maze
 # torch_models["Maze-1"] = DQN_Maze.DQN

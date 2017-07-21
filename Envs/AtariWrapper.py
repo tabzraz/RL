@@ -1,6 +1,7 @@
 import numpy as np
 import gym
-from skimage.transform import resize
+# from skimage.transform import resize
+from scipy.misc import imresize as resize
 from skimage.color import rgb2grey  # Grey because we speak the Queen's English
 
 
@@ -25,7 +26,8 @@ class AtariEnv(gym.Env):
     def add_frame(self, new_frame):
         if not self.colours:
             new_frame = rgb2grey(new_frame)
-        resized_frame = resize(new_frame, self.resized_size)
+        resized_frame = resize(new_frame, self.resized_size, mode="F", interp="bilinear")
+        # resize(state[:, :, 0], self.cts_model_shape, mode="F", interp="bilinear")
         if self.colours:
             self.frames = np.concatenate([self.frames[:, :, 3:], resized_frame], axis=2)
         else:
@@ -34,7 +36,8 @@ class AtariEnv(gym.Env):
     def start_frames(self, frame):
         if not self.colours:
             frame = rgb2grey(frame)
-        resized_frame = resize(frame, self.resized_size)
+        # resized_frame = resize(frame, self.resized_size)
+        resized_frame = resize(frame, self.resized_size, mode="F", interp="bilinear")
         if self.colours:
             new_frames = np.concatenate([resized_frame for _ in range(self.history_length)], axis=2)
         else:
@@ -60,7 +63,9 @@ class AtariEnv(gym.Env):
         return self.frames
 
     def _render(self, mode='human', close=False):
-        # self.env.render(mode=mode, close=close)
+        # return self.env.render(mode=mode, close=close)
+        if mode == "human":
+            self.env.render(mode="human", close=close)
         # print(self.frames.shape)
         grid = self.frames[:, :, -1]
         # print(grid.shape)
