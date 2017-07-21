@@ -182,6 +182,8 @@ class EnvWrapper(gym.Env):
         cts_image = info["CTS_State"]
         cts_pg = info["Pixel_PG"]
 
+        if max_bonus == 0:
+            max_bonus = 0.000001
         # Bar
         bar_height = int(height * bonus / max_bonus)
         bonus_rect_coords = [(0, 0), (0, bar_height), (3, bar_height), (3, 0)]
