@@ -11,7 +11,7 @@ class EnvWrapper(gym.Env):
         self.metadata = env.metadata
         self.made_screen = False
         self.debug = debug
-        self.scaling = 8
+        self.scaling = args.render_scaling
         self.args = args
 
     def _step(self, a):

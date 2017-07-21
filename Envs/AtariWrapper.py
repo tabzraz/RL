@@ -8,7 +8,7 @@ class AtariEnv(gym.Env):
     # Gotta include this to render
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(105, 80), action_repeat=4):
+    def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(42, 32), action_repeat=4):
         env_name = "{}NoFrameskip-v3".format(game_name)
         self.env = gym.make(env_name)
         self.colours = colours
@@ -60,7 +60,16 @@ class AtariEnv(gym.Env):
         return self.frames
 
     def _render(self, mode='human', close=False):
-        self.env.render(mode=mode, close=close)
+        # self.env.render(mode=mode, close=close)
+        # print(self.frames.shape)
+        grid = self.frames[:, :, -1]
+        # print(grid.shape)
+        image = np.zeros(shape=(grid.shape[0], grid.shape[1], 3))
+        for x in range(grid.shape[0]):
+            for y in range(grid.shape[1]):
+                if grid[x, y] != 0:
+                    image[x, y] = (255 * grid[x, y], 255 * grid[x, y], 255 * grid[x, y])
+        return image
 
     def _seed(self, seed=None):
         return self.env.seed(seed)

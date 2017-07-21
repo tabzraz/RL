@@ -169,6 +169,7 @@ class Trainer:
         if self.args.count:
             if not self.args.count_state_action:
                 action = 0
+            state = state[:, :, -1:]
             bonus, extra_info = self.exp_model.bonus(state, action, dont_remember=not training)
 
             # TODO: Log for different actions
