@@ -24,9 +24,10 @@ from Monitoring.Env_Wrapper import EnvWrapper
 
 class Trainer:
 
-    def __init__(self, args, env):
+    def __init__(self, args, env, eval_env):
         self.args = args
         self.env = EnvWrapper(env, True, args)
+        self.eval_env = EnvWrapper(eval_env, True, args)
 
         if args.gpu and not torch.cuda.is_available():
             print("CUDA unavailable! Switching to cpu only")
@@ -51,6 +52,8 @@ class Trainer:
         self.eval_video_T = -self.args.t_max
         self.training_video_T = -self.args.t_max
 
+        self.eval_T = 0
+
         # Frontier stuff
         self.frontier_T = 0
         self.frontier_images = []
@@ -73,6 +76,7 @@ class Trainer:
         self.Player_Positions = []
         self.Visited_States = set()
         self.Trained_On_States = []
+        self.Eval_Rewards = []
 
         self.Last_T_Logged = 1
         self.Last_Ep_Logged = 1
@@ -118,11 +122,12 @@ class Trainer:
         imageio.imsave(name, image)
 
     def eval_agent(self, last=False):
-        env = self.env
+        self.eval_T = self.T
+        env = self.eval_env
 
         will_save_states = self.args.eval_images and (last or self.T - self.eval_video_T > (self.args.t_max // self.args.eval_images_interval))
 
-        epsilons = [0, self.epsilon]
+        epsilons = [0.01]
 
         for epsilon_value in epsilons:
             # self.epsilon = epsilon_value
@@ -161,14 +166,17 @@ class Trainer:
                 self.save_video("{}/evals/Eval_Policy__Epsilon_{:.2f}__T_{}__Ep_{}".format(self.args.log_path, epsilon_value, self.T, self.episode), states)
                 self.eval_video_T = self.T
 
-            if epsilon_value != epsilons[-1]:
-                with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(self.args.log_path, epsilon_value), "ab") as file:
-                    np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
-                    file.write(str.encode("\n"))
+            self.Eval_Rewards.append(ep_reward)
+            with open("{}/logs/Eval_Q_Values__Epsilon_{}__T.txt".format(self.args.log_path, epsilon_value), "ab") as file:
+                np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
+                file.write(str.encode("\n"))
 
-                if self.args.tb:
-                    self.log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon_value), ep_reward, step=self.T)
-                    self.log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon_value), steps, step=self.T)
+            with open("{}/logs/Eval_Rewards.txt".format(self.args.log_path), "a") as file:
+                file.write("{}\n".format(ep_reward))
+
+            if self.args.tb:
+                self.log_value("Eval/Epsilon_{:.2f}/Episode_Reward".format(epsilon_value), ep_reward, step=self.T)
+                self.log_value("Eval/Epsilon_{:.2f}/Episode_Length".format(epsilon_value), steps, step=self.T)
 
     def exploration_bonus(self, state, action, training=True):
 
@@ -507,7 +515,8 @@ class Trainer:
                     if self.T % 1000 == 0:
                         self.print_time()
 
-            self.eval_agent()
+                if self.T - self.eval_T >= self.args.t_max // self.args.eval_interval:
+                    self.eval_agent()
 
             self.episode += 1
             self.Episode_Rewards.append(self.episode_reward)
