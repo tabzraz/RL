@@ -77,7 +77,8 @@ class EnvWrapper(gym.Env):
                 if close:
                     pygame.quit()
                     return
-                self.wrapped_env.render(mode="human")
+                if "human" in self.wrapped_env.metadata["render.modes"]:
+                    self.wrapped_env.render(mode="human")
                 rgb_array = self.debug_render(debug_info, mode="rgb_array")
                 if not self.made_screen:
                     pygame.init()
