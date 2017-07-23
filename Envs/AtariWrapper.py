@@ -10,7 +10,7 @@ class AtariEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(42, 42), action_repeat=4):
-        env_name = "{}NoFrameskip-v3".format(game_name)
+        env_name = "{}NoFrameskip-v4".format(game_name)
         self.env = gym.make(env_name)
         self.colours = colours
         self.resized_size = resized_size
