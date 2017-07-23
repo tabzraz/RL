@@ -10,26 +10,33 @@ class DQN(nn.Module):
         img_size_y = int(input_size[2])
         # print(img_size)
         self.convs = []
-        conv_layers = 4
+        # conv_layers = 4
 
         # First layer
-        self.conv_1 = nn.Conv2d(4, 16, 5, padding=2, stride=1)
-        img_size_x = int((img_size_x - 3 + 4) / 2 + 1)
-        img_size_y = int((img_size_y - 3 + 4) / 2 + 1)
+        self.conv_1 = nn.Conv2d(4, 32, 7, padding=2, stride=2)
+        img_size_x = int((img_size_x - 7 + 4) / 2 + 1)
+        img_size_y = int((img_size_y - 7 + 4) / 2 + 1)
         # print(img_size)
 
-        for l in range(1, conv_layers):
+        for l in range(2):
             conv_layer = nn.Conv2d(32, 32, 3, padding=2, stride=2)
             self.convs.append(conv_layer)
             self.add_module("Conv Layer {}".format(l + 1), conv_layer)
             img_size_x = int((img_size_x - 3 + 4) / 2 + 1)
             img_size_y = int((img_size_y - 3 + 4) / 2 + 1)
+
+        for l in range(2):
+            conv_layer = nn.Conv2d(32, 32, 3, padding=2, stride=1)
+            self.convs.append(conv_layer)
+            self.add_module("Conv Layer {}".format(l + 3), conv_layer)
+            img_size_x = int((img_size_x - 3 + 4) / 1 + 1)
+            img_size_y = int((img_size_y - 3 + 4) / 1 + 1)
             # img_size = int((img_size - 3 + 4) / 2 + 1)
             # print(img_size)
         # img_size = int((img_size - 3 + 4) / 2 + 1)
         # print(img_size * 16, img_size * 4, actions)
         # self.flatten_size = img_size * img_size * 8
-        self.fc1 = nn.Linear(img_size_x * img_size_y * 16, img_size_x * img_size_y * 4)
+        self.fc1 = nn.Linear(img_size_x * img_size_y * 32, img_size_x * img_size_y * 4)
         self.fc2 = nn.Linear(img_size_x * img_size_y * 4, actions)
 
     def forward(self, x):
