@@ -127,7 +127,7 @@ class Trainer:
 
         will_save_states = self.args.eval_images and (last or self.T - self.eval_video_T > (self.args.t_max // self.args.eval_images_interval))
 
-        epsilons = [0.01]
+        epsilons = [0.05]
 
         for epsilon_value in epsilons:
             # self.epsilon = epsilon_value
@@ -171,7 +171,7 @@ class Trainer:
                 np.savetxt(file, Eval_Q_Values[:], delimiter=" ", fmt="%f")
                 file.write(str.encode("\n"))
 
-            with open("{}/logs/Eval_Rewards.txt".format(self.args.log_path), "a") as file:
+            with open("{}/logs/Eval_Rewards__Epsilon_{}.txt".format(self.args.log_path, epsilon_value), "a") as file:
                 file.write("{}\n".format(ep_reward))
 
             if self.args.tb:
