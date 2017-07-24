@@ -68,7 +68,7 @@ for n in range(50):
             id="Wide-Maze-{}-v0".format(n),
             entry_point="Envs.SnakingMaze:SnakingMaze",
             kwargs={'size': n, 'corridor_width': 10},
-            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 10 * 10 * 2 + 1},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 10 * 10 * 5 + 1},
     )
 
 for n in range(50):
@@ -76,7 +76,7 @@ for n in range(50):
             id="Med-Maze-{}-v0".format(n),
             entry_point="Envs.SnakingMaze:SnakingMaze",
             kwargs={'size': n, 'corridor_width': 5},
-            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 5 * 5 * 2 + 1},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 5 * 5 * 5 + 1},
     )
 
 for n in range(50):
@@ -84,5 +84,5 @@ for n in range(50):
             id="Thin-Maze-{}-v0".format(n),
             entry_point="Envs.SnakingMaze:SnakingMaze",
             kwargs={'size': n, 'corridor_width': 3},
-            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 2 + 1},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 5 + 1},
     )
