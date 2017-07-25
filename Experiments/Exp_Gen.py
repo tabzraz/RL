@@ -170,7 +170,7 @@ for env in envs:
                                                                                 if tabular:
                                                                                     python_command += " --tabular"
                                                                                 if big_model:
-                                                                                    python_command += " --model Med-Maze-10-v0-Big"
+                                                                                    python_command += " --model {}-Big".format(env)
                                                                                 if set_replay:
                                                                                     python_command += " --set-replay"
                                                                                     python_command += " --set-replay-num {}".format(set_replay_num)
