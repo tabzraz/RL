@@ -2,19 +2,20 @@ import sys
 from math import ceil
 
 # envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
-envs = ["Tabz_MontezumaRevenge-v0"]
+envs = ["MontezumaRevengeNoFrameskip-v0"]
+target_network = 10000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.005, 0.01]
+betas = [0.005]
 t_maxs = [x * 1000 for x in [25000]]
-cts_sizes = [21]
+cts_sizes = [42]
 num_seeds = 1
 epsilon_starts = [0.1]
 epsilon_finishs = [0.01]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [750]]
+xp_replay_sizes = [x * 1000 for x in [1000]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -158,6 +159,7 @@ for env in envs:
                                                                                     name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
                                                                                 python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
                                                                                 python_command += " --epsilon-finish {}".format(eps_finish)
+                                                                                python_command += " --target {}".format(target_network)
                                                                                 python_command += " --logdir ../Logs"
                                                                                 python_command += " --gamma {}".format(gamma)
                                                                                 python_command += " --eps-steps {}".format(eps_steps)
