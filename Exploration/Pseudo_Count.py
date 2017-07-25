@@ -31,7 +31,6 @@ class PseudoCount:
         if state.shape[2] != 1:
             raise Exception("Need to grayscale the input to the CTS model")
         state_resized = resize(state[:, :, 0], self.cts_model_shape, mode="F", interp="bilinear")
-
         extra_info["CTS_State"] = state_resized[:, :, np.newaxis] * 255
 
         # if dont_remember:

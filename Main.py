@@ -8,6 +8,7 @@ import shutil
 import Envs
 from Utils.Utils import time_str
 from RL_Trainer_PyTorch import Trainer
+from Envs.OpenAI_AtariWrapper import wrap_deepmind
 
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
@@ -145,9 +146,16 @@ if not os.path.exists("{}/visitations".format(LOGDIR)):
 with open("{}/settings.txt".format(LOGDIR), "w") as f:
     f.write(str(args))
 
+
 # Gym Environment
 env = gym.make(args.env)
 eval_env = gym.make(args.env)
+
+# Atari Wrapping
+if args.env.endswith("NoFrameskip-v4"):
+    env = wrap_deepmind(env, episode_life=False, clip_rewards=False)
+    eval_env = wrap_deepmind(eval_env, episode_life=False, clip_rewards=False)
+
 args.actions = env.action_space.n
 args.primitive_actions = args.actions
 
