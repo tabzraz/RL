@@ -2,7 +2,7 @@ import sys
 from math import ceil
 
 # envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
-envs = ["MontezumaRevengeNoFrameskip-v0"]
+envs = ["MontezumaRevengeNoFrameskip-v4"]
 target_network = 10000
 lrs = [0.0001]
 counts = [True]
@@ -76,7 +76,7 @@ if "--append" in sys.argv:
 
 start_at = 0
 
-gpus = 2
+gpus = 1
 exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
