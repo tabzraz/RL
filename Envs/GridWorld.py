@@ -445,7 +445,8 @@ class GridWorld(gym.Env):
                     # print(x,y,bonus)
                     canvas[x, y + (grid_y * a), 0] = bonus
 
-        canvas /= np.max(canvas)
+        # canvas /= np.max(canvas)
+        canvas /= max_bonus
 
         # Walls
         for a in range(actions):
