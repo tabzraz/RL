@@ -8,12 +8,12 @@ counts = [True]
 betas = [0.0001]
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [20]
-num_seeds = 8
+num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50, 100, 200, 300]]
+xp_replay_sizes = [x * 1000 for x in [50, 300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -54,7 +54,7 @@ prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.9999, 0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
@@ -74,11 +74,11 @@ if "--append" in sys.argv:
 
 start_at = 0
 
-gpus = 7
+gpus = 4
 exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
-gpu_start = 1
+gpu_start = 4
 
 tar = True
 
