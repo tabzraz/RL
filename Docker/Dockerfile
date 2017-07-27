@@ -25,11 +25,15 @@ RUN echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64" 
 
 # Needed for some gym dependencies
 RUN apt-get install -y --no-install-recommends xvfb libav-tools xorg-dev swig cmake git
+# Doom dependencies
+RUN apt-get install -y zlib1g-dev libjpeg-dev libboost-all-dev gcc libsdl2-dev wget unzip
 
 RUN pip install gym
 RUN pip install gym[all]
 RUN pip install pygame
 RUN pip install h5py
+
+RUN pip install ppaquette-gym-doom
 
 RUN pip install pympler
 
