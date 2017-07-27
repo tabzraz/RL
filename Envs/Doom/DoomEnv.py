@@ -68,7 +68,8 @@ class DoomEnv(gym.Env):
         self.loader = Loader()
         self.doom_dir = os.path.dirname(os.path.abspath(__file__))
         if level > 8:
-            self.doom_dir = "Envs/Doom/"
+            self.doom_dir = "{}".format(os.path.dirname(os.path.realpath(__file__)))
+        print("Doom Directory: {}".format(self.doom_dir))
         self._mode = 'algo'                         # 'algo' or 'human'
         self.no_render = False                      # To disable double rendering in human mode
         self.viewer = None
@@ -113,7 +114,7 @@ class DoomEnv(gym.Env):
             self.game.load_config(os.path.join(self.doom_dir, 'assets/%s' % DOOM_SETTINGS[self.level][CONFIG]))
             self.game.set_doom_scenario_path(self.loader.get_scenario_path(DOOM_SETTINGS[self.level][SCENARIO]))
             if self.level > 8:
-                self.game.set_doom_scenario_path("Envs/Doom/assets/{}".format(DOOM_SETTINGS[self.level][SCENARIO]))
+                self.game.set_doom_scenario_path("{}/assets/{}".format(self.doom_dir, DOOM_SETTINGS[self.level][SCENARIO]))
             if DOOM_SETTINGS[self.level][MAP] != '':
                 self.game.set_doom_map(DOOM_SETTINGS[self.level][MAP])
             self.game.set_doom_skill(DOOM_SETTINGS[self.level][DIFFICULTY])
