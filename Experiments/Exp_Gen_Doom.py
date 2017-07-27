@@ -3,6 +3,7 @@ from math import ceil
 
 envs = ["DoomMaze-v0"]
 target_network = 1000
+exp_bonus_save = 0.9
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -198,6 +199,7 @@ for env in envs:
                                                                                         python_command += " --count-state-action"
                                                                                     elif state_action_mode == "Optimistic":
                                                                                         python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
+                                                                                python_command += " --exp-bonus-save {}".format(exp_bonus_save)
                                                                                 # if option:
                                                                                 #     if random_macros:
                                                                                 #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
