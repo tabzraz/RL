@@ -1,13 +1,19 @@
 # --- Torch models ---
 from .Torch import DQN_Maze, DQN_Maze_Big
 from .Torch import DQN_Atari
+from .Torch import DQN_Doom
 
 # Define all the models here
 torch_models = {}
 
 # DQN Atari
-torch_models["Tabz_Venture-v0"] = DQN_Atari.DQN
-torch_models["Tabz_MontezumaRevenge-v0"] = DQN_Atari.DQN
+torch_models["VentureNoFrameskip-v4"] = DQN_Atari.DQN
+torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Atari.DQN
+
+# DQN VizDoom
+torch_models["ppaquette/DoomMyWayHome-v0"] = DQN_Doom.DQN
+torch_models["DoomMaze-v0"] = DQN_Doom.DQN
+torch_models["DoomMazeHard-v0"] = DQN_Doom.DQN
 
 # DQN Maze
 # torch_models["Maze-1"] = DQN_Maze.DQN

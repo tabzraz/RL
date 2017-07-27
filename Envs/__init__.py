@@ -1,3 +1,4 @@
+import ppaquette_gym_doom
 from gym.envs.registration import register
 
 # Atari Games with a deterministic frameskip
@@ -86,3 +87,18 @@ for n in range(50):
             kwargs={'size': n, 'corridor_width': 3},
             tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 5 + 1},
     )
+
+# VizDoom
+register(
+        id="DoomMaze-v0",
+        entry_point='Envs.DoomMaze:DoomMaze',
+        kwargs={'level': 9},
+        tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
+)
+
+register(
+        id="DoomMazeHard-v0",
+        entry_point='Envs.DoomMaze:DoomMaze',
+        kwargs={'level': 10},
+        tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
+)
