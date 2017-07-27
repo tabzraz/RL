@@ -15,7 +15,7 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [500, 1000]]
+xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [500]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -76,7 +76,7 @@ if "--append" in sys.argv:
 
 start_at = 0
 
-gpus = 8
+gpus = 4
 exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
@@ -261,6 +261,6 @@ if write_to_files:
                     if exp_num == exps_per_gpu * gpus:
                         f.write("CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\n".format(g, exp_num))
                     else:
-                        f.write("screen -mdS {}_Exps bash -c \"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, g, exp_num))
+                        f.write("screen -mdS {}_Exps bash -c \"sleep {}; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, 10 * exp_num, g, exp_num))
                     exp_num += 1
             f.write("# {} Experiments total\n".format(uid))
