@@ -2,21 +2,21 @@ import sys
 from math import ceil
 
 # envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
-envs = ["MontezumaRevengeNoFrameskip-v4"]
-target_network = 10000
+envs = ["DoomMaze-v0"]
+target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.005]
-t_maxs = [x * 1000 for x in [25000]]
-cts_sizes = [42]
+betas = [0.0005]
+t_maxs = [x * 1000 for x in [2000]]
+cts_sizes = [21]
 num_seeds = 1
 epsilon_starts = [0.1]
 epsilon_finishs = [0.01]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [1000]]
-stale_limits = [x * 1000 for x in [1000]]
+xp_replay_sizes = [x * 1000 for x in [500]]
+stale_limits = [x * 1000 for x in [500]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
