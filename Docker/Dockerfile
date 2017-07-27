@@ -28,6 +28,9 @@ RUN apt-get install -y --no-install-recommends xvfb libav-tools xorg-dev swig cm
 # Doom dependencies
 RUN apt-get install -y zlib1g-dev libjpeg-dev libboost-all-dev gcc libsdl2-dev wget unzip
 
+# Python3 fix for libboost
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.58.0
+
 RUN pip install gym
 RUN pip install gym[all]
 RUN pip install pygame
