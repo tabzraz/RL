@@ -3,6 +3,7 @@ from collections import deque
 from PIL import Image
 import gym
 from gym import spaces
+from ppaquette_gym_doom.wrappers.observation_space import SetResolution
 
 
 class NoopResetEnv(gym.Wrapper):
@@ -117,11 +118,19 @@ class ClipRewardEnv(gym.RewardWrapper):
         """Bin reward to {+1, 0, -1} by its sign."""
         return np.sign(reward)
 
+class ClipNegativeRewardEnv(gym.RewardWrapper):
+    def _reward(self, reward):
+        """Bin reward to {+1, 0, -1} by its sign."""
+        if reward >= 0:
+            return reward
+        else:
+            return 0
+
 class WarpFrame(gym.ObservationWrapper):
-    def __init__(self, env):
+    def __init__(self, env, res=84):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
         gym.ObservationWrapper.__init__(self, env)
-        self.res = 84
+        self.res = res
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.res, self.res, 1))
 
     def _observation(self, obs):
@@ -189,4 +198,165 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True, stack=4):
         env = FrameStack(env, 4)
     print("Wrapping environment with Deepmind-style setttings.")
     env = GreyscaleRender(env)
+    return env
+
+# Adapters
+from gym.spaces import Discrete, MultiDiscrete
+class DiscreteToMultiDiscrete(Discrete):
+    """
+    Adapter that adapts the MultiDiscrete action space to a Discrete action space of any size
+    The converted action can be retrieved by calling the adapter with the discrete action
+        discrete_to_multi_discrete = DiscreteToMultiDiscrete(multi_discrete)
+        discrete_action = discrete_to_multi_discrete.sample()
+        multi_discrete_action = discrete_to_multi_discrete(discrete_action)
+    It can be initialized using 3 configurations:
+    Configuration 1) - DiscreteToMultiDiscrete(multi_discrete)                   [2nd param is empty]
+        Would adapt to a Discrete action space of size (1 + nb of discrete in MultiDiscrete)
+        where
+            0   returns NOOP                                [  0,   0,   0, ...]
+            1   returns max for the first discrete space    [max,   0,   0, ...]
+            2   returns max for the second discrete space   [  0, max,   0, ...]
+            etc.
+    Configuration 2) - DiscreteToMultiDiscrete(multi_discrete, list_of_discrete) [2nd param is a list]
+        Would adapt to a Discrete action space of size (1 + nb of items in list_of_discrete)
+        e.g.
+        if list_of_discrete = [0, 2]
+            0   returns NOOP                                [  0,   0,   0, ...]
+            1   returns max for first discrete in list      [max,   0,   0, ...]
+            2   returns max for second discrete in list     [  0,   0,  max, ...]
+            etc.
+    Configuration 3) - DiscreteToMultiDiscrete(multi_discrete, discrete_mapping) [2nd param is a dict]
+        Would adapt to a Discrete action space of size (nb_keys in discrete_mapping)
+        where discrete_mapping is a dictionnary in the format { discrete_key: multi_discrete_mapping }
+        e.g. for the Nintendo Game Controller [ [0,4], [0,1], [0,1] ] a possible mapping might be;
+        mapping = {
+            0:  [0, 0, 0],  # NOOP
+            1:  [1, 0, 0],  # Up
+            2:  [3, 0, 0],  # Down
+            3:  [2, 0, 0],  # Right
+            4:  [2, 1, 0],  # Right + A
+            5:  [2, 0, 1],  # Right + B
+            6:  [2, 1, 1],  # Right + A + B
+            7:  [4, 0, 0],  # Left
+            8:  [4, 1, 0],  # Left + A
+            9:  [4, 0, 1],  # Left + B
+            10: [4, 1, 1],  # Left + A + B
+            11: [0, 1, 0],  # A only
+            12: [0, 0, 1],  # B only,
+            13: [0, 1, 1],  # A + B
+        }
+    """
+    def __init__(self, multi_discrete, options=None):
+        assert isinstance(multi_discrete, MultiDiscrete)
+        self.multi_discrete = multi_discrete
+        self.num_discrete_space = self.multi_discrete.num_discrete_space
+
+        # Config 1
+        if options is None:
+            self.n = self.num_discrete_space + 1                # +1 for NOOP at beginning
+            self.mapping = {i: [0] * self.num_discrete_space for i in range(self.n)}
+            for i in range(self.num_discrete_space):
+                self.mapping[i + 1][i] = self.multi_discrete.high[i]
+
+        # Config 2
+        elif isinstance(options, list):
+            assert len(options) <= self.num_discrete_space
+            self.n = len(options) + 1                          # +1 for NOOP at beginning
+            self.mapping = {i: [0] * self.num_discrete_space for i in range(self.n)}
+            for i, disc_num in enumerate(options):
+                assert disc_num < self.num_discrete_space
+                self.mapping[i + 1][disc_num] = self.multi_discrete.high[disc_num]
+
+        # Config 3
+        elif isinstance(options, dict):
+            self.n = len(options.keys())
+            self.mapping = options
+            for i, key in enumerate(options.keys()):
+                if i != key:
+                    raise Error('DiscreteToMultiDiscrete must contain ordered keys. ' \
+                                'Item {0} should have a key of "{0}", but key "{1}" found instead.'.format(i, key))
+                if not self.multi_discrete.contains(options[key]):
+                    raise Error('DiscreteToMultiDiscrete mapping for key {0} is ' \
+                                'not contained in the underlying MultiDiscrete action space. ' \
+                                'Invalid mapping: {1}'.format(key, options[key]))
+        # Unknown parameter provided
+        else:
+            raise Error('DiscreteToMultiDiscrete - Invalid parameter provided.')
+
+    def __call__(self, discrete_action):
+        return self.mapping[discrete_action]
+
+# Discrete Action Wrapper
+# Constants
+NUM_ACTIONS = 43
+ALLOWED_ACTIONS = [
+    [0, 10, 11],                                # 0 - Basic
+    [0, 10, 11, 13, 14, 15],                    # 1 - Corridor
+    [0, 14, 15],                                # 2 - DefendCenter
+    [0, 14, 15],                                # 3 - DefendLine
+    [13, 14, 15],                               # 4 - HealthGathering
+    [13, 14, 15],                               # 5 - MyWayHome
+    [0, 14, 15],                                # 6 - PredictPosition
+    [10, 11],                                   # 7 - TakeCover
+    [x for x in range(NUM_ACTIONS) if x != 33], # 8 - Deathmatch
+    [13, 14, 15],                               # 9 - MyWayHomeFixed
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+]
+
+
+def ToDiscrete(config):
+    # Config can be 'minimal', 'constant-7', 'constant-17', 'full'
+
+    class ToDiscreteWrapper(gym.Wrapper):
+        """
+            Doom wrapper to convert MultiDiscrete action space to Discrete
+            config:
+                - minimal - Will only use the levels' allowed actions (+ NOOP)
+                - constant-7 - Will use the 7 minimum actions (+NOOP) to complete all levels
+                - constant-17 - Will use the 17 most common actions (+NOOP) to complete all levels
+                - full - Will use all available actions (+ NOOP)
+            list of commands:
+                - minimal:
+                    Basic:              NOOP, ATTACK, MOVE_RIGHT, MOVE_LEFT
+                    Corridor:           NOOP, ATTACK, MOVE_RIGHT, MOVE_LEFT, MOVE_FORWARD, TURN_RIGHT, TURN_LEFT
+                    DefendCenter        NOOP, ATTACK, TURN_RIGHT, TURN_LEFT
+                    DefendLine:         NOOP, ATTACK, TURN_RIGHT, TURN_LEFT
+                    HealthGathering:    NOOP, MOVE_FORWARD, TURN_RIGHT, TURN_LEFT
+                    MyWayHome:          NOOP, MOVE_FORWARD, TURN_RIGHT, TURN_LEFT
+                    PredictPosition:    NOOP, ATTACK, TURN_RIGHT, TURN_LEFT
+                    TakeCover:          NOOP, MOVE_RIGHT, MOVE_LEFT
+                    Deathmatch:         NOOP, ALL COMMANDS (Deltas are limited to [0,1] range and will not work properly)
+                - constant-7: NOOP, ATTACK, MOVE_RIGHT, MOVE_LEFT, MOVE_FORWARD, TURN_RIGHT, TURN_LEFT, SELECT_NEXT_WEAPON
+                - constant-17: NOOP, ATTACK, JUMP, CROUCH, TURN180, RELOAD, SPEED, STRAFE, MOVE_RIGHT, MOVE_LEFT, MOVE_BACKWARD
+                                MOVE_FORWARD, TURN_RIGHT, TURN_LEFT, LOOK_UP, LOOK_DOWN, SELECT_NEXT_WEAPON, SELECT_PREV_WEAPON
+        """
+        def __init__(self, env):
+            super(ToDiscreteWrapper, self).__init__(env)
+            if config == 'minimal':
+                allowed_actions = ALLOWED_ACTIONS[self.unwrapped.level]
+            elif config == 'constant-7':
+                allowed_actions = [0, 10, 11, 13, 14, 15, 31]
+            elif config == 'constant-17':
+                allowed_actions = [0, 2, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 31, 32]
+            elif config == 'full':
+                allowed_actions = None
+            else:
+                raise gym.error.Error('Invalid configuration. Valid options are "minimal", "constant-7", "constant-17", "full"')
+            self.action_space = DiscreteToMultiDiscrete(self.action_space, allowed_actions)
+        def _step(self, action):
+            return self.env._step(self.action_space(action))
+
+    return ToDiscreteWrapper
+
+def wrap_vizdoom(env, stack=4):
+    resolution_wrapper = SetResolution("160x120")
+    env = resolution_wrapper(env)
+    env = MaxAndSkipEnv(env, skip=4)
+    env = WarpFrame(env, res=42)
+    env = ClipNegativeRewardEnv(env)
+    env = FrameStack(env, 4)
+    env = GreyscaleRender(env)
+    discrete_action_wrapper = ToDiscrete("minimal")
+    env = discrete_action_wrapper(env)
+    print("Wrapping environment with vizdoom settings.")
     return env

@@ -8,7 +8,7 @@ import shutil
 import Envs
 from Utils.Utils import time_str
 from RL_Trainer_PyTorch import Trainer
-from Envs.OpenAI_AtariWrapper import wrap_deepmind
+from Envs.OpenAI_AtariWrapper import wrap_deepmind, wrap_vizdoom
 
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
@@ -155,6 +155,11 @@ eval_env = gym.make(args.env)
 if args.env.endswith("NoFrameskip-v4"):
     env = wrap_deepmind(env, episode_life=False, clip_rewards=False)
     eval_env = wrap_deepmind(eval_env, episode_life=False, clip_rewards=False)
+
+# VizDoom Wrapping
+if args.env.startswith("ppaquette") or args.env.startswith("Doom"):
+    env = wrap_vizdoom(env)
+    eval_env = wrap_vizdoom(eval_env)
 
 args.actions = env.action_space.n
 args.primitive_actions = args.actions
