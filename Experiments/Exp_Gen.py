@@ -1,20 +1,20 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [12]]
 target_network = 500
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
 t_maxs = [x * 1000 for x in [1200]]
-cts_sizes = [20]
-num_seeds = 4
+cts_sizes = [18]
+num_seeds = 8
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50, 300]]
+xp_replay_sizes = [x * 1000 for x in [25, 50, 100, 200, 400, 800]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -79,7 +79,7 @@ gpus = 8
 exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
-gpu_start = 4
+gpu_start = 0
 
 tar = True
 
