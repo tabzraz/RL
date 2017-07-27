@@ -92,13 +92,13 @@ for n in range(50):
 register(
         id="DoomMaze-v0",
         entry_point='Envs.DoomMaze:DoomMaze',
-        kwargs={'level': 9}
+        kwargs={'level': 9},
         tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
 )
 
 register(
         id="DoomMazeHard-v0",
         entry_point='Envs.DoomMaze:DoomMaze',
-        kwargs={'level': 10}
+        kwargs={'level': 10},
         tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
 )
