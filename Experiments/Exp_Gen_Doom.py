@@ -160,7 +160,7 @@ for env in envs:
                                                                                 python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
                                                                                 python_command += " --epsilon-finish {}".format(eps_finish)
                                                                                 python_command += " --target {}".format(target_network)
-                                                                                python_command += " --logdir ../Logs"
+                                                                                python_command += " --logdir ../Doom_Logs"
                                                                                 python_command += " --gamma {}".format(gamma)
                                                                                 python_command += " --eps-steps {}".format(eps_steps)
                                                                                 python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
@@ -237,17 +237,17 @@ if write_to_files:
 
     if not append:
         for i in range(files):
-            with open("exps{}.sh".format(i + 1), "w") as f:
+            with open("doom_exps{}.sh".format(i + 1), "w") as f:
                 f.write("")
                 print("Cleared exps{}.sh".format(i + 1))
 
     for i in range(uid):
         i += start_at
         i = i % files
-        with open("exps{}.sh".format(i + 1), "a") as f:
+        with open("doom_exps{}.sh".format(i + 1), "a") as f:
             # for cc in commands[i::files]:
             if len(commands) > 0:
-                print("Writing to exps{}.sh".format(i + 1))
+                print("Writing to doom_exps{}.sh".format(i + 1))
                 cc = commands[0]
                 f.write("{}\n".format(cc))
                 commands = commands[1:]
@@ -255,12 +255,12 @@ if write_to_files:
     # Write to the file running the experiments
     if not append:
         exp_num = 1
-        with open("run_experiments.sh", "w") as f:
+        with open("run_doom_experiments.sh", "w") as f:
             for _ in range(exps_per_gpu):
                 for g in range(gpus):
                     if exp_num == exps_per_gpu * gpus:
-                        f.write("CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\n".format(g, exp_num))
+                        f.write("CUDA_VISIBLE_DEVICES='{}' bash doom_exps{}.sh\n".format(g, exp_num))
                     else:
-                        f.write("screen -mdS {}_Exps bash -c \"sleep {}; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash exps{}.sh\"\n".format(exp_num, 10 * exp_num, g, exp_num))
+                        f.write("screen -mdS {}_Exps bash -c \"sleep {}; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash doom_exps{}.sh\"\n".format(exp_num, 10 * exp_num, g, exp_num))
                     exp_num += 1
             f.write("# {} Experiments total\n".format(uid))
