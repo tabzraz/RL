@@ -85,11 +85,11 @@ class EpisodicLifeEnv(gym.Wrapper):
         return obs
 
 class MaxAndSkipEnv(gym.Wrapper):
-    def __init__(self, env, skip=4):
+    def __init__(self, env, skip=4, max_over=2):
         """Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
-        self._obs_buffer = deque(maxlen=2)
+        self._obs_buffer = deque(maxlen=max_over)
         self._skip       = skip
 
     def _step(self, action):
@@ -351,7 +351,7 @@ def ToDiscrete(config):
 def wrap_vizdoom(env, stack=4):
     resolution_wrapper = SetResolution("160x120")
     env = resolution_wrapper(env)
-    env = MaxAndSkipEnv(env, skip=4)
+    env = MaxAndSkipEnv(env, skip=4, max_over=1)
     env = WarpFrame(env, res=42)
     env = ClipNegativeRewardEnv(env)
     env = FrameStack(env, 4)

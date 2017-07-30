@@ -160,7 +160,7 @@ for env in envs:
                                                                                 python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
                                                                                 python_command += " --epsilon-finish {}".format(eps_finish)
                                                                                 python_command += " --target {}".format(target_network)
-                                                                                python_command += " --logdir ../Doom_Logs"
+                                                                                python_command += " --logdir ../Logs"
                                                                                 python_command += " --gamma {}".format(gamma)
                                                                                 python_command += " --eps-steps {}".format(eps_steps)
                                                                                 python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
