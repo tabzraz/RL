@@ -3,7 +3,7 @@ from math import ceil
 
 envs = ["DoomMaze-v0"]
 target_network = 1000
-exp_bonus_save = 0.95
+exp_bonus_save = 0.99
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -15,10 +15,10 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [1000]]
-stale_limits = [x * 1000 for x in [1000]]
+xp_replay_sizes = [x * 1000 for x in [500]]
+stale_limits = [x * 1000 for x in [500]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999]
+epsilon_decay = [0.999]
 
 n_steps = [100]
 variable_n_step = False
@@ -239,7 +239,7 @@ if write_to_files:
         for i in range(files):
             with open("doom_exps{}.sh".format(i + 1), "w") as f:
                 f.write("")
-                print("Cleared exps{}.sh".format(i + 1))
+                print("Cleared doom_exps{}.sh".format(i + 1))
 
     for i in range(uid):
         i += start_at
