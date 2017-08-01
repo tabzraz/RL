@@ -126,6 +126,8 @@ class DoomEnv(gym.Env):
 
         # Algo mode
         if 'human' != self._mode:
+            # We want the extra information for visualisations
+            self.game.add_game_args('+viz_nocheat 1')
             self.game.set_window_visible(False)
             self.game.set_mode(Mode.PLAYER)
             self.no_render = False
