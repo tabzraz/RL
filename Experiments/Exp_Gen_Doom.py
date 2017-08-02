@@ -3,12 +3,12 @@ from math import ceil
 
 envs = ["DoomMaze-v0"]
 target_network = 1000
-exp_bonus_save = 0.99
+exp_bonus_save = 0.9999
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [5000]]
+t_maxs = [x * 1000 for x in [2500]]
 cts_sizes = [21]
 num_seeds = 4
 epsilon_starts = [0.05]
@@ -18,7 +18,7 @@ batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [500]]
 epsilon_scaling = [True]
-epsilon_decay = [0.999]
+epsilon_decay = [0.999, 0.99]
 
 n_steps = [100]
 variable_n_step = False
@@ -56,7 +56,7 @@ prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
