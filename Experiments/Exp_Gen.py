@@ -9,7 +9,7 @@ counts = [True]
 betas = [0.0001]
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [20]
-num_seeds = 4
+num_seeds = 2
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
@@ -19,7 +19,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [100]
+n_steps = [1, 10]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
