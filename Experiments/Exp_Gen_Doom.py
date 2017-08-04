@@ -3,7 +3,7 @@ from math import ceil
 
 envs = ["DoomMaze-v0"]
 target_network = 1000
-exp_bonus_save = 0.99999
+exp_bonus_save = 0.999999
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
@@ -46,10 +46,10 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [False]
+prioritiseds = [True]
 is_corrections = [False]
 minus_pseudos = [False]
-negative_td_scalers = [1]
+negative_td_scalers = [1, 2, 4]
 
 prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos]
 
