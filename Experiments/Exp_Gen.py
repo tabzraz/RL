@@ -6,7 +6,7 @@ target_network = 500
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.0001]
+betas = [0.00001, 0.000001] #[0.0001]
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [20]
 num_seeds = 2
@@ -19,7 +19,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [1, 10]
+n_steps = [100]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -55,7 +55,7 @@ prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
