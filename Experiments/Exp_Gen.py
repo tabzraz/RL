@@ -45,17 +45,19 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [False]
+prioritiseds = [False, True]
 is_corrections = [False]
 minus_pseudos = [False]
-negative_td_scalers = [1]
+negative_td_scalers = [1, 4]
 
-prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos]
+prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds if p for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos ]
+if prioritizeds == []:
+    prioritizeds = [(False, False, 1, 0, 0.5)]
 
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99]
+gammas = [0.99, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
@@ -75,7 +77,7 @@ if "--append" in sys.argv:
 
 start_at = 0
 
-gpus = 4
+gpus = 8
 exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
