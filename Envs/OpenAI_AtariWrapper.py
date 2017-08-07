@@ -138,6 +138,23 @@ class WarpFrame(gym.ObservationWrapper):
             resample=Image.BILINEAR), dtype=np.uint8)
         return frame.reshape((self.res, self.res, 1)) / 255.0
 
+class ResizeFrame(gym.ObservationWrapper):
+    def __init__(self, env, res=40):
+        """Warp frames to 84x84 as done in the Nature paper and later work."""
+        gym.ObservationWrapper.__init__(self, env)
+        self.res = res
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.res, self.res, 1))
+
+    def _observation(self, obs):
+        frame = obs.astype("float32") * 255
+        frame = frame[:, :, 0]
+        # frame = np.concatenate([frame, frame, frame], axis=2)
+        # frame = np.dot(frame, np.array([0.299, 0.587, 0.114], 'float32'))
+        
+        frame = np.array(Image.fromarray(frame).resize((self.res, self.res),
+            resample=Image.BILINEAR), dtype=np.uint8)
+        return frame.reshape((self.res, self.res, 1)) / 255.0
+
 class FrameStack(gym.Wrapper):
     def __init__(self, env, k):
         """Buffer observations and stack across channels (last axis)."""
@@ -178,6 +195,13 @@ class GreyscaleRender(gym.Wrapper):
             grid = np.stack([grid for _ in range(3)], axis=2)
             return grid * 255
 
+def wrap_maze(env):
+    # Change the size of the maze to be (40, 40)
+    env = ResizeFrame(env, res=40)
+    env = FrameStack(env, 1)
+    env = GreyscaleRender(env)
+    print("Wrapping maze to be (40, 40)")
+    return env
 
 def wrap_deepmind(env, episode_life=True, clip_rewards=True, stack=4):
     """Configure environment for DeepMind-style Atari.

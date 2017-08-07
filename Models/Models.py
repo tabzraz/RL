@@ -42,6 +42,10 @@ for n in range(50):
     torch_models["Med-Maze-{}-v0".format(n)] = model_creator
 
     def model_creator_big(actions, size=n):
+        # We are resizing the input of the 14 x 14 maze
+        # This is the easiest hacky way to do so
+        if size == 14:
+            size = 8
         return DQN_Maze_Big.DQN(input_size=(1, size * 5, size * 5), actions=actions)
     torch_models["Med-Maze-{}-v0-Big".format(n)] = model_creator_big
 

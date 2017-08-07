@@ -1,12 +1,12 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [12]]
+envs = ["Med-Maze-{}-v0".format(size) for size in [14]]
 target_network = 500
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.00001, 0.000001] #[0.0001]
+betas = [0.0001]
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [20]
 num_seeds = 2
