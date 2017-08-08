@@ -78,7 +78,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 gpu_start = 0
