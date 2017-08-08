@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Med-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
 target_network = 500
 lrs = [0.0001]
 counts = [True]
@@ -14,7 +14,7 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [300, 500]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -45,18 +45,19 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [False, True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1, 4]
 
 prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds if p for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos ]
-prioritizeds += [(False, False, 1, 0, 0.5)]
+if False in prioritiseds:
+    prioritizeds += [(False, False, 1, 0, 0.5)]
 
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99, 0.9999]
+gammas = [0.99, 0.999, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
