@@ -162,12 +162,6 @@ if args.env.startswith("ppaquette") or args.env.startswith("Doom"):
     env = wrap_vizdoom(env)
     eval_env = wrap_vizdoom(eval_env)
 
-# Wrapping it like this ruins the visualisations
-# TODO: Fix visualisations when wrapping
-if args.env.startswith("Med-Maze-14"):
-    env = wrap_maze(env)
-    eval_env = wrap_maze(eval_env)
-
 args.actions = env.action_space.n
 args.primitive_actions = args.actions
 
