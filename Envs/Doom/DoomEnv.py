@@ -203,6 +203,9 @@ class DoomEnv(gym.Env):
 
             if self.game.is_episode_finished():
                 is_finished = True
+                if reward < 0.9:
+                    # The environment ended because we took the time_limit number of timesteps
+                    info["Steps_Termination"] = True
                 return np.zeros(shape=self.observation_space.shape, dtype=np.uint8), reward, is_finished, info
             else:
                 is_finished = False

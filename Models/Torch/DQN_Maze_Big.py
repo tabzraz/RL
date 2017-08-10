@@ -8,12 +8,12 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
 
         img_size = input_size[1]
-        self.conv1 = nn.Conv2d(1, 32, 8, padding=0, stride=4)
-        img_size = int((img_size - 8) / 4 + 1)
-        self.conv2 = nn.Conv2d(32, 64, 4, padding=0, stride=2)
-        img_size = int((img_size - 4) / 2 + 1)
-        self.conv3 = nn.Conv2d(64, 64, 3, padding=0, stride=1)
-        img_size = int((img_size - 3) / 1 + 1)
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=0, stride=2)
+        img_size = int((img_size - 3) / 2 + 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=0, stride=2)
+        img_size = int((img_size - 3) / 2 + 1)
+        self.conv3 = nn.Conv2d(64, 64, 3, padding=0, stride=2)
+        img_size = int((img_size - 3) / 2 + 1)
         self.fc1 = nn.Linear(img_size * img_size * 64, 128)
         self.fc2 = nn.Linear(128, actions)
 
