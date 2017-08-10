@@ -45,13 +45,15 @@ files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
-alphas = [0.4]
-prioritiseds = [True]
+alphas = [0.5]
+prioritiseds = [False, True]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1, 2, 4]
 
-prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos]
+prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds if p for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos ]
+if False in prioritiseds:
+    prioritizeds += [(False, False, 1, 0, 0.5)]
 
 count_td_scalers = [1]
 density_priority = False
