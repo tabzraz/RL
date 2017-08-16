@@ -10,8 +10,8 @@ class DQN(nn.Module):
         self.actions = actions
 
         img_size = input_size[1]
-        self.conv1 = nn.Conv2d(1, 32, 3, padding=1, stride=2)
-        img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=0, stride=1)
+        img_size = int((img_size - 3 + 2 * 0) / 1 + 1)
         self.conv2 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
         self.conv3 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
