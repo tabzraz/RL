@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [14, 16]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [16]]
 target_network = 500
 lrs = [0.0001]
 counts = [True]
@@ -57,7 +57,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.999, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
