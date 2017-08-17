@@ -18,9 +18,9 @@ class DQN(nn.Module):
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
         self.conv4 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
-        self.fc1 = nn.Linear(img_size * img_size * 32, 128)
-        self.value_branch = nn.Linear(128, 1)
-        self.adv_branch = nn.Linear(128, actions)
+        self.fc1 = nn.Linear(img_size * img_size * 32, 256)
+        self.value_branch = nn.Linear(256, 1)
+        self.adv_branch = nn.Linear(256, actions)
 
     def forward(self, x):
         if next(self.parameters()).is_cuda:
