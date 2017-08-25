@@ -113,13 +113,22 @@ class ExperienceReplay_Options_Pseudo:
         # ps = []
         for i in indices:
             exp = self.Exps[i]
-            if self.T - exp.pseudo_reward_t > self.pseudo_limit:
-                # Recompute it
-                new_bonus, new_bonus_info = self.exp_model.bonus(exp.state, dont_remember=True)
-                density = new_bonus_info["Density"]
-                new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
-                self.Exps[i] = new_exp
-                self.densities[i] = 1 / density
+            length_passed = self.T - exp.pseudo_reward_t
+            decay_rate = self.args.pc_decay ** length_passed
+            new_bonus = decay_rate * exp.pseudo_reward
+            density = 1
+
+            new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
+            self.Exps[i] = new_exp
+
+            # new_bonus = exp.pseudo_reward * (self.args.pc_decay ** () 
+            # if self.T - exp.pseudo_reward_t > self.pseudo_limit:
+            #     # Recompute it
+            #     new_bonus, new_bonus_info = self.exp_model.bonus(exp.state, dont_remember=True)
+            #     density = new_bonus_info["Density"]
+            #     new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
+            #     self.Exps[i] = new_exp
+            #     self.densities[i] = 1 / density
                 # if self.args.bonus_priority:
                 #     ps.append((1 / density))
 

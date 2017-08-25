@@ -92,6 +92,7 @@ parser.add_argument("--density-priority", action="store_true", default=False)
 parser.add_argument("--alpha", type=float, default=0.5)
 parser.add_argument("--render-scaling", type=int, default=8)
 parser.add_argument("--eval-interval", type=int, default=100)
+parser.add_argument("--pc-decay", type=float, default=0.999)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
