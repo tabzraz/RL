@@ -1,13 +1,13 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [18]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [16]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [2000]]
+t_maxs = [x * 1000 for x in [1500]]
 cts_sizes = [21]
 num_seeds = 8
 epsilon_starts = [0.05]
