@@ -45,7 +45,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [False]
+prioritiseds = [True]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
