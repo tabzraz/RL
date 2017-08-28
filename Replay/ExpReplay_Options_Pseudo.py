@@ -3,6 +3,7 @@ import collections
 from .Binary_Heap import BinaryHeap
 import sys
 import random
+from math import sqrt
 
 
 class ExperienceReplay_Options_Pseudo:
@@ -113,10 +114,12 @@ class ExperienceReplay_Options_Pseudo:
         # ps = []
         for i in indices:
             exp = self.Exps[i]
-            length_passed = self.T - exp.pseudo_reward_t
-            decay_rate = self.args.pc_decay ** length_passed
-            new_bonus = decay_rate * exp.pseudo_reward
-            density = 1
+            density = exp.density
+            new_count = density * self.T
+            new_bonus = self.args.beta / (sqrt(new_count) + 0.01)
+            # length_passed = self.T - exp.pseudo_reward_t
+            # decay_rate = self.args.pc_decay ** length_passed
+            # new_bonus = decay_rate * exp.pseudo_reward
 
             new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
             self.Exps[i] = new_exp
