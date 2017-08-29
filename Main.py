@@ -93,6 +93,7 @@ parser.add_argument("--alpha", type=float, default=0.5)
 parser.add_argument("--render-scaling", type=int, default=8)
 parser.add_argument("--eval-interval", type=int, default=100)
 parser.add_argument("--pc-decay", type=float, default=0.999)
+parser.add_argument("--soft-buffer", type=float, default=1.0)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:

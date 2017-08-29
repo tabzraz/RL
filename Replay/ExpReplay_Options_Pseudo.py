@@ -240,6 +240,9 @@ class ExperienceReplay_Options_Pseudo:
             for ri, pri in zip(reversed(rewards_to_use), reversed(pseudo_rewards)):
                 accum_reward = ri + gamma * accum_reward
                 accum_psuedo_reward = pri + gamma * accum_psuedo_reward
+            time_passed = self.T - exps_to_use[0].pseudo_reward_t
+            if time_passed > self.args.soft_buffer * self.N:
+                accum_psuedo_reward = 0
             new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
             batch_to_return.append(new_exp)
             pseudo_rewards_used.append(accum_psuedo_reward)
