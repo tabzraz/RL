@@ -7,7 +7,7 @@ lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [1500]]
+t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [21]
 num_seeds = 8
 epsilon_starts = [0.05]
@@ -27,8 +27,9 @@ negative_rewards = [(False, 0)]
 reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None] #["Optimistic"]
-optimism_scalers = [0.001]
+# state_action_modes = [None] #["Optimistic"]
+state_action_modes = ["Optimistic"]
+optimism_scalers = [0.0001, 0.001, 0.01, 0.1, 1, 10]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
@@ -45,10 +46,10 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
-negative_td_scalers = [1/8, 1/4, 1/2, 1, 2, 4]
+negative_td_scalers = [1]
 
 prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds if p for p_is in is_corrections for n_td in negative_td_scalers for alpha in alphas for m_pseudos in minus_pseudos ]
 if False in prioritiseds:
