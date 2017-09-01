@@ -28,8 +28,9 @@ negative_rewards = [(False, 0)]
 reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None] #["Optimistic"]
-optimism_scalers = [0.001]
+# state_action_modes = [None] #["Optimistic"]
+state_action_modes = ["Optimistic"]
+optimism_scalers = [0.0001, 0.001, 0.01, 0.1]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
@@ -46,7 +47,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [True]
 negative_td_scalers = [1]
@@ -55,7 +56,7 @@ prioritizeds = [(p, p_is, n_td, m_pseudos, alpha) for p in prioritiseds if p for
 if False in prioritiseds:
     prioritizeds += [(False, False, 1, 0, 0.5)]
 
-count_td_scalers = [0.1, 1]
+count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
 gammas = [0.99]
