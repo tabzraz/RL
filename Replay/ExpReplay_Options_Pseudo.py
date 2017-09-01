@@ -234,16 +234,18 @@ class ExperienceReplay_Options_Pseudo:
             state_then = exps_to_use[-1].state_next
             terminate = exps_to_use[-1].terminal
             steps = len(exps_to_use)
-            rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
+
+            time_passed = self.T - exps_to_use[0].pseudo_reward_t
+            if time_passed > self.args.soft_buffer * self.N:
+                rewards_to_use = list(map(lambda x: x.reward, exps_to_use))
+            else:
+                rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
             pseudo_rewards = list(map(lambda x: x.pseudo_reward, exps_to_use))
             accum_reward = 0
             accum_psuedo_reward = 0
             for ri, pri in zip(reversed(rewards_to_use), reversed(pseudo_rewards)):
                 accum_reward = ri + gamma * accum_reward
                 accum_psuedo_reward = pri + gamma * accum_psuedo_reward
-            time_passed = self.T - exps_to_use[0].pseudo_reward_t
-            if time_passed > self.args.soft_buffer * self.N:
-                accum_psuedo_reward = 0
             new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
             batch_to_return.append(new_exp)
             pseudo_rewards_used.append(accum_psuedo_reward)
