@@ -55,7 +55,7 @@ class DDQN_Agent:
     def act(self, state, epsilon, exp_model):
         self.T += 1
         self.dqn.eval()
-        orig_state = state
+        orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
         q_values_numpy = q_values.numpy()
