@@ -158,7 +158,7 @@ for env in envs:
                                                                                         name += "_StateAction"
                                                                                     elif state_action_mode == "Optimistic":
                                                                                         name += "_OptimisticAction_{}_Scaler".format(o_scaler)
-                                                                                    name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_{}_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, uid)
+                                                                                    name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                                 else:
                                                                                     name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
                                                                                 python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
