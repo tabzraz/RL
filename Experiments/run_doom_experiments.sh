@@ -6,4 +6,4 @@ screen -mdS 5_Exps bash -c "sleep 50; export LD_LIBRARY_PATH='/usr/local/nvidia/
 screen -mdS 6_Exps bash -c "sleep 60; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='5' bash doom_exps6.sh"
 screen -mdS 7_Exps bash -c "sleep 70; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='6' bash doom_exps7.sh"
 CUDA_VISIBLE_DEVICES='7' bash doom_exps8.sh
-# 16 Experiments total
+# 8 Experiments total
