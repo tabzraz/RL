@@ -17,10 +17,9 @@ class DDQN_Agent:
         self.exp_model = exp_model
 
         # Experience Replay
-        if self.args.set_replay:
-            self.replay = ExpReplaySet(10, 10, exp_model, args, priority=False)
-        else:
-            self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.reward_replay = ExpReplay(args.reward_replay, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.bulk_T = 0
 
         # DQN and Target DQN
         model = get_models(args.model)
@@ -91,18 +90,25 @@ class DDQN_Agent:
         return action, extra_info
 
     def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
-        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
+        self.reward_replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
+        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, 0, density)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
+        self.reward_replay.end_of_trajectory()
 
-    def train(self):
+    def train(self, bulk_train=False):
         if self.args.eligibility_trace:
             return self.train_elig(self)
 
         if self.T - self.target_sync_T > self.args.target:
             self.sync_target_network()
             self.target_sync_T = self.T
+
+        if self.T - self.bulk_T >= self.args.reward_replay:
+            self.bulk_T = self.T
+            for _ in range(self.args.reward_iters):
+                self.train(bulk_train=True)
 
         info = {}
 
@@ -113,7 +119,11 @@ class DDQN_Agent:
             n_step_sample = 1
             if np.random.random() < self.args.n_step_mixing:
                 n_step_sample = self.args.n_step
-            batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
+            if bulk_train:
+                batch, indices, is_weights = self.reward_replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
+            else:
+                batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
+
             columns = list(zip(*batch))
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
@@ -155,7 +165,10 @@ class DDQN_Agent:
 
             # Update the priorities
             if not self.args.density_priority:
-                self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
+                if bulk_train:
+                    self.reward_replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
+                else:
+                    self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
             # If using prioritised we need to weight the td_error
             if self.args.prioritized and self.args.prioritized_is:

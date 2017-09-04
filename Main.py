@@ -92,6 +92,8 @@ parser.add_argument("--density-priority", action="store_true", default=False)
 parser.add_argument("--alpha", type=float, default=0.5)
 parser.add_argument("--render-scaling", type=int, default=8)
 parser.add_argument("--eval-interval", type=int, default=100)
+parser.add_argument("--reward-replay", type=int, default=5000)
+parser.add_argument("--reward-iters", type=int, default=5000)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
