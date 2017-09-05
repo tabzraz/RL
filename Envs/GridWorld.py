@@ -27,8 +27,29 @@ class GridWorld(gym.Env):
         self.observation_space = spaces.Box(low=0, high=1, shape=self.grid.shape)
         self.reward_range = (-1, +1)
 
+        # Counting stuff
+        self.counts = np.empty_like(self.grid)
+
     def _step(self, a):
         info_dict = {}
+
+        # Update counts
+        self.counts[self.player_pos] += 1
+        current_count = self.counts[self.player_pos]
+        action_counts = []
+        for aa in self.actions:
+            new_player_pos = (self.player_pos[0] + aa[0], self.player_pos[1] + aa[1])
+            # Clip
+            if new_player_pos[0] < 0 or new_player_pos[0] >= self.grid.shape[0]\
+            or new_player_pos[1] < 0 or new_player_pos[1] >= self.grid.shape[1]:
+                new_player_pos = self.player_pos
+
+            # Into a wall
+            if self.grid[new_player_pos] == 1:
+                new_player_pos = self.player_pos
+
+            action_counts.append(self.counts[new_player_pos])
+
         self.steps += 1
         new_player_pos = (self.player_pos[0] + self.actions[a][0], self.player_pos[1] + self.actions[a][1])
         # Clip
@@ -57,6 +78,11 @@ class GridWorld(gym.Env):
         if self.steps >= self.limit:
             finished = True
             info_dict["Steps_Termination"] = True
+
+        # Fill in info dict with the action selection statistics
+        new_state_count = self.counts[new_player_pos]
+        count_list = [current_count] + action_counts + [new_state_count]
+        info_dict["Action_Counts"] = np.array(count_list)
 
         return self.grid[:, :, np.newaxis] / 3, r, finished, info_dict
 

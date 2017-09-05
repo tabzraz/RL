@@ -77,6 +77,7 @@ class Trainer:
         self.Visited_States = set()
         self.Trained_On_States = []
         self.Eval_Rewards = []
+        self.Action_State_Counts = []
 
         self.Last_T_Logged = 1
         self.Last_Ep_Logged = 1
@@ -234,6 +235,10 @@ class Trainer:
                 np.savetxt(file, self.Q_Values[self.Last_T_Logged - 1:], delimiter=" ", fmt="%f")
                 file.write(str.encode("\n"))
 
+            with open("{}/logs/Action_Counts.txt".format(self.args.log_path), "ab") as file:
+                np.savetxt(file, self.Action_State_Counts[self.Last_T_Logged - 1:], delimiter=" ", fmt="%d")
+                file.write(str.encode("\n"))
+
             with open("{}/logs/DQN_Loss_T.txt".format(self.args.log_path), "ab") as file:
                 np.savetxt(file, self.DQN_Loss[self.Last_T_Logged - 1:], delimiter=" ", fmt="%.10f")
                 file.write(str.encode("\n"))
@@ -346,6 +351,7 @@ class Trainer:
                 self.log_value("DQN/Gradient_Norm", train_info["Norm"], step=self.T)
             if "Loss" in train_info:
                 self.log_value("DQN/Loss", train_info["Loss"], step=self.T)
+                self.DQN_Loss.append(train_info["Loss"])
             if "TD_Error" in train_info:
                 self.log_value("DQN/TD_Error", train_info["TD_Error"], step=self.T)
 
@@ -489,6 +495,10 @@ class Trainer:
                 state_new, reward, episode_finished, env_info = self.env.step(action)
                 self.T += 1
                 self.episode_steps += 1
+
+                # Action State Count stuff if available
+                if "Action_Counts" in env_info:
+                    self.Action_State_Counts.append(env_info["Action_Counts"])
 
                 # If the environment terminated because it reached a limit, we do not want the agent
                 # to see that transition, since it makes the env non markovian wrt state
