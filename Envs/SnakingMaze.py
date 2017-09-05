@@ -35,6 +35,9 @@ class SnakingMaze(GridWorld):
         num_rows = int(self.size) # number of rows
         num_cols = int(self.size) # number of columns
         corridor_width = self.corridor_width
+        if self.size == 18:
+            # Hack
+            self.rnd_seed = 2
         random.seed(self.rnd_seed)
         # The array M is going to hold the array information for each cell.
         # The first four coordinates tell if walls exist on those sides 
