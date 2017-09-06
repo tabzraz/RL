@@ -105,7 +105,7 @@ class DDQN_Agent:
             self.sync_target_network()
             self.target_sync_T = self.T
 
-        if self.T - self.bulk_T >= self.args.reward_replay:
+        if self.T - self.bulk_T >= 1:
             self.bulk_T = self.T
             for _ in range(self.args.reward_iters):
                 self.train(bulk_train=True)
