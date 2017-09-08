@@ -354,6 +354,8 @@ ALLOWED_ACTIONS = [
     [x for x in range(NUM_ACTIONS) if x != 33], # 8 - Deathmatch
     [13, 14, 15],                               # 9 - MyWayHomeFixed
     [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15]
 ]
 
 
