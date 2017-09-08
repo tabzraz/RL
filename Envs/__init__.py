@@ -104,8 +104,15 @@ register(
 )
 
 register(
-        id="DoomMazeBigHard-v0",
+        id="DoomMazeBig-v0",
         entry_point='Envs.DoomMaze:DoomMaze',
         kwargs={'level': 11},
+        tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
+)
+
+register(
+        id="DoomMazeBigHard-v0",
+        entry_point='Envs.DoomMaze:DoomMaze',
+        kwargs={'level': 12},
         tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
 )

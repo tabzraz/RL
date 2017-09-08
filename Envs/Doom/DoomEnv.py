@@ -42,9 +42,9 @@ DOOM_SETTINGS = [
     ['take_cover.cfg', 'take_cover.wad', 'map01', 5, [10, 11], 0, 750],                          # 7 - TakeCover
     ['deathmatch.cfg', 'deathmatch.wad', '', 5, [x for x in range(NUM_ACTIONS) if x != 33], 0, 20],  # 8 - Deathmatch
     ['my_way_home.cfg', 'my_way_home_sparse.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 9 - MyWayHome
-    ['my_way_home.cfg', 'my_way_home_verySparse.wad', '', 5, [13, 14, 15], -0.22, 0.5],
-    ['maze.cfg', 'maze.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 10 - MyWayHome
-    ['maze.cfg', 'maze_hard.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 10 - MyWayHome
+    ['my_way_home.cfg', 'my_way_home_verySparse.wad', '', 5, [13, 14, 15], -0.22, 0.5], # 10
+    ['maze.cfg', 'maze.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 11
+    ['maze.cfg', 'maze_hard.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 12
 ]
 
 # Singleton pattern

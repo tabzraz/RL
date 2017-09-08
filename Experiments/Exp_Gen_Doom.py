@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["DoomMazeHard-v0"]
+envs = ["DoomMazeBig-v0"]
 target_network = 1000
 exp_bonus_save = 1.0
 lrs = [0.0001]
@@ -30,7 +30,7 @@ reward_clips = [-1]
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None] #["Optimistic"]
 state_action_modes = ["Optimistic"]
-optimism_scalers = [0, 0.00001, 0.0001, 0.001]
+optimism_scalers = [0, 0.0001]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
