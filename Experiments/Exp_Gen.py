@@ -1,22 +1,22 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [18]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [800]]
+t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [21]
 num_seeds = 4
-epsilon_starts = [0.05] #[0.05]
-epsilon_finishs = [0.05]
-epsilon_steps = [50000]
+epsilon_starts = [0.05, 0.25, 0.5, 0.75, 1, 1, 1, 1] #[0.05]
+epsilon_finishs = [0.05, 0.25, 0.5, 0.75, 0.05, 0.05, 0.05, 0.05]
+epsilon_steps = [50000, 50000, 50000, 50000] + [x * 1000 for x in [50, 300, 600, 900]]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
+epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
 n_steps = [100]
@@ -27,9 +27,9 @@ negative_rewards = [(False, 0)]
 reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None, "Optimistic", "Optimistic", "Optimistic"]
+state_action_modes = [None]
 # state_action_modes = ["Optimistic"]
-optimism_scalers = [0.01, 0.001, 0.01, 0.1]
+optimism_scalers = [0.01]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
