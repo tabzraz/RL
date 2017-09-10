@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [18]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
@@ -10,13 +10,13 @@ betas = [0.0001]
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [21]
 num_seeds = 4
-epsilon_starts = [0.05, 0.25, 0.5, 0.75, 1, 1, 1, 1] #[0.05]
-epsilon_finishs = [0.05, 0.25, 0.5, 0.75, 0.05, 0.05, 0.05, 0.05]
-epsilon_steps = [50000, 50000, 50000, 50000] + [x * 1000 for x in [50, 300, 600, 900]]
+epsilon_starts = [0.05]
+epsilon_finishs = [0.05]
+epsilon_steps = [50000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [100]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
+epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
 n_steps = [100]
@@ -27,9 +27,10 @@ negative_rewards = [(False, 0)]
 reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-state_action_modes = [None]
-# state_action_modes = ["Optimistic"]
-optimism_scalers = [0.01]
+# state_action_modes = [None]
+state_action_modes = ["Force" for _ in range(4)] + ["Optimistic" for _ in range(4)]
+optimism_scalers = [0.01 for _ in range(4)] + [-0.0001, -0.001, -0.01, -0.1]
+force_scalers = [0.1, 1, 5, 10] + [0 for _ in range(4)]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
@@ -96,7 +97,7 @@ for env in envs:
                     for eps, eps_steps, eps_finish in zip(epsilon_starts, epsilon_steps, epsilon_finishs):
                         for count, eps_scaling in [(c, e) for c in counts for e in epsilon_scaling if not (c is False and e is True)]:
                             for eps_decay in epsilon_decay:
-                                for state_action_mode, o_scaler in zip(state_action_modes, optimism_scalers):
+                                for state_action_mode, o_scaler, f_scaler in zip(state_action_modes, optimism_scalers, force_scalers):
                                     for stale_val in stale_limits:
                                         for beta in betas:
                                             for cts_size in cts_sizes:
@@ -110,7 +111,7 @@ for env in envs:
 
                                                                             if state_action_mode != None and count is False:
                                                                                 continue
-                                                                            if bandit_no_epsilon_scaling and state_action_mode == "Optimistic":
+                                                                            if bandit_no_epsilon_scaling and state_action_mode != "Optimistic":
                                                                                 eps_scaling = False
                                                                             if set_replay:
                                                                                 xp_replay_size_ = t_max
@@ -157,6 +158,9 @@ for env in envs:
                                                                                     name += "_StateAction"
                                                                                 elif state_action_mode == "Optimistic":
                                                                                     name += "_OptimisticAction_{}_Scaler".format(o_scaler)
+                                                                                elif state_action_mode == "Force":
+                                                                                    name += "_ForceAction_{}_FCount".format(f_scaler)
+
                                                                                 name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                             else:
                                                                                 name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
@@ -202,6 +206,8 @@ for env in envs:
                                                                                     python_command += " --count-state-action"
                                                                                 elif state_action_mode == "Optimistic":
                                                                                     python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
+                                                                                elif state_action_mode == "Force":
+                                                                                    python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
                                                                             # if option:
                                                                             #     if random_macros:
                                                                             #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
