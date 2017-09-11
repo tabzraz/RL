@@ -79,7 +79,7 @@ class DDQN_Agent:
                 total_count = sum(action_counts)
                 for ai, a in enumerate(action_counts):
                     # TODO: Log the optimism bonuses
-                    q_values[ai] += self.args.optimistic_scaler * np.sqrt(2 * np.log(total_count) / (a + 0.01))
+                    q_values[ai] += self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
