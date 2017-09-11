@@ -60,7 +60,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
