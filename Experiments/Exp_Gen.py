@@ -10,13 +10,13 @@ betas = [0.0001]
 t_maxs = [x * 1000 for x in [100]]
 cts_sizes = [10] #[21]
 num_seeds = 4
-epsilon_starts = [0.05]
-epsilon_finishs = [0.05]
-epsilon_steps = [1]
+epsilon_starts = [0.05, 0.25, 0.5, 0.75]
+epsilon_finishs = [0.05, 0.25, 0.5, 0.75]
+epsilon_steps = [1,1,1,1]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [10]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
+epsilon_scaling = [False]
 epsilon_decay = [0.99]
 
 n_steps = [100]
@@ -28,9 +28,9 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0] + [0.001, 0.01, 0.1]
-state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
-force_scalers = [0] + [0 for _ in optimism_scalers]
+optimism_scalers = [0]
+state_action_modes = [None] 
+force_scalers = [0] 
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
