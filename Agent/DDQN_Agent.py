@@ -64,11 +64,22 @@ class DDQN_Agent:
         extra_info["Q_Values"] = q_values_numpy
 
         if self.args.optimistic_init:
-            for a in range(self.args.actions):
-                _, info = exp_model.bonus(orig_state, a, dont_remember=True)
-                action_pseudo_count = info["Pseudo_Count"]
-                # TODO: Log the optimism bonuses
-                q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+            if not self.args.ucb:
+                for a in range(self.args.actions):
+                    _, info = exp_model.bonus(orig_state, a, dont_remember=True)
+                    action_pseudo_count = info["Pseudo_Count"]
+                    # TODO: Log the optimism bonuses
+                    q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+            else:
+                action_counts = []
+                for a in range(self.args.actions):
+                    _, info = exp_model.bonus(orig_state, a, dont_remember=True)
+                    action_pseudo_count = info["Pseudo_Count"]
+                    action_counts.append(action_pseudo_count)
+                total_count = sum(action_counts)
+                for ai, a in enumerate(action_counts):
+                    # TODO: Log the optimism bonuses
+                    q_values[ai] += self.args.optimistic_scaler * np.sqrt(2 * np.log(total_count) / (a + 0.01))
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)

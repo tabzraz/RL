@@ -28,10 +28,11 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-state_action_modes = ["Optimistic"]
-optimism_scalers = [0.1, 1]
-force_scalers = [1, 1]
+optimism_scalers = [0.0001, 0.001, 0.01, 0.1]
+state_action_modes = ["Optimistic" for _ in optimism_scalers]
+force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
+ucb_bandit = True
 
 n_step_mixings = [1.0]
 
@@ -47,7 +48,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1, 4]
@@ -59,7 +60,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999, 0.99]
+gammas = [0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
@@ -85,7 +86,7 @@ files = gpus * exps_per_gpu
 
 gpu_start = 0
 
-tar = True
+tar = False
 
 uid = 0
 commands = []
@@ -111,7 +112,7 @@ for env in envs:
 
                                                                             if state_action_mode != None and count is False:
                                                                                 continue
-                                                                            if bandit_no_epsilon_scaling and state_action_mode != "Optimistic":
+                                                                            if bandit_no_epsilon_scaling and state_action_mode != None:
                                                                                 eps_scaling = False
                                                                             if set_replay:
                                                                                 xp_replay_size_ = t_max
@@ -121,10 +122,10 @@ for env in envs:
                                                                             name = env.replace("-", "_")[:-3]
                                                                             if variable_n_step:
                                                                                 name += "_Variable"
-                                                                            name += "_{}_Step_{}_Mix".format(n_step, n_mixing)
+                                                                            name += "_{}_stp".format(n_step, n_mixing)
                                                                             name += "_LR_{}".format(lr)
                                                                             name += "_Gamma_{}".format(gamma)
-                                                                            name += "_Batch_{}_Iters_{}_XpSize_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
+                                                                            name += "_Batch_{}_itrs_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
                                                                             if big_model:
                                                                                 name += "_Big"
                                                                             if prioritized:
@@ -137,7 +138,7 @@ for env in envs:
                                                                                     name += "_{}_MinusPseudo".format(count_td_scaler)
                                                                             if set_replay:
                                                                                 name += "_SetReplay_{}".format(set_replay_num)
-                                                                            name += "_BonusClip_{}".format(reward_clip)
+                                                                            # name += "_BonusClip_{}".format(reward_clip)
                                                                             # if option:
                                                                             #     if random_macros:
                                                                             #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
@@ -153,15 +154,17 @@ for env in envs:
                                                                                     name += "_NegativeReward_{}".format(neg_reward_scaler)
                                                                                 # print(stale)
                                                                                 if eps_scaling:
-                                                                                    name += "_CountEps_{}_Decay".format(eps_decay)
+                                                                                    name += "_CEps_{}_Decay".format(eps_decay)
                                                                                 if state_action_mode == "Plain":
                                                                                     name += "_StateAction"
                                                                                 elif state_action_mode == "Optimistic":
-                                                                                    name += "_OptimisticAction_{}_Scaler".format(o_scaler)
+                                                                                    if ucb_bandit:
+                                                                                        name += "_UCB"
+                                                                                    name += "_Bandit_{}_Scaler".format(o_scaler)
                                                                                 elif state_action_mode == "Force":
                                                                                     name += "_ForceAction_{}_FCount".format(f_scaler)
 
-                                                                                name += "_Count_Cts_{}_Stale_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
+                                                                                name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                             else:
                                                                                 name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
                                                                             python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
@@ -208,6 +211,8 @@ for env in envs:
                                                                                     python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
                                                                                 elif state_action_mode == "Force":
                                                                                     python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
+                                                                                if ucb_bandit:
+                                                                                    python_command += " --ucb"
                                                                             # if option:
                                                                             #     if random_macros:
                                                                             #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
