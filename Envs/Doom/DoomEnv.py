@@ -43,8 +43,11 @@ DOOM_SETTINGS = [
     ['deathmatch.cfg', 'deathmatch.wad', '', 5, [x for x in range(NUM_ACTIONS) if x != 33], 0, 20],  # 8 - Deathmatch
     ['my_way_home.cfg', 'my_way_home_sparse.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 9 - MyWayHome
     ['my_way_home.cfg', 'my_way_home_verySparse.wad', '', 5, [13, 14, 15], -0.22, 0.5], # 10
-    ['maze.cfg', 'maze.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 11
-    ['maze.cfg', 'maze_hard.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 12
+    ['maze.cfg', 'maze_1.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 11
+    ['maze.cfg', 'maze_2.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 11
+    ['maze.cfg', 'maze_3.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 11
+    ['maze.cfg', 'maze_4.wad', '', 5, [13, 14, 15], -0.22, 0.5],                     # 11
+    ['maze.cfg', 'maze_5.wad', '', 5, [13, 14, 15], -0.22, 0.5]                     # 12
 ]
 
 # Singleton pattern

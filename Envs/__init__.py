@@ -103,16 +103,10 @@ register(
         tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
 )
 
-register(
-        id="DoomMazeBig-v0",
-        entry_point='Envs.DoomMaze:DoomMaze',
-        kwargs={'level': 11},
-        tags={'wrapper_config.TimeLimit.max_episode_steps': 20000}
-)
-
-register(
-        id="DoomMazeBigHard-v0",
-        entry_point='Envs.DoomMaze:DoomMaze',
-        kwargs={'level': 12},
-        tags={'wrapper_config.TimeLimit.max_episode_steps': 20000}
-)
+for i in range(5):
+    register(
+            id="Doom_Maze_{}-v0".format(i + 1),
+            entry_point='Envs.DoomMaze:DoomMaze',
+            kwargs={'level': (11 + i)},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': 20000}
+    )

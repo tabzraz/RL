@@ -14,6 +14,9 @@ torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Atari.DQN
 torch_models["ppaquette/DoomMyWayHome-v0"] = DQN_Doom.DQN
 torch_models["DoomMaze-v0"] = DQN_Doom.DQN
 torch_models["DoomMazeHard-v0"] = DQN_Doom.DQN
+
+for i in range(5):
+    torch_models["Doom_Maze_{}-v0".format(i + 1)] = DQN_Doom.DQN
 torch_models["DoomMazeBig-v0"] = DQN_Doom.DQN
 torch_models["DoomMazeBigHard-v0"] = DQN_Doom.DQN
 

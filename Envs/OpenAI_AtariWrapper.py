@@ -355,6 +355,11 @@ ALLOWED_ACTIONS = [
     [13, 14, 15],                               # 9 - MyWayHomeFixed
     [13, 14, 15],                               # 10 - MyWayHomeFixed15
     [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
+    [13, 14, 15],                               # 10 - MyWayHomeFixed15
     [13, 14, 15]
 ]
 

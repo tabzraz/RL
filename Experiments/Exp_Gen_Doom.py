@@ -1,16 +1,16 @@
 import sys
 from math import ceil
 
-envs = ["DoomMazeBig-v0"]
+envs = ["Doom_Maze_{}-v0".format(i + 1) for i in range(5)]
 target_network = 1000
 exp_bonus_save = 1.0
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.00005] #[0.0001]
-t_maxs = [x * 1000 for x in [3000]]
+betas = [0.0001]
+t_maxs = [x * 1000 for x in [5000]]
 cts_sizes = [21]
-num_seeds = 4
+num_seeds = 1
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [50000]
@@ -28,9 +28,9 @@ negative_rewards = [(False, 0)]
 reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
-# state_action_modes = [None] #["Optimistic"]
-state_action_modes = ["Optimistic"]
-optimism_scalers = [0, 0.0001]
+state_action_modes = [None] #["Optimistic"]
+# state_action_modes = ["Optimistic"]
+optimism_scalers = [0]
 bandit_no_epsilon_scaling = True #HACK
 
 n_step_mixings = [1.0]
