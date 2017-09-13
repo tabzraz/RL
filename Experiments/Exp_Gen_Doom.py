@@ -83,7 +83,7 @@ gpus = 8
 exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
-tar = True
+tar = False
 
 uid = 0
 commands = []
