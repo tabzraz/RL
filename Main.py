@@ -93,6 +93,10 @@ parser.add_argument("--alpha", type=float, default=0.5)
 parser.add_argument("--render-scaling", type=int, default=8)
 parser.add_argument("--eval-interval", type=int, default=100)
 parser.add_argument("--ucb", action="store_true", default=False)
+parser.add_argument("--goal-state-interval", type=int, default=10)
+parser.add_argument("--goal-state-threshold", type=float, default=0.8)
+parser.add_argument("--goal-iters", type=int, default=1000)
+parser.add_argument("--max-goal-states", type=int, default=10)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
