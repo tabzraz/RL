@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [10, 14]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
@@ -19,7 +19,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [False]
 epsilon_decay = [0.99]
 
-n_steps = [100]
+n_steps = [10, 100]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -48,7 +48,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
@@ -60,7 +60,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
@@ -81,7 +81,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 gpu_start = 0
