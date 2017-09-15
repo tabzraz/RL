@@ -16,8 +16,8 @@ epsilon_steps = [1]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [100, 300, 500, 700]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
-epsilon_decay = [0.99]
+epsilon_scaling = [True]
+epsilon_decay = [0.9999]
 
 n_steps = [100]
 variable_n_step = False
@@ -60,7 +60,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
