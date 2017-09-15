@@ -1,20 +1,20 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [20, 22]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [800]]
+t_maxs = [x * 1000 for x in [2000]]
 cts_sizes = [21]
 num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [10, 25]]
+xp_replay_sizes = [x * 1000 for x in [100, 300, 500, 700]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [False]
 epsilon_decay = [0.99]
@@ -29,7 +29,7 @@ reward_clips = [-1]
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
 optimism_scalers = [0.1]
-state_action_modes = ["Optimistic" for _ in range(1)]
+state_action_modes = [None] #["Optimistic" for _ in range(1)]
 force_scalers = [0] 
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = True
@@ -48,7 +48,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.5]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
@@ -81,7 +81,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 gpu_start = 0
