@@ -52,13 +52,13 @@ for n in range(50):
 
 # DQN Thin Maze
 for n in range(50):
-    def model_creator(actions, size=n):
-        return DQN_Maze.DQN(input_size=(1, size * 3, size * 3), actions=actions)
-    torch_models["Thin-Maze-{}-v0".format(n)] = model_creator
+    # def model_creator(actions, size=n):
+        # return DQN_Maze.DQN(input_size=(1, size * 3, size * 3), actions=actions)
 
     def model_creator_big(actions, size=n):
         return DQN_Maze_Big.DQN(input_size=(1, size * 3, size * 3), actions=actions)
     torch_models["Thin-Maze-{}-v0-Big".format(n)] = model_creator_big
+    torch_models["Thin-Maze-{}-v0".format(n)] = model_creator_big
 
 def get_torch_models(name):
     return torch_models[name]

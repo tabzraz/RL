@@ -17,6 +17,7 @@ from pympler import asizeof
 from Utils.Utils import time_str
 
 from Agent.DDQN_Agent import DDQN_Agent
+from Agent.Goal_DQN_Agent import Goal_DQN_Agent
 from Agent.TabQ_Agent import TabQ_Agent
 from Exploration.Pseudo_Count import PseudoCount
 from Monitoring.Env_Wrapper import EnvWrapper
@@ -44,6 +45,8 @@ class Trainer:
 
         if args.tabular:
             self.agent = TabQ_Agent(args, self.exp_model)
+        elif args.goal_dqn:
+            self.agent = Goal_DQN_Agent(args, self.exp_model)
         else:
             self.agent = DDQN_Agent(args, self.exp_model)
 

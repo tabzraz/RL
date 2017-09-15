@@ -244,7 +244,6 @@ class ExperienceReplay_Goal_State:
         indices, is_weights = self.get_indices(size)
         self.Recompute_Pseudo_Counts(indices)
         batch_to_return = []
-        pseudo_rewards_used = []
         for index in indices:
             N_Step = N
             exps_to_use = self.Exps[index: min(self.experiences_stored, index + N_Step)]
@@ -263,6 +262,7 @@ class ExperienceReplay_Goal_State:
             state_now = exps_to_use[0].state
             action_now = exps_to_use[0].action
             state_then = exps_to_use[-1].state_next
+            accum_reward = 0
             terminate = False #exps_to_use[-1].terminal
             steps = len(exps_to_use)
             # rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))

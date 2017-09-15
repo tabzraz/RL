@@ -22,8 +22,8 @@ class Goal_DQN_Agent:
         # DQN and Target DQN
         model = get_models(args.model)
         self.model = model
-        self.dqn = model(actions=args.actions + args.max_goal_states)
-        self.target_dqn = model(actions=args.actions + args.max_goal_states)
+        self.dqn = model(actions=args.actions)
+        self.target_dqn = model(actions=args.actions)
 
         dqn_params = 0
         for weight in self.dqn.parameters():
@@ -56,17 +56,42 @@ class Goal_DQN_Agent:
 
         self.goal_dqn = None
         self.goal_dqns = []
+        self.goal_dqn_states = []
 
-        self.new_episode = True
         self.executing_option = False
-        self.option_num = 0
+        self.option_steps = 0
 
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
+    def option_act(self, state):
+        current_goal_dqn = self.goal_dqns[-1]
+        q_values = current_goal_dqn(Variable(state, volatile=True)).cpu().data[0]
+        q_values_numpy = q_values.numpy()
+
+        action = q_values.max(0)[1][0]  # Torch...
+
+        self.option_steps += 1
+
+        if self.option_steps >= self.args.max_option_steps:
+            self.executing_option = False
+
+        extra_info = {}
+        extra_info["Q_Values"] = q_values_numpy
+        extra_info["Action"] = action
+
+        return action, extra_info
+
     def act(self, state, epsilon, exp_model):
         self.T += 1
+
+        if self.executing_option and np.allclose(state, self.goal_dqn_states[-1]):
+            self.executing_option = False
+
+        if self.executing_option:
+            return self.option_act(state)
+
         self.dqn.eval()
         orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
@@ -99,13 +124,6 @@ class Goal_DQN_Agent:
         else:
             action = q_values.max(0)[1][0]  # Torch...
 
-        if not self.new_episode and action > self.args.actions - 1:
-            action = self.args.actions - 1
-        elif self.new_episode and action > self.args.actions - 1:
-            self.executing_option = True
-            self.option_num = action - self.args.actions
-
-
         if self.args.force_low_count_action:
             # Calculate the counts for each actions
             for a in range(self.args.actions):
@@ -119,36 +137,49 @@ class Goal_DQN_Agent:
 
         extra_info["Action"] = action
 
-        self.new_episode = False
         return action, extra_info
 
     def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
 
         self.max_bonus = max(pseudo_reward, self.max_bonus)
-        if self.T - self.goal_state_T > self.args.goal_state_interval and pseudo_reward * self.args.goal_state_threshold > self.max_bonus:
+        if pseudo_reward * self.args.goal_state_threshold > self.max_bonus:
             self.goal_state = state
+        if self.T - self.goal_state_T > self.args.goal_state_interval:
+            # print(self.T, self.goal_state_T, self.args.goal_state_interval)
             self.train_goal_network()
 
     def train_goal_network(self):
         # Make a copy of the dqn and reinit the last weights
-        self.goal_dqn = self.model(actions=self.args.actions + self.args.max_goal_states)
+        self.goal_dqn = self.model(actions=self.args.actions)
         self.goal_dqn.load_state_dict(self.dqn.state_dict())
         fc_features = self.goal_dqn.qvals.in_features
-        self.goal_dqn.qvals = nn.Linear(fc_features, self.args.actions + self.args.max_goal_states)
+        self.goal_dqn.qvals = nn.Linear(fc_features, self.args.actions)
         if self.args.gpu:
             print("Moving goal_dqn to GPU")
             self.goal_dqn.cuda()
 
         self.goal_optimizer = Adam(self.goal_dqn.parameters(), lr=self.args.lr)
 
+        print("Training Goal DQN {}".format(len(self.goal_dqns)))
         for _ in range(self.args.goal_iters):
+            self.train(goal_train=True)
+        # print("Finished training Goal DQN {}\n\n\n\n".format(len(self.goal_dqns)))
+
+        self.goal_dqns.append(self.goal_dqn)
+        self.goal_dqn_states.append(self.goal_state)
+
+        self.goal_state_T = self.T
+        # print("Goal State T is :", self.goal_state_T)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
-        self.new_episode = True
 
-    def train(self, goal_train=True):
+        if len(self.goal_dqns) > 0:
+            self.executing_option = True
+        self.option_steps = 0
+
+    def train(self, goal_train=False):
         if self.T - self.target_sync_T > self.args.target:
             self.sync_target_network()
             self.target_sync_T = self.T
@@ -164,7 +195,7 @@ class Goal_DQN_Agent:
 
             n_step_sample = self.args.n_step
             if goal_train:
-                batch, indices, is_weights = self.replay.Sample_GoalState(self.args.batch_size, n_step_sample, self.args.gamma, self.goal_state)
+                batch, indices, is_weights = self.replay.Sample_N_GoalState(self.args.batch_size, n_step_sample, self.args.gamma, self.goal_state)
             else:
                 batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
             columns = list(zip(*batch))
@@ -207,11 +238,11 @@ class Goal_DQN_Agent:
             info["TD_Error"] = td_error.mean().data[0]
 
             # Update the priorities
-            if not self.args.density_priority:
+            if not self.args.density_priority and not goal_train:
                 self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
 
             # If using prioritised we need to weight the td_error
-            if self.args.prioritized and self.args.prioritized_is:
+            if self.args.prioritized and self.args.prioritized_is and not goal_train:
                 # print(td_error)
                 weights_tensor = torch.from_numpy(is_weights).float()
                 weights_tensor = Variable(weights_tensor)
