@@ -16,7 +16,7 @@ epsilon_steps = [1]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [50]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
+epsilon_scaling = [True]
 epsilon_decay = [0.99]
 
 n_steps = [100]
