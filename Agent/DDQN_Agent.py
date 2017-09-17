@@ -53,7 +53,7 @@ class DDQN_Agent:
             target.data = source.data
 
     def act(self, state, epsilon, exp_model):
-        self.T += 1
+        # self.T += 1
         self.dqn.eval()
         orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
@@ -101,7 +101,9 @@ class DDQN_Agent:
 
         return action, extra_info
 
-    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
+    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1, exploring=False):
+        if not exploring:
+            self.T += 1
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
 
     def end_of_trajectory(self):

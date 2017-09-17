@@ -75,6 +75,7 @@ class Goal_DQN_Agent:
         self.option_steps += 1
 
         if self.option_steps >= self.args.max_option_steps:
+            print("Finishing execution of Goal DQN: Max Steps Reached")
             self.executing_option = False
 
         extra_info = {}
@@ -84,9 +85,10 @@ class Goal_DQN_Agent:
         return action, extra_info
 
     def act(self, state, epsilon, exp_model):
-        self.T += 1
+        # self.T += 1
 
         if self.executing_option and np.allclose(state, self.goal_dqn_states[-1]):
+            print("Finishing execution of Goal DQN: Goal Reached")
             self.executing_option = False
 
         if self.executing_option:
@@ -139,11 +141,13 @@ class Goal_DQN_Agent:
 
         return action, extra_info
 
-    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1):
+    def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1, exploring=False):
+        if not exploring:
+            self.T += 1
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
 
         self.max_bonus = max(pseudo_reward, self.max_bonus)
-        if pseudo_reward * self.args.goal_state_threshold > self.max_bonus:
+        if pseudo_reward * self.args.goal_state_threshold > self.max_bonus or self.goal_state is None:
             self.goal_state = state
         if self.T - self.goal_state_T > self.args.goal_state_interval:
             # print(self.T, self.goal_state_T, self.args.goal_state_interval)
@@ -168,6 +172,8 @@ class Goal_DQN_Agent:
 
         self.goal_dqns.append(self.goal_dqn)
         self.goal_dqn_states.append(self.goal_state)
+        # print(self.goal_state)
+        # print(self.goal_dqn_states[-1].shape)
 
         self.goal_state_T = self.T
         # print("Goal State T is :", self.goal_state_T)

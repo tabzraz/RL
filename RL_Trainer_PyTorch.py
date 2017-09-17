@@ -322,7 +322,7 @@ class Trainer:
                     terminated = True
                     break
 
-                self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=0)
+                self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=0, exploring=True)
                 s = sn
             self.agent.end_of_trajectory()
 
