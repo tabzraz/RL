@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [16]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [18]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
