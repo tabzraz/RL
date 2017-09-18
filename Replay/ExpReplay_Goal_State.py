@@ -266,7 +266,7 @@ class ExperienceReplay_Goal_State:
             terminate = False #exps_to_use[-1].terminal
             steps = len(exps_to_use)
             # rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
-            for index, state in list(map(lambda x: x.state, exps_to_use[1:])):
+            for index, state in enumerate(list(map(lambda x: x.state, exps_to_use[1:]))):
                 if np.allclose(goal_state, state):
                     accum_reward = gamma ** index
                     state_then = goal_state
