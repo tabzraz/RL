@@ -1,23 +1,23 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [6]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [500]]
-cts_sizes = [6]
+t_maxs = [x * 1000 for x in [1200]]
+cts_sizes = [21]
 num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50]]
+xp_replay_sizes = [x * 1000 for x in [100]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.999]
+epsilon_decay = [0.9999]
 
 n_steps = [100]
 variable_n_step = False
@@ -34,7 +34,7 @@ force_scalers = [0]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
-goal_intervals = [x * 1000 for x in [5, 10]]
+goal_intervals = [x * 1000 for x in [50, 100]]
 goal_thresholds = [0.75, 0.9]
 goal_iters = [x * 1000 for x in [1, 10]]
 goal_max_steps = [x * 100 for x in [10]]
@@ -63,7 +63,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99]
+gammas = [0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
