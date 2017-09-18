@@ -1,23 +1,23 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [6]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [16]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [500]]
-cts_sizes = [6]
+t_maxs = [x * 1000 for x in [2000]]
+cts_sizes = [21]
 num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50]]
+xp_replay_sizes = [x * 1000 for x in [100, 200, 300, 400, 500, 600, 700, 800]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.99]
+epsilon_decay = [0.9999]
 
 n_steps = [100]
 variable_n_step = False
@@ -28,9 +28,9 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01]
-state_action_modes = [None] + ["Optimistic" for _ in range(1)]
-force_scalers = [0, 0] 
+optimism_scalers = [0]
+state_action_modes = [None]# + ["Optimistic" for _ in range(1)]
+force_scalers = [0] 
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
@@ -48,7 +48,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.3, 0.4, 0.5, 0.6, 0.7]
-prioritiseds = [False, True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
@@ -60,7 +60,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99]
+gammas = [0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
