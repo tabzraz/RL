@@ -110,6 +110,15 @@ class GridWorld(gym.Env):
             pass
             # raise Exception("Cannot do human rendering")
 
+    def state_to_image(self, state):
+        grid = state
+        image = np.zeros(shape=(grid.shape[0], grid.shape[1], 3))
+        for x in range(grid.shape[0]):
+            for y in range(grid.shape[1]):
+                if grid[x, y] != 0:
+                    image[x, y] = (255 * grid[x, y] / 3, 255 * grid[x, y] / 3, 255 * grid[x, y] / 3)
+        return image
+
     def create_grid(self):
         self.grid = np.array([[3, 0],
                               [1, 2]])

@@ -70,6 +70,12 @@ class EnvWrapper(gym.Env):
         except AttributeError:
             pass
 
+    def state_to_image(self, state):
+        try:
+            return self.wrapped_env.env.state_to_image(state)
+        except AttributeError:
+            return self.debug_render(mode="rgb_array")
+
     def debug_render(self, debug_info={}, mode="human", close=False):
         if self.debug:
 

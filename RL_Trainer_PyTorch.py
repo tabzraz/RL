@@ -43,12 +43,13 @@ class Trainer:
         if args.count:
             self.exp_model = PseudoCount(args)
 
+        agent_log_funcs = {"log": self.log_value, "image": self.save_image, "video": self.save_video, "env": self.env}
         if args.tabular:
             self.agent = TabQ_Agent(args, self.exp_model)
         elif args.goal_dqn:
-            self.agent = Goal_DQN_Agent(args, self.exp_model)
+            self.agent = Goal_DQN_Agent(args, self.exp_model, agent_log_funcs)
         else:
-            self.agent = DDQN_Agent(args, self.exp_model)
+            self.agent = DDQN_Agent(args, self.exp_model, agent_log_funcs)
 
         self.log_queue = Queue_MP()
 

@@ -23,7 +23,7 @@ class PseudoCount:
             self.actions = self.args.actions
         self.models = [TreeDensity(frame_shape=self.cts_model_shape) for _ in range(self.actions)]
 
-        os.makedirs("{}/exploration_model".format(args.log_path))
+        # os.makedirs("{}/exploration_model".format(args.log_path))
 
     def bonus(self, state, action=0, dont_remember=False):
         extra_info = {}

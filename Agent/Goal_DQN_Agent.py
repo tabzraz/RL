@@ -6,12 +6,18 @@ from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Goal_State import ExperienceReplay_Goal_State as ExpReplay
 from Models.Models import get_torch_models as get_models
+import os
 
 
 class Goal_DQN_Agent:
 
-    def __init__(self, args, exp_model):
+    def __init__(self, args, exp_model, logging_funcs):
         self.args = args
+
+        self.log = logging_funcs["log"]
+        self.log_image = logging_funcs["image"]
+        os.makedirs("{}/goal_states".format(args.log_path))
+        self.env = logging_funcs["env"]
 
         # Exploration Model
         self.exp_model = exp_model
@@ -59,14 +65,19 @@ class Goal_DQN_Agent:
         self.goal_dqn_states = []
 
         self.executing_option = False
+        self.option_num = 0
         self.option_steps = 0
+
+        self.training_goal_T = 0
 
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
     def option_act(self, state):
-        current_goal_dqn = self.goal_dqns[-1]
+        current_goal_dqn = self.goal_dqns[self.option_num]
+        current_goal_dqn.eval()
+        state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = current_goal_dqn(Variable(state, volatile=True)).cpu().data[0]
         q_values_numpy = q_values.numpy()
 
@@ -75,8 +86,13 @@ class Goal_DQN_Agent:
         self.option_steps += 1
 
         if self.option_steps >= self.args.max_option_steps:
-            print("Finishing execution of Goal DQN: Max Steps Reached")
-            self.executing_option = False
+            print("Finishing execution of Goal DQN {}: Max Steps Reached".format(self.option_num))
+            self.log("Option_{}/Steps_Max".format(self.option_num), self.option_steps, step=self.T)
+            self.option_num += 1
+            self.option_steps = 0
+            if self.option_num == len(self.goal_dqns):
+                self.executing_option = False
+                self.option_num = 0
 
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
@@ -87,9 +103,14 @@ class Goal_DQN_Agent:
     def act(self, state, epsilon, exp_model):
         # self.T += 1
 
-        if self.executing_option and np.allclose(state, self.goal_dqn_states[-1]):
-            print("Finishing execution of Goal DQN: Goal Reached")
-            self.executing_option = False
+        if self.executing_option and np.allclose(state, self.goal_dqn_states[self.option_num]):
+            print("Finishing execution of Goal DQN {}: Goal Reached".format(self.option_num))
+            self.log("Option_{}/Steps_Goal".format(self.option_num), self.option_steps, step=self.T)
+            self.option_num += 1
+            self.option_steps = 0
+            if self.option_num == len(self.goal_dqns):
+                self.executing_option = False
+                self.option_num = 0
 
         if self.executing_option:
             return self.option_act(state)
@@ -149,6 +170,7 @@ class Goal_DQN_Agent:
         self.max_bonus = max(pseudo_reward, self.max_bonus)
         if pseudo_reward * self.args.goal_state_threshold > self.max_bonus or self.goal_state is None:
             self.goal_state = state
+            self.goal_state_image = self.env.state_to_image(self.goal_state)
         if self.T - self.goal_state_T > self.args.goal_state_interval:
             # print(self.T, self.goal_state_T, self.args.goal_state_interval)
             self.train_goal_network()
@@ -165,15 +187,25 @@ class Goal_DQN_Agent:
 
         self.goal_optimizer = Adam(self.goal_dqn.parameters(), lr=self.args.lr)
 
-        print("Training Goal DQN {}".format(len(self.goal_dqns)))
+        option_num = len(self.goal_dqns)
+        print("Training Goal DQN {}".format(option_num))
         for _ in range(self.args.goal_iters):
-            self.train(goal_train=True)
+            self.training_goal_T += 1
+
+            train_info = self.train(goal_train=True)
+
+            self.log("Option_{}/Gradient_Norm".format(option_num), train_info["Norm"], step=self.training_goal_T)
+            self.log("Option_{}/Loss".format(option_num), train_info["Loss"], step=self.training_goal_T)
+            self.log("Option_{}/TD_Error".format(option_num), train_info["TD_Error"], step=self.training_goal_T)
         # print("Finished training Goal DQN {}\n\n\n\n".format(len(self.goal_dqns)))
 
         self.goal_dqns.append(self.goal_dqn)
         self.goal_dqn_states.append(self.goal_state)
         # print(self.goal_state)
         # print(self.goal_dqn_states[-1].shape)
+
+        # Save the goal state
+        self.log_image("{}/goal_states/Goal_State_{}".format(self.args.log_path, option_num), self.goal_state_image)
 
         self.goal_state_T = self.T
         # print("Goal State T is :", self.goal_state_T)
@@ -182,7 +214,9 @@ class Goal_DQN_Agent:
         self.replay.end_of_trajectory()
 
         if len(self.goal_dqns) > 0:
+            print("Gonna start executing")
             self.executing_option = True
+            self.option_num = 0
         self.option_steps = 0
 
     def train(self, goal_train=False):
@@ -215,7 +249,10 @@ class Goal_DQN_Agent:
             steps = Variable(torch.FloatTensor(columns[4]))
             new_states = Variable(torch.from_numpy(np.array(columns[3])).float().transpose_(1, 3))
 
-            target_dqn_qvals = self.target_dqn(new_states).cpu()
+            if goal_train:
+                target_dqn_qvals = dqn(new_states).cpu()
+            else:
+                target_dqn_qvals = self.target_dqn(new_states).cpu()
             # Make a new variable with those values so that these are treated as constants
             target_dqn_qvals_data = Variable(target_dqn_qvals.data)
 

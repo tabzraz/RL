@@ -10,7 +10,7 @@ from Models.Models import get_torch_models as get_models
 
 class DDQN_Agent:
 
-    def __init__(self, args, exp_model):
+    def __init__(self, args, exp_model, logging_func):
         self.args = args
 
         # Exploration Model
