@@ -35,9 +35,9 @@ bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
 goal_intervals = [x * 1000 for x in [50, 100]]
-goal_thresholds = [0.75, 0.9]
-goal_iters = [x * 1000 for x in [1, 10]]
-goal_max_steps = [x * 100 for x in [10]]
+goal_thresholds = [0.75]
+goal_iters = [x * 1000 for x in [10]]
+goal_max_steps = [x * 100 for x in [1]]
 
 options = [False]
 
@@ -63,7 +63,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
