@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [18]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [20]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
@@ -9,12 +9,12 @@ counts = [True]
 betas = [0.0001]
 t_maxs = [x * 1000 for x in [2000]]
 cts_sizes = [21]
-num_seeds = 4
+num_seeds = 8
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100, 200, 300, 400, 500, 600, 700, 800]]
+xp_replay_sizes = [x * 1000 for x in [100, 300, 500, 700]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -32,7 +32,7 @@ optimism_scalers = [0]
 state_action_modes = [None]# + ["Optimistic" for _ in range(1)]
 force_scalers = [0] 
 bandit_no_epsilon_scaling = True #HACK
-ucb_bandit = False
+ucb_bandits = [False]
 
 n_step_mixings = [1.0]
 
@@ -98,7 +98,7 @@ for env in envs:
                     for eps, eps_steps, eps_finish in zip(epsilon_starts, epsilon_steps, epsilon_finishs):
                         for count, eps_scaling in [(c, e) for c in counts for e in epsilon_scaling if not (c is False and e is True)]:
                             for eps_decay in epsilon_decay:
-                                for state_action_mode, o_scaler, f_scaler in zip(state_action_modes, optimism_scalers, force_scalers):
+                                for state_action_mode, o_scaler, f_scaler, ucb_bandit in zip(state_action_modes, optimism_scalers, force_scalers, ucb_bandits):
                                     for stale_val in stale_limits:
                                         for beta in betas:
                                             for cts_size in cts_sizes:
