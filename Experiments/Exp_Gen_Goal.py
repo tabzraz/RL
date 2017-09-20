@@ -34,7 +34,7 @@ force_scalers = [0]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
-goal_intervals = [x * 1000 for x in [50, 100]]
+goal_intervals = [x * 1000 for x in [50]]
 goal_thresholds = [0.75]
 goal_iters = [x * 1000 for x in [10]]
 goal_max_steps = [x * 100 for x in [1]]

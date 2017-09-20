@@ -168,11 +168,9 @@ class Goal_DQN_Agent:
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
 
         self.max_bonus = max(pseudo_reward, self.max_bonus)
-        if pseudo_reward * self.args.goal_state_threshold > self.max_bonus or self.goal_state is None:
+        if pseudo_reward >= self.args.goal_state_threshold * self.max_bonus and self.T - self.goal_state_T > self.args.goal_state_interval:
             self.goal_state = state
             self.goal_state_image = self.env.state_to_image(self.goal_state)
-        if self.T - self.goal_state_T > self.args.goal_state_interval:
-            # print(self.T, self.goal_state_T, self.args.goal_state_interval)
             self.train_goal_network()
 
     def train_goal_network(self):
