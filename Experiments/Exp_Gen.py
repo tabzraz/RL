@@ -28,11 +28,11 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [1, 10, 0.00001, 1, 10, 0.0001]
-state_action_modes = ["Optimistic" for _ in optimism_scalers]
+optimism_scalers = [1, 0.1]
+state_action_modes = [None, "Optimistic"]  #["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
-ucb_bandits = [True, True, True, False, False, False]
+ucb_bandits = [False, False] #[True, True, True, False, False, False]
 
 n_step_mixings = [1.0]
 
@@ -47,8 +47,8 @@ files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
-alphas = [0.3, 0.4, 0.5, 0.6, 0.7]
-prioritiseds = [False]
+alphas = [0.1, 0.3, 0.5, 0.7]
+prioritiseds = [True]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
