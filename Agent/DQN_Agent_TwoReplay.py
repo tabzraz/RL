@@ -120,7 +120,8 @@ class DQN_Agent_TwoReplay:
 
     def train(self, bonus_replay=False):
 
-        self.train(bonus_replay=True)
+        if bonus_replay is False:
+            self.train(bonus_replay=True)
 
         if self.T - self.target_sync_T > self.args.target:
             self.sync_target_network()
