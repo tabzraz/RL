@@ -1,20 +1,20 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [19]]
+envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
 betas = [0.0001]
-t_maxs = [x * 1000 for x in [3000]]
+t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [21]
-num_seeds = 8
+num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100, 300, 500, 700]]
+xp_replay_sizes = [x * 1000 for x in [10, 50, 100]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -33,6 +33,11 @@ state_action_modes = [None]#, "Optimistic"]  #["Optimistic" for _ in optimism_sc
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False] #[True, True, True, False, False, False]
+
+bonus_replay = True
+bonus_replay_thresholds = [0.5, 0.75]
+if not bonus_replay:
+    bonus_replay_thresholds = [1]
 
 n_step_mixings = [1.0]
 
@@ -107,7 +112,7 @@ for env in envs:
                                                         for n_mixing in n_step_mixings:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
-                                                                    for reward_clip in reward_clips:
+                                                                    for bonus_replay_threshold in bonus_replay_thresholds:
                                                                         for seed in seeds:
 
                                                                             if state_action_mode != None and count is False:
@@ -164,6 +169,9 @@ for env in envs:
                                                                                 elif state_action_mode == "Force":
                                                                                     name += "_ForceAction_{}_FCount".format(f_scaler)
 
+                                                                            if bonus_replay:
+                                                                                name += "_2Replay_{}_Thr".format(bonus_replay_threshold)
+
                                                                                 name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                             else:
                                                                                 name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
@@ -175,7 +183,10 @@ for env in envs:
                                                                             python_command += " --eps-steps {}".format(eps_steps)
                                                                             python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
                                                                             python_command += " --iters {}".format(iters)
-                                                                            python_command += " --bonus-clip {}".format(reward_clip)
+                                                                            # python_command += " --bonus-clip {}".format(reward_clip)
+                                                                            if bonus_replay:
+                                                                                python_command += " --bonus-replay-threshold {}".format(bonus_replay_threshold)
+                                                                                python_command += " --bonus-replay"
                                                                             if variable_n_step:
                                                                                 python_command += " --variable-n-step"
                                                                             if tabular:
