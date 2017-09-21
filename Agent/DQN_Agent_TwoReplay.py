@@ -115,7 +115,8 @@ class DQN_Agent_TwoReplay:
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
-        self.bonus_replay.end_of_trajectory()
+        if self.bonus_replay_stuff > 0:
+            self.bonus_replay.end_of_trajectory()
 
     def train(self, bonus_replay=False):
 
