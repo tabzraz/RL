@@ -14,7 +14,7 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100]]
+xp_replay_sizes = [x * 1000 for x in [200, 300, 500, 700]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -28,13 +28,13 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [1]
-state_action_modes = [None]#, "Optimistic"]  #["Optimistic" for _ in optimism_scalers]
+optimism_scalers = [0.1]
+state_action_modes = ["Optimistic"]  #["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False] #[True, True, True, False, False, False]
 
-bonus_replay = True
+bonus_replay = False
 bonus_replay_thresholds = [0.1, 0.2, 0.3, 0.4]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
@@ -172,6 +172,7 @@ for env in envs:
                                                                             if bonus_replay:
                                                                                 name += "_2Replay_{}_Thr".format(bonus_replay_threshold)
 
+                                                                            if count:
                                                                                 name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                             else:
                                                                                 name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
