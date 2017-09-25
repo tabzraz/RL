@@ -102,6 +102,9 @@ parser.add_argument("--max-option-steps", type=int, default=100)
 
 parser.add_argument("--bonus-replay", action="store_true", default=False)
 parser.add_argument("--bonus-replay-threshold", type=float, default=0.75)
+
+parser.add_argument("--sarsa", action="store_true", default=False)
+parser.add_argument("--sarsa-train", type=int, default=100)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
