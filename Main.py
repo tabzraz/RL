@@ -106,6 +106,7 @@ parser.add_argument("--bonus-replay-threshold", type=float, default=0.75)
 parser.add_argument("--sarsa", action="store_true", default=False)
 parser.add_argument("--sarsa-train", type=int, default=100)
 
+parser.add_argument("--nec", action="store_true", default=False)
 parser.add_argument("--dnd-size", type=int, default=100)
 parser.add_argument("--nec-embedding", type=int, default=128)
 parser.add_argument("--nec-alpha", type=float, default=0.1)
@@ -127,6 +128,9 @@ args.frontier = not args.no_frontier
 # Model
 if args.model == "":
     args.model = args.env
+
+if args.nec:
+    args.model = "NEC_" + args.model
 
 print("\n" + "=" * 40)
 print(15 * " " + "Settings:" + " " * 15)

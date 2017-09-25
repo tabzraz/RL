@@ -5,13 +5,12 @@ from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Models.Models import get_torch_models as get_models
 
-from Replay.ExpReplay_Sarsa import ExperienceReplay_Sarsa as ExpReplay
 from Replay.NEC_Replay import NEC_Replay as ExpReplay
 from Replay.DND import DND
 
 
 def kernel(h, h_i, delta=1e-3):
-    return 1 / (torch.dist(h, h_i, p=2) + delta)
+    return 1 / (torch.dist(h, h_i) + delta)
 
 
 class NEC_Agent:
@@ -30,13 +29,13 @@ class NEC_Agent:
         model = get_models(args.model)
         self.embedding = model(embedding=args.nec_embedding)
 
-        dqn_params = 0
-        for weight in self.dqn.parameters():
+        embedding_params = 0
+        for weight in self.embedding.parameters():
             weight_params = 1
             for s in weight.size():
                 weight_params *= s
-            dqn_params += weight_params
-        print("Embedding Network has {:,} parameters.".format(dqn_params))
+            embedding_params += weight_params
+        print("Embedding Network has {:,} parameters.".format(embedding_params))
 
         if args.gpu:
             print("Moving models to GPU.")
@@ -51,19 +50,19 @@ class NEC_Agent:
         self.experiences = []
 
     def Q_Value_Estimates(self, state):
-
         # Get state embedding
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-        key = self.embedding(Variable(state, volatile=True)).cpu().data[0]
+        key = self.embedding(Variable(state, volatile=True)).cpu()
 
-        estimate_from_dnds = [dnd.lookup(key) for dnd in self.dnds]
-        return torch.cat(estimate_from_dnds), key
+        estimate_from_dnds = torch.cat([dnd.lookup(key) for dnd in self.dnds])
+        # print(estimate_from_dnds)
+        return estimate_from_dnds, key
         # return np.array(estimate_from_dnds), key
 
     def act(self, state, epsilon, exp_model):
 
         q_values, key = self.Q_Value_Estimates(state)
-        q_values_numpy = q_values.numpy()
+        q_values_numpy = q_values.data.numpy()
 
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
@@ -96,15 +95,18 @@ class NEC_Agent:
                 last_state_max_q_val = 0
             else:
                 last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
-                last_state_max_q_val = np.max(last_state_q_val_estimates)
+                last_state_max_q_val = last_state_q_val_estimates.max(0)[0][0]
+                # print(last_state_max_q_val)
             first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
 
             n_step_q_val_estimate = accum_reward + (self.args.gamma ** self.args.n_step) * last_state_max_q_val
+            n_step_q_val_estimate = n_step_q_val_estimate.data[0]
+            # print(n_step_q_val_estimate)
 
             # Add to dnd
             if self.dnds[first_action].is_present(key=first_state_key):
                 current_q_val = self.dnds[first_action].get_value(key=first_state_key)
-                new_q_val = current_q_val + self.nec_alpha(n_step_q_val_estimate - current_q_val)
+                new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
                 self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
             else:
                 self.dnds[first_action].upsert(key=first_state_key, value=n_step_q_val_estimate)
@@ -136,11 +138,12 @@ class NEC_Agent:
                 last_state_max_q_val = 0
             else:
                 last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
-                last_state_max_q_val = np.max(last_state_q_val_estimates)
+                last_state_max_q_val = last_state_q_val_estimates.max(0)[0][0]
             first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
 
             n_step = len(self.experiences)
             n_step_q_val_estimate = accum_reward + (self.args.gamma ** n_step) * last_state_max_q_val
+            n_step_q_val_estimate = n_step_q_val_estimate.data[0]
 
             # Add to dnd
             if self.dnds[first_action].is_present(key=first_state_key):
@@ -159,7 +162,7 @@ class NEC_Agent:
     def train(self):
 
         info = {}
-
+        # return info
         for _ in range(self.args.iters):
 
             # TODO: Use a named tuple for experience replay
@@ -168,36 +171,27 @@ class NEC_Agent:
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
             actions = columns[1]
+            # print(columns[2])
             targets = Variable(torch.FloatTensor(columns[2]))
 
-            keys = 
+            keys = self.embedding(states).cpu()
+            # print(keys.requires_grad)
+            # for action in actions:
+                # print(action)
+            # for action, key in zip(actions, keys):
+                # print(action, key)
+                # kk = key.unsqueeze(0)
+                # print(kk.requires_grad)
+                # k = self.dnds[action].lookup(key.unsqueeze(0))
+                # print(k.requires_grad)
+            model_predictions = torch.cat([self.dnds[action].lookup(key.unsqueeze(0)) for action, key in zip(actions, keys)])
+            # print(model_predictions)
+            # print(targets)
 
-            model_predictions = [self.dnds[action].lookup]
-            predicted = torch.cat([self.dnd_list[sample.action].lookup(self.embedding_network(sample.state.float() / 255.0), True) for sample in batch]) 
-
-            if self.args.gpu:
-                actions = actions.cuda()
-                q_value_targets = q_value_targets.cuda()
-            model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
-
-            # info = {}
-
-            td_error = model_predictions - q_value_targets
+            td_error = model_predictions - targets
+            # print(td_error)
             info["TD_Error"] = td_error.mean().data[0]
 
-            # Update the priorities
-            if not self.args.density_priority:
-                self.replay.Update_Indices(indices, td_error.cpu().data.numpy(), no_pseudo_in_priority=self.args.count_td_priority)
-
-            # If using prioritised we need to weight the td_error
-            if self.args.prioritized and self.args.prioritized_is:
-                # print(td_error)
-                weights_tensor = torch.from_numpy(is_weights).float()
-                weights_tensor = Variable(weights_tensor)
-                if self.args.gpu:
-                    weights_tensor = weights_tensor.cuda()
-                # print(weights_tensor)
-                td_error = td_error * weights_tensor
             l2_loss = (td_error).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
 
@@ -207,7 +201,7 @@ class NEC_Agent:
 
             # Taken from pytorch clip_grad_norm
             # Remove once the pip version it up to date with source
-            gradient_norm = clip_grad_norm(self.dqn.parameters(), self.args.clip_value)
+            gradient_norm = clip_grad_norm(self.embedding.parameters(), self.args.clip_value)
             if gradient_norm is not None:
                 info["Norm"] = gradient_norm
 
@@ -218,7 +212,5 @@ class NEC_Agent:
                 info["States"] = states_trained + columns[0]
             else:
                 info["States"] = columns[0]
-
-        self.replay.Clear()
 
         return info

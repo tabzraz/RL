@@ -1,11 +1,9 @@
 import numpy as np
 import collections
-from .Binary_Heap import BinaryHeap
 import sys
-import random
 
 
-class ExperienceReplay_Sarsa:
+class NEC_Replay:
 
     Experience = collections.namedtuple("Experience", "state action estimate")
 
