@@ -113,7 +113,7 @@ class Sarsa_Agent:
             tt = terminated
             pr = self.prev_exp[4]
             self.replay.Add_Exp(s, a, r, sn, an, steps, tt, pr, 1)
-            self.prev_exp = (state, action, reward, state_next, pseudo_reward)
+        self.prev_exp = (state, action, reward, state_next, pseudo_reward)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
@@ -155,13 +155,7 @@ class Sarsa_Agent:
                 inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
                 # print(steps)
                 q_value_targets = q_value_targets * torch.pow(inter, steps)
-                if self.args.double:
-                    # Double Q Learning
-                    new_states_qvals = self.dqn(new_states).cpu()
-                    new_states_qvals_data = Variable(new_states_qvals.data)
-                    q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, new_states_qvals_data.max(1)[1])
-                else:
-                    q_value_targets = q_value_targets * target_dqn_qvals_data[actions_next]
+                q_value_targets = q_value_targets * target_dqn_qvals_data[actions_next]
                 q_value_targets = q_value_targets + rewards
 
                 self.dqn.train()
