@@ -211,10 +211,4 @@ class Sarsa_Agent:
 
             self.replay.Clear()
 
-        # Pad out the states to be of size batch_size
-        if len(info["States"]) < self.args.batch_size:
-            old_states = info["States"]
-            new_states = old_states[0] * (self.args.batch_size - len(old_states))
-            info["States"] = new_states
-
         return info
