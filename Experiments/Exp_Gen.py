@@ -13,8 +13,8 @@ num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
-batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [200, 300, 500, 700]]
+batch_sizes = [(32, 2), (32, 4), (32, 8), (32, 16)]
+xp_replay_sizes = [x * 1000 for x in [100]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -65,7 +65,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99, 0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
