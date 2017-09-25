@@ -70,11 +70,12 @@ class ExperienceReplay_Sarsa:
         self.max_reward = max(self.max_reward, pseudo_reward + reward)
 
     def end_of_trajectory(self):
-        exp = self.Exps[self.storing_index - 1]
-        new_exp = list(exp)
-        new_exp[-1] = True  # End of trajectory
-        new_exp_tuple = self.Experience(*new_exp)
-        self.Exps[self.storing_index - 1] = new_exp_tuple
+        if self.Exps[self.storing_index - 1] is not None:
+            exp = self.Exps[self.storing_index - 1]
+            new_exp = list(exp)
+            new_exp[-1] = True  # End of trajectory
+            new_exp_tuple = self.Experience(*new_exp)
+            self.Exps[self.storing_index - 1] = new_exp_tuple
 
     def get_sampling_distribution(self):
         if self.experiences_stored < self.N:
