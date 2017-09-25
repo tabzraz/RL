@@ -127,7 +127,7 @@ class Sarsa_Agent:
 
         info = {}
 
-        if self.T - self.train_T > self.args.sarsa_train:
+        if self.T - self.train_T >= self.args.sarsa_train:
             for _ in range(self.args.sarsa_train):
                 self.train_T = self.T
                 self.dqn.eval()
@@ -141,7 +141,7 @@ class Sarsa_Agent:
                 actions = Variable(torch.LongTensor(columns[1]))
                 terminal_states = Variable(torch.FloatTensor(columns[5]))
                 rewards = Variable(torch.FloatTensor(columns[2]))
-                actions_next = Variable(torch.FloatTensor(columns[6]))
+                actions_next = Variable(torch.LongTensor(columns[6]))
                 # Have to clip rewards for DQN
                 rewards = torch.clamp(rewards, -1, 1)
                 steps = Variable(torch.FloatTensor(columns[4]))
@@ -155,7 +155,7 @@ class Sarsa_Agent:
                 inter = Variable(torch.ones(terminal_states.size()[0]) * self.args.gamma)
                 # print(steps)
                 q_value_targets = q_value_targets * torch.pow(inter, steps)
-                q_value_targets = q_value_targets * target_dqn_qvals_data[actions_next]
+                q_value_targets = q_value_targets * target_dqn_qvals_data.gather(1, actions_next.view(-1, 1))
                 q_value_targets = q_value_targets + rewards
 
                 self.dqn.train()
