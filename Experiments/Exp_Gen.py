@@ -14,7 +14,7 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100]]
+xp_replay_sizes = [x * 1000 for x in [10]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -38,6 +38,9 @@ bonus_replay = False
 bonus_replay_thresholds = [0.1, 0.2, 0.3, 0.4]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
+
+SARSA = True
+sarsa_trains = [100, 1000]
 
 n_step_mixings = [1.0]
 
@@ -109,7 +112,7 @@ for env in envs:
                                             for cts_size in cts_sizes:
                                                 for neg_reward, neg_reward_scaler in negative_rewards:
                                                     for prioritized, is_weight, neg_scaler, sub_pseudo_reward, alpha in prioritizeds:
-                                                        for n_mixing in n_step_mixings:
+                                                        for sarsa_train in sarsa_trains:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_threshold in bonus_replay_thresholds:
@@ -127,7 +130,7 @@ for env in envs:
                                                                             name = env.replace("-", "_")[:-3]
                                                                             if variable_n_step:
                                                                                 name += "_Variable"
-                                                                            name += "_{}_stp".format(n_step, n_mixing)
+                                                                            name += "_{}_stp".format(n_step)
                                                                             name += "_LR_{}".format(lr)
                                                                             name += "_Gamma_{}".format(gamma)
                                                                             name += "_Batch_{}_itrs_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
@@ -172,18 +175,22 @@ for env in envs:
                                                                             if bonus_replay:
                                                                                 name += "_2Replay_{}_Thr".format(bonus_replay_threshold)
 
+                                                                            if SARSA:
+                                                                                name += "_SARSA_{}_".format(sarsa_train)
                                                                             if count:
                                                                                 name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
                                                                             else:
-                                                                                name += "_DQN_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
+                                                                                name += "_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
                                                                             python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
                                                                             python_command += " --epsilon-finish {}".format(eps_finish)
                                                                             python_command += " --target {}".format(target_network)
                                                                             python_command += " --logdir ../Logs"
                                                                             python_command += " --gamma {}".format(gamma)
                                                                             python_command += " --eps-steps {}".format(eps_steps)
-                                                                            python_command += " --n-step {} --n-step-mixing {}".format(n_step, n_mixing)
+                                                                            python_command += " --n-step {}".format(n_step)
                                                                             python_command += " --iters {}".format(iters)
+                                                                            if SARSA:
+                                                                                python_command += " --sarsa --sarsa-train {}".format(sarsa_train)
                                                                             # python_command += " --bonus-clip {}".format(reward_clip)
                                                                             if bonus_replay:
                                                                                 python_command += " --bonus-replay-threshold {}".format(bonus_replay_threshold)
