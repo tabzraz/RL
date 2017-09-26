@@ -133,7 +133,9 @@ class NEC_Agent:
     def train(self):
 
         info = {}
-        # return info
+        if self.T % self.args.nec_update != 0:
+            return info
+
         for _ in range(self.args.iters):
 
             # TODO: Use a named tuple for experience replay
