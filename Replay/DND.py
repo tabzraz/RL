@@ -36,7 +36,7 @@ class DND:
             if not (key == lookup_key).data.all():
                 # print("Here")
                 output += self.kernel(key, lookup_key) * self.dictionary.get(tuple(key.data.cpu().numpy()[0]))
-                # print("Key", key.requires_grad)
+                # print("Key", key.requires_grad, key.volatile)
                 # print("Kernel key", self.kernel(key, lookup_key).requires_grad)
                 # print("Output in loop", output.requires_grad)
                 kernel_sum += self.kernel(key, lookup_key)
@@ -54,10 +54,10 @@ class DND:
             # zeroed = (lookup_key * 0)[0][0]
             # print("Zero Lookup.", output.data, kernel_sum.data, len(keys))
             return (lookup_key * 0)[0][0]
-        # print("lookup_key", lookup_key.requires_grad)
+        # print("lookup_key", lookup_key.requires_grad, lookup_key.volatile)
         # print("kernled", self.kernel(keys[0], lookup_key).requires_grad)
-        # print("output", output.requires_grad)
-        # print("ks", kernel_sum.requires_grad)
+        # print("output", output.requires_grad, output.volatile)
+        # print("ks", kernel_sum.requires_grad, kernel_sum.volatile)
         # print("Non-Zero Lookup for {}".format(lookup_key))
         output = output / kernel_sum
         # print(output)

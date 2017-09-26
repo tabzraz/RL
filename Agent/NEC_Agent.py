@@ -52,7 +52,7 @@ class NEC_Agent:
     def Q_Value_Estimates(self, state):
         # Get state embedding
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-        key = self.embedding(Variable(state, volatile=False)).cpu()
+        key = self.embedding(Variable(state, volatile=True)).cpu()
 
         estimate_from_dnds = torch.cat([dnd.lookup(key) for dnd in self.dnds])
         # print(estimate_from_dnds)
@@ -111,13 +111,14 @@ class NEC_Agent:
             last_state_max_q_val = last_state_q_val_estimates.data.max(0)[0][0]
             # print(last_state_max_q_val)
         first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
+        first_state_key = Variable(first_state_key.data, volatile=False)
 
         n_step_q_val_estimate = accum_reward + (self.args.gamma ** len(self.experiences)) * last_state_max_q_val
         n_step_q_val_estimate = n_step_q_val_estimate
         # print(n_step_q_val_estimate)
 
         # Add to dnd
-        if self.dnds[first_action].is_present(key=Variable(first_state_key.data)):
+        if self.dnds[first_action].is_present(key=first_state_key):
             current_q_val = self.dnds[first_action].get_value(key=first_state_key)
             new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
             self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
@@ -158,7 +159,7 @@ class NEC_Agent:
                 # kk = key.unsqueeze(0)
                 # print("kk", kk.requires_grad)
                 # k = self.dnds[action].lookup(key.unsqueeze(0))
-                # print("k", k.requires_grad)
+                # print("key", key.requires_grad, key.volatile)
             model_predictions = torch.cat([self.dnds[action].lookup(key.unsqueeze(0)) for action, key in zip(actions, keys)])
             # print(model_predictions)
             # print(targets)
