@@ -27,17 +27,38 @@ class DND:
     def lookup(self, lookup_key):
         # TODO: Speed up search knn
         keys = [key[0].data for key in self.kd_tree.search_knn(lookup_key, self.num_neighbors)]
-        output, kernel_sum = 0, 0
+        # print(keys)
+        output, kernel_sum = Variable(FloatTensor([0])), Variable(FloatTensor([0]))
+        # if len(keys) != 0:
+            # print(keys)
         # TODO: Speed this up since the kernel takes a significant amount of time
         for key in keys:
             if not (key == lookup_key).data.all():
+                # print("Here")
                 output += self.kernel(key, lookup_key) * self.dictionary.get(tuple(key.data.cpu().numpy()[0]))
+                # print("Key", key.requires_grad)
+                # print("Kernel key", self.kernel(key, lookup_key).requires_grad)
+                # print("Output in loop", output.requires_grad)
                 kernel_sum += self.kernel(key, lookup_key)
-        if kernel_sum == 0 or len(keys) == 0:
+                # print(kernel_sum)
+        # if len(keys) == 0:
+        #     return (lookup_key * 0)[0][0]
+        if isinstance(kernel_sum, int):
+            return (lookup_key * 0)[0][0]
+        # if kernel_sum == 0:
+            # print("0 Kernel", kernel_sum)
+        # if len(keys) == 0:
+            # print("0 keys", len(keys))
+        if kernel_sum.data[0] == 0 or len(keys) == 0:
             # print(lookup_key)
             # zeroed = (lookup_key * 0)[0][0]
-            # print(zeroed)
+            # print("Zero Lookup.", output.data, kernel_sum.data, len(keys))
             return (lookup_key * 0)[0][0]
+        # print("lookup_key", lookup_key.requires_grad)
+        # print("kernled", self.kernel(keys[0], lookup_key).requires_grad)
+        # print("output", output.requires_grad)
+        # print("ks", kernel_sum.requires_grad)
+        # print("Non-Zero Lookup for {}".format(lookup_key))
         output = output / kernel_sum
         # print(output)
         return output

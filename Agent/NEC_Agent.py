@@ -52,7 +52,7 @@ class NEC_Agent:
     def Q_Value_Estimates(self, state):
         # Get state embedding
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
-        key = self.embedding(Variable(state, volatile=True)).cpu()
+        key = self.embedding(Variable(state, volatile=False)).cpu()
 
         estimate_from_dnds = torch.cat([dnd.lookup(key) for dnd in self.dnds])
         # print(estimate_from_dnds)
@@ -117,7 +117,7 @@ class NEC_Agent:
         # print(n_step_q_val_estimate)
 
         # Add to dnd
-        if self.dnds[first_action].is_present(key=first_state_key):
+        if self.dnds[first_action].is_present(key=Variable(first_state_key.data)):
             current_q_val = self.dnds[first_action].get_value(key=first_state_key)
             new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
             self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
@@ -136,6 +136,8 @@ class NEC_Agent:
         if self.T % self.args.nec_update != 0:
             return info
 
+        # print("Training")
+
         for _ in range(self.args.iters):
 
             # TODO: Use a named tuple for experience replay
@@ -146,17 +148,17 @@ class NEC_Agent:
             actions = columns[1]
             # print(columns[2])
             targets = Variable(torch.FloatTensor(columns[2]))
-
+            # print(targets)
             keys = self.embedding(states).cpu()
-            # print(keys.requires_grad)
+            # print("Keys", keys.requires_grad)
             # for action in actions:
                 # print(action)
             # for action, key in zip(actions, keys):
                 # print(action, key)
                 # kk = key.unsqueeze(0)
-                # print(kk.requires_grad)
+                # print("kk", kk.requires_grad)
                 # k = self.dnds[action].lookup(key.unsqueeze(0))
-                # print(k.requires_grad)
+                # print("k", k.requires_grad)
             model_predictions = torch.cat([self.dnds[action].lookup(key.unsqueeze(0)) for action, key in zip(actions, keys)])
             # print(model_predictions)
             # print(targets)
