@@ -23,7 +23,7 @@ class NEC_Agent:
 
         # Experience Replay
         self.replay = ExpReplay(args.exp_replay_size, args)
-        self.dnds = [DND(kernel=kernel, num_neighbors=50, max_memory=args.dnd_size, embedding_size=args.nec_embedding) for _ in range(self.args.actions)]
+        self.dnds = [DND(kernel=kernel, num_neighbors=args.nec_neighbours, max_memory=args.dnd_size, embedding_size=args.nec_embedding) for _ in range(self.args.actions)]
 
         # DQN and Target DQN
         model = get_models(args.model)
@@ -82,40 +82,7 @@ class NEC_Agent:
         self.experiences.append(experience)
 
         if len(self.experiences) >= self.args.n_step:
-            first_state = self.experiences[0][0]
-            first_action = self.experiences[0][1]
-            last_state = self.experiences[-1][4]
-            terminated_last_state = self.experiences[-1][5]
-            accum_reward = 0
-            for exp in reversed(self.experiences):
-                r = exp[2]
-                pr = exp[3]
-                accum_reward += (r + pr) + self.args.gamma * accum_reward
-            if terminated_last_state:
-                last_state_max_q_val = 0
-            else:
-                last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
-                last_state_max_q_val = last_state_q_val_estimates.max(0)[0][0]
-                # print(last_state_max_q_val)
-            first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
-
-            n_step_q_val_estimate = accum_reward + (self.args.gamma ** self.args.n_step) * last_state_max_q_val
-            n_step_q_val_estimate = n_step_q_val_estimate.data[0]
-            # print(n_step_q_val_estimate)
-
-            # Add to dnd
-            if self.dnds[first_action].is_present(key=first_state_key):
-                current_q_val = self.dnds[first_action].get_value(key=first_state_key)
-                new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
-                self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
-            else:
-                self.dnds[first_action].upsert(key=first_state_key, value=n_step_q_val_estimate)
-
-            # Add to replay
-            self.replay.Add_Exp(first_state, first_action, n_step_q_val_estimate)
-
-            # Remove first experience
-            self.experiences = self.experiences[1:]
+            self.add_experience()
 
         if not exploring:
             self.T += 1
@@ -125,39 +92,43 @@ class NEC_Agent:
 
         # Go through the experiences and add them to the replay using a less than N-step Q-Val estimate
         while len(self.experiences) > 0:
-            first_state = self.experiences[0][0]
-            first_action = self.experiences[0][1]
-            last_state = self.experiences[-1][4]
-            terminated_last_state = self.experiences[-1][5]
-            accum_reward = 0
-            for exp in reversed(self.experiences):
-                r = exp[2]
-                pr = exp[3]
-                accum_reward += (r + pr) + self.args.gamma * accum_reward
-            if terminated_last_state:
-                last_state_max_q_val = 0
-            else:
-                last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
-                last_state_max_q_val = last_state_q_val_estimates.max(0)[0][0]
-            first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
+            self.add_experience()
 
-            n_step = len(self.experiences)
-            n_step_q_val_estimate = accum_reward + (self.args.gamma ** n_step) * last_state_max_q_val
-            n_step_q_val_estimate = n_step_q_val_estimate.data[0]
+    def add_experience(self):
+        first_state = self.experiences[0][0]
+        first_action = self.experiences[0][1]
+        last_state = self.experiences[-1][4]
+        terminated_last_state = self.experiences[-1][5]
+        accum_reward = 0
+        for exp in reversed(self.experiences):
+            r = exp[2]
+            pr = exp[3]
+            accum_reward += (r + pr) + self.args.gamma * accum_reward
+        if terminated_last_state:
+            last_state_max_q_val = 0
+        else:
+            last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
+            last_state_max_q_val = last_state_q_val_estimates.data.max(0)[0][0]
+            # print(last_state_max_q_val)
+        first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
 
-            # Add to dnd
-            if self.dnds[first_action].is_present(key=first_state_key):
-                current_q_val = self.dnds[first_action].get_value(key=first_state_key)
-                new_q_val = current_q_val + self.nec_alpha(n_step_q_val_estimate - current_q_val)
-                self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
-            else:
-                self.dnds[first_action].upsert(key=first_state_key, value=n_step_q_val_estimate)
+        n_step_q_val_estimate = accum_reward + (self.args.gamma ** len(self.experiences)) * last_state_max_q_val
+        n_step_q_val_estimate = n_step_q_val_estimate
+        # print(n_step_q_val_estimate)
 
-            # Add to replay
-            self.replay.Add_Exp(first_state, first_action, n_step_q_val_estimate)
+        # Add to dnd
+        if self.dnds[first_action].is_present(key=first_state_key):
+            current_q_val = self.dnds[first_action].get_value(key=first_state_key)
+            new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
+            self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
+        else:
+            self.dnds[first_action].upsert(key=first_state_key, value=n_step_q_val_estimate)
 
-            # Remove first experience
-            self.experiences = self.experiences[1:]
+        # Add to replay
+        self.replay.Add_Exp(first_state, first_action, n_step_q_val_estimate)
+
+        # Remove first experience
+        self.experiences = self.experiences[1:]
 
     def train(self):
 

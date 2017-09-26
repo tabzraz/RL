@@ -1,6 +1,7 @@
 import Replay.DND_Utils.kdtree as kdtree
-from pykdtree.kdtree import KDTree
 from .DND_Utils.lru_cache import LRUCache
+import numpy as np
+import torch
 
 from torch import Tensor, FloatTensor
 from torch.autograd import Variable
@@ -24,8 +25,10 @@ class DND:
         return self.dictionary.get(tuple(key.data.cpu().numpy()[0]))
 
     def lookup(self, lookup_key):
+        # TODO: Speed up search knn
         keys = [key[0].data for key in self.kd_tree.search_knn(lookup_key, self.num_neighbors)]
         output, kernel_sum = 0, 0
+        # TODO: Speed this up since the kernel takes a significant amount of time
         for key in keys:
             if not (key == lookup_key).data.all():
                 output += self.kernel(key, lookup_key) * self.dictionary.get(tuple(key.data.cpu().numpy()[0]))
@@ -45,7 +48,13 @@ class DND:
 
         if self.dictionary.size() == self.max_memory:
             # Expel least recently used key from self.dictionary and self.kd_tree if memory used is at capacity
-            deleted_key = self.dictionary.delete_least_recently_used()
-            self.kd_tree.remove(Variable(Tensor(list(deleted_key))).unsqueeze(0))
+            deleted_key = self.dictionary.delete_least_recently_used()[0]
+            # print("Deleted key:",deleted_key)
+            deleted_key = np.array(deleted_key)
+            # thing = Variable(torch.from_numpy(deleted_key).float()).unsqueeze(0)
+            # thing = Variable(FloatTensor(deleted_key)).unsqueeze(0)
+            # print("Thing:",thing)
+            self.kd_tree.remove(Variable(FloatTensor(deleted_key)).unsqueeze(0))
+            # self.kd_tree.remove(deleted_key)
 
         self.dictionary.set(tuple(key.data.cpu().numpy()[0]), value)
