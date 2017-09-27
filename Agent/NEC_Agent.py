@@ -10,7 +10,7 @@ from Replay.DND import DND
 
 
 def kernel(h, h_i, delta=1e-3):
-    return 1 / (torch.dist(h, h_i) + delta)
+    return 1 / (torch.pow(h - h_i, 2).sum() + delta)
 
 
 class NEC_Agent:
@@ -111,13 +111,15 @@ class NEC_Agent:
             last_state_max_q_val = last_state_q_val_estimates.data.max(0)[0][0]
             # print(last_state_max_q_val)
         first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
-        first_state_key = Variable(first_state_key.data, volatile=False)
+        first_state_key = first_state_key.data[0].numpy()
 
         n_step_q_val_estimate = accum_reward + (self.args.gamma ** len(self.experiences)) * last_state_max_q_val
         n_step_q_val_estimate = n_step_q_val_estimate
         # print(n_step_q_val_estimate)
 
         # Add to dnd
+        # print(first_state_key)
+        # print(tuple(first_state_key.data[0]))
         if self.dnds[first_action].is_present(key=first_state_key):
             current_q_val = self.dnds[first_action].get_value(key=first_state_key)
             new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
