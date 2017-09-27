@@ -6,4 +6,4 @@ screen -mdS 5_Exps bash -c "export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/l
 screen -mdS 6_Exps bash -c "export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='5' bash exps6_NEC.sh"
 screen -mdS 7_Exps bash -c "export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='6' bash exps7_NEC.sh"
 CUDA_VISIBLE_DEVICES='7' bash exps8_NEC.sh
-# 24 Experiments total
+# 16 Experiments total

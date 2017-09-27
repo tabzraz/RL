@@ -3,7 +3,7 @@ from math import ceil
 
 envs = ["Thin-Maze-{}-v0".format(size) for size in [8]]
 target_network = 1000
-tb_interval = 1
+tb_interval = 10
 lrs = [0.0001]
 counts = [True]
 
@@ -27,7 +27,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.999]
 
-n_steps = [1, 10, 100]
+n_steps = [100, 10]
 
 gpu = True
 # debug_eval = True
