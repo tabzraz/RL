@@ -3,6 +3,7 @@ from math import ceil
 
 envs = ["Thin-Maze-{}-v0".format(size) for size in [8]]
 target_network = 1000
+tb_interval = 1
 lrs = [0.0001]
 counts = [True]
 
@@ -108,6 +109,8 @@ for env in envs:
                                                         python_command += " --dnd-size {} --nec-embedding {}".format(dnd_size, nec_embedding)
                                                         python_command += " --nec-alpha {} --nec-neighbours {} --nec-update {}".format(nec_alpha, nec_neighbour, nec_update)
 
+                                                        python_command += " --tb-interval {}".format(tb_interval)
+
                                                         if count:
                                                             python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
                                                             python_command += " --stale-limit {}".format(stale_val)
@@ -116,6 +119,7 @@ for env in envs:
                                                                 python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
                                                         if gpu:
                                                             python_command += " --gpu"
+
                                                         # if debug_eval:
                                                             # python_command += " --debug-eval"
                                                         if tar:

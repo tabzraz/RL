@@ -359,7 +359,7 @@ class Trainer:
 
         train_info = self.agent.train()
 
-        if self.args.tb and self.T % self.args.tb_interval == 0:
+        if self.args.tb and (self.T % self.args.tb_interval == 0 or self.args.nec):
             if "Norm" in train_info:
                 self.log_value("DQN/Gradient_Norm", train_info["Norm"], step=self.T)
             if "Loss" in train_info:
@@ -516,6 +516,8 @@ class Trainer:
                 # If the environment terminated because it reached a limit, we do not want the agent
                 # to see that transition, since it makes the env non markovian wrt state
                 if "Steps_Termination" in env_info:
+                    # HACK
+                    self.agent.T += 1
                     episode_finished = True
                     break
 

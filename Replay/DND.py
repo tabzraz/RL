@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, FloatTensor
 from torch.autograd import Variable
 
-from lshash.lshash import LSHash
+from .DND_Utils.lshash import LSHash
 from lru import LRU
 # Taken from https://github.com/mjacar/pytorch-nec/blob/master/dnd.py
 
@@ -26,7 +26,7 @@ class DND:
         # self.keys_added = []
 
     def is_present(self, key):
-        return self.lru.has_key(tuple(key))
+        return tuple(key) in self.lru#self.lru.has_key(tuple(key))
         # return self.dictionary.get(tuple(key)) is not None
         # return self.dictionary.get(tuple(key.data.cpu().numpy()[0])) is not None
 
@@ -39,8 +39,9 @@ class DND:
         # TODO: Speed up search knn
         # keys = [key[0].data for key in self.kd_tree.search_knn(lookup_key, self.num_neighbors)]
         lookup_key_numpy = lookup_key.data[0].numpy()
+        lookup_key_tuple = tuple(lookup_key_numpy)
         # print(lookup_key)
-        keys = [key[0] for key in self.lshash.query(lookup_key_numpy, num_results=self.num_neighbors)]
+        keys = [key[0] for key in self.lshash.query_no_data(lookup_key_numpy, num_results=self.num_neighbors)]
         # print(keys)
         # print(keys)
         # output, kernel_sum = Variable(FloatTensor([0])), Variable(FloatTensor([0]))
@@ -49,8 +50,9 @@ class DND:
             # print(keys)
         # TODO: Speed this up since the kernel takes a significant amount of time
         for key in keys:
-            # print("Key:",key, lookup_key, key == lookup_key)
-            if not np.allclose(key, lookup_key_numpy): #(key == lookup_key).data.all():
+            # print("Key:",key, lookup_key)
+            # if not np.allclose(key, lookup_key_numpy): #(key == lookup_key).data.all():
+            if not key == lookup_key_tuple:
                 # print("Here")
                 gg = Variable(FloatTensor(np.array(key)))
                 # hh = lookup_key[0] - gg

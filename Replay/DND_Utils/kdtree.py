@@ -373,8 +373,16 @@ class KDNode(Node):
         Squared distance between the current Node
         and the given point
         """
-        r = range(self.dimensions)
-        return sum([self.axis_dist(point, i) for i in r])
+        # r = range(self.dimensions)
+        # print(self.data)
+        # print("--")
+        # print(point)
+        new_val = torch.pow(self.data - point, 2).sum()
+        # print("New", new_val.data[0])
+        # old_val = sum([self.axis_dist(point, i) for i in r])
+        # print("Old",old_val)
+        # print(new_val == old_val)
+        return new_val.data[0]
 
 
     def search_knn(self, point, k, dist=None):
@@ -388,14 +396,14 @@ class KDNode(Node):
         The result is an ordered list of (node, distance) tuples.
         """
 
-        if dist is None:
-            get_dist = lambda n: n.dist(point)
-        else:
-            get_dist = lambda n: dist(n.data, point)
+        # if dist is None:
+            # get_dist = lambda n: n.dist(point)
+        # else:
+            # get_dist = lambda n: dist(n.data, point)
 
         results = BoundedPriorityQueue(k)
 
-        self._search_node(point, k, results, get_dist)
+        self._search_node(point, k, results)
 
         # We sort the final result by the distance in the tuple
         # (<KdNode>, distance)
@@ -403,11 +411,11 @@ class KDNode(Node):
         return sorted(results.items(), key=BY_VALUE)
 
 
-    def _search_node(self, point, k, results, get_dist):
+    def _search_node(self, point, k, results):
         if not self:
             return
 
-        nodeDist = get_dist(self)
+        nodeDist = self.dist(point)# get_dist(self)
 
         # Add current node to the priority queue if it closer than
         # at least one point in the queue. This functionality is
@@ -424,20 +432,20 @@ class KDNode(Node):
         # Search the side of the splitting plane that the point is in
         if point[0][self.axis].data[0] < split_plane:
             if self.left is not None:
-                self.left._search_node(point, k, results, get_dist)
+                self.left._search_node(point, k, results)
         else:
             if self.right is not None:
-                self.right._search_node(point, k, results, get_dist)
+                self.right._search_node(point, k, results)
 
         # Search the other side of the splitting plane if it may contain
         # points closer than the farthest point in the current results.
         if plane_dist2 < results.max() or results.size() < k:
             if point[0][self.axis].data[0] < self.data[0][self.axis].data[0]:
                 if self.right is not None:
-                    self.right._search_node(point, k, results, get_dist)
+                    self.right._search_node(point, k, results)
             else:
                 if self.left is not None:
-                    self.left._search_node(point, k, results, get_dist)
+                    self.left._search_node(point, k, results)
 
 
     @require_axis
