@@ -54,6 +54,15 @@ class NEC_Agent:
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         key = self.embedding(Variable(state, volatile=True)).cpu()
 
+        if (key != key).sum().data[0] > 0:
+            pass
+            # print(key)
+            # for param in self.embedding.parameters():
+                # print(param)
+            # print(key != key)
+            # print((key != key).sum().data[0])
+            # print("Nan key")
+
         estimate_from_dnds = torch.cat([dnd.lookup(key) for dnd in self.dnds])
         # print(estimate_from_dnds)
         return estimate_from_dnds, key
@@ -100,10 +109,12 @@ class NEC_Agent:
         last_state = self.experiences[-1][4]
         terminated_last_state = self.experiences[-1][5]
         accum_reward = 0
-        for exp in reversed(self.experiences):
-            r = exp[2]
-            pr = exp[3]
-            accum_reward += (r + pr) + self.args.gamma * accum_reward
+        for ex in reversed(self.experiences):
+            r = ex[2]
+            pr = ex[3]
+            accum_reward = (r + pr) + self.args.gamma * accum_reward
+        # if accum_reward > 1000:
+            # print(accum_reward)
         if terminated_last_state:
             last_state_max_q_val = 0
         else:
@@ -120,6 +131,8 @@ class NEC_Agent:
         # Add to dnd
         # print(first_state_key)
         # print(tuple(first_state_key.data[0]))
+        # if any(np.isnan(first_state_key)):
+            # print("NAN")
         if self.dnds[first_action].is_present(key=first_state_key):
             current_q_val = self.dnds[first_action].get_value(key=first_state_key)
             new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
@@ -148,11 +161,13 @@ class NEC_Agent:
             columns = list(zip(*batch))
 
             states = Variable(torch.from_numpy(np.array(columns[0])).float().transpose_(1, 3))
+            # print(states)
             actions = columns[1]
-            # print(columns[2])
+            # print(actions)
             targets = Variable(torch.FloatTensor(columns[2]))
             # print(targets)
             keys = self.embedding(states).cpu()
+            # print(keys)
             # print("Keys", keys.requires_grad)
             # for action in actions:
                 # print(action)
@@ -175,6 +190,7 @@ class NEC_Agent:
 
             # Update
             self.optimizer.zero_grad()
+
             l2_loss.backward()
 
             # Taken from pytorch clip_grad_norm
