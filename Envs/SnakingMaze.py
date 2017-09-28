@@ -4,7 +4,7 @@ import random
 
 class SnakingMaze(GridWorld):
 
-    def __init__(self, size, rnd_seed=13, corridor_width=10):
+    def __init__(self, size, rnd_seed=13, corridor_width=10, neg_reward=False):
         self.size = size
         self.rnd_seed = rnd_seed
         self.corridor_width = corridor_width
@@ -21,7 +21,8 @@ class SnakingMaze(GridWorld):
         print("Number of states: {}".format(num_states))
 
         # No negative reward at each timestep
-        self.negative_reward = 0
+        if not neg_reward:
+            self.negative_reward = 0
 
     def create_grid(self):
         self.grid = np.ones(shape=(self.size * 10, self.size * 10))

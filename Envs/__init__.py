@@ -88,6 +88,14 @@ for n in range(50):
             tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 5 + 1},
     )
 
+    for n in range(50):
+    register(
+            id="Thin-Maze-{}-Neg-v0".format(n),
+            entry_point="Envs.SnakingMaze:SnakingMaze",
+            kwargs={'size': n, 'corridor_width': 3, 'neg_reward': True},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 5 + 1},
+    )
+
 # VizDoom
 register(
         id="DoomMaze-v0",
