@@ -16,7 +16,7 @@ class DND:
         self.dictionary = LRUCache(max_memory)
         self.kd_tree = kdtree.create(dimensions=embedding_size)
 
-        self.lshash = LSHash(hash_size=embedding_size, input_dim=embedding_size)
+        self.lshash = LSHash(hash_size=embedding_size, input_dim=embedding_size, num_hashtables=10)
         self.lru = LRU(size=max_memory)
 
         self.num_neighbors = num_neighbors
