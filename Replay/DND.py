@@ -124,12 +124,12 @@ class DND:
                 self.lshash.index(np.array(k))
 
             # Checking that the lru keys are the same as the keys in the lshash
-            for key in self.lru.keys():
-                keys_close = [key[0] for key in self.lshash.query(key, num_results=5)]
-                # print(keys_close)
-                for kk in keys_close:
-                    if kk not in self.lru:
-                        print("\n\nProblems! Key in LSHASH not in LRU\n\n")
+            # for key in self.lru.keys():
+            #     keys_close = [key[0] for key in self.lshash.query(key, num_results=5)]
+            #     # print(keys_close)
+            #     for kk in keys_close:
+            #         if kk not in self.lru:
+            #             print("\n\nProblems! Key in LSHASH not in LRU\n\n")
 
             # Check length of all lru keys
             # all_lru_keys = self.lshash.query(key)
