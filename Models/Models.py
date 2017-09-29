@@ -71,6 +71,7 @@ for n in range(50):
     def nec_model_creator(embedding, size=n):
         return NEC_Maze.NEC_Embedding(input_size=(1, size * 3, size * 3), embedding=embedding)
     torch_models["NEC_Thin-Maze-{}-v0".format(n)] = nec_model_creator
+    torch_models["NEC_Thin-Maze-{}-Neg-v0".format(n)] = nec_model_creator
 
 def get_torch_models(name):
     return torch_models[name]
