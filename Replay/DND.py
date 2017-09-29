@@ -8,13 +8,22 @@ from torch.autograd import Variable
 
 from .DND_Utils.lshash import LSHash
 from lru import LRU
+
+from nearpy import Engine
+from nearpy.hashes import RandomBinaryProjections
+from nearpy.distances import EuclideanDistance
+from nearpy.filters import NearestFilter
 # Taken from https://github.com/mjacar/pytorch-nec/blob/master/dnd.py
 
 
 class DND:
     def __init__(self, kernel, num_neighbors, max_memory, embedding_size):
         self.dictionary = LRUCache(max_memory)
-        self.kd_tree = kdtree.create(dimensions=embedding_size)
+        # self.kd_tree = kdtree.create(dimensions=embedding_size)
+        rnd_projection = RandomBinaryProjections("RBP", 8)
+        distance = EuclideanDistance()
+        nearest = NearestFilter(num_neighbors)
+        self.nearpy = Engine(dim=embedding_size, lshashes=[rnd_projection], distance=distance, vector_filters=[nearest], fetch_vector_filters=[])
 
         self.lshash = LSHash(hash_size=embedding_size, input_dim=embedding_size, num_hashtables=10)
         self.lru = LRU(size=max_memory)
@@ -39,9 +48,12 @@ class DND:
         # TODO: Speed up search knn
         # keys = [key[0].data for key in self.kd_tree.search_knn(lookup_key, self.num_neighbors)]
         lookup_key_numpy = lookup_key.data[0].numpy()
-        lookup_key_tuple = tuple(lookup_key_numpy)
+        # lookup_key_tuple = tuple(lookup_key_numpy)
         # print(lookup_key)
-        keys = [key[0] for key in self.lshash.query_no_data(lookup_key_numpy, num_results=self.num_neighbors)]
+
+        # keys = [key[0] for key in self.lshash.query_no_data(lookup_key_numpy, num_results=self.num_neighbors)]
+        keys = [key[1] for key in self.nearpy.neighbours(lookup_key_numpy)]
+
         # print(keys)
         # print(keys)
         # output, kernel_sum = Variable(FloatTensor([0])), Variable(FloatTensor([0]))
@@ -52,9 +64,11 @@ class DND:
         for key in keys:
             # print("Key:",key, lookup_key)
             # if not np.allclose(key, lookup_key_numpy): #(key == lookup_key).data.all():
-            if not key == lookup_key_tuple:
+            if not np.all(key == lookup_key_numpy):
                 # print("Here")
-                gg = Variable(FloatTensor(np.array(key)))
+                # gg = Variable(FloatTensor(np.array(key)))
+                gg = Variable(FloatTensor(key))
+                # print(tuple(key))
                 # hh = lookup_key[0] - gg
                 # print("Key:", gg, "Lookup key", lookup_key[0])
                 # print(lookup_key[0] + gg)
@@ -65,6 +79,9 @@ class DND:
                     # print(tuple(key))
                     # print(key in self.keys_added)
                     # print(len(self.lru))
+                # if tuple(key) not in self.lru:
+                    # print("NOT IN:", tuple(key))
+                    # print(len(keys))
                 output += kernel_val * self.lru.get(tuple(key))
                 # output += kernel_val * self.dictionary.get(tuple(key))
                 # print("Key", key.requires_grad, key.volatile)
@@ -101,7 +118,11 @@ class DND:
         # if not self.lru.has_key(tuple(key)):# self.is_present(key):
             # self.kd_tree.add(key)
             # print("Key going in", key)
-        self.lshash.index(input_point=key)
+        # self.lshash.index(input_point=key)
+        self.nearpy.store_vector(key, data=key)
+        # print("Adding", tuple(key), key)
+        # neighbours = self.nearpy.neighbours(key)
+        # print(neighbours)
 
         if len(self.lru) == self.max_memory:
             # Expel least recently used key from self.dictionary and self.kd_tree if memory used is at capacity
@@ -113,15 +134,24 @@ class DND:
             # thing = Variable(FloatTensor(deleted_key)).unsqueeze(0)
             # print("Thing:",thing)
             # print(self.dictionary.cache.keys())
+            key_to_delete = self.lru.peek_last_item()
             self.lru[tuple(key)] = value
             # self.kd_tree.remove(Variable(FloatTensor(deleted_key)).unsqueeze(0))
             # self.kd_tree.remove(deleted_key)
 
             # Remake the LSHASH with the deleted key
             # print("remaking")
-            self.lshash = LSHash(hash_size=self.embedding_size, input_dim=self.embedding_size)
-            for k in self.lru.keys():
-                self.lshash.index(np.array(k))
+
+            # self.lshash = LSHash(hash_size=self.embedding_size, input_dim=self.embedding_size)
+            # for k in self.lru.keys():
+            #     self.lshash.index(np.array(k))
+
+            print("Deleting", np.array(key_to_delete[0]))
+            self.nearpy.delete_vector(key_to_delete[0])
+            # self.nearpy.clean_all_buckets()
+            # for k in self.lru.keys():
+                # self.nearpy.store_vector(np.array(k))
+
 
             # Checking that the lru keys are the same as the keys in the lshash
             # for key in self.lru.keys():
