@@ -146,7 +146,7 @@ class DND:
             # for k in self.lru.keys():
             #     self.lshash.index(np.array(k))
 
-            print("Deleting", np.array(key_to_delete[0]))
+            # print("Deleting", np.array(key_to_delete[0]))
             self.nearpy.delete_vector(key_to_delete[0])
             # self.nearpy.clean_all_buckets()
             # for k in self.lru.keys():
