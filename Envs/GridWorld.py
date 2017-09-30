@@ -20,7 +20,8 @@ class GridWorld(gym.Env):
         # Time-limit on the environment, 5 is arbitrary
         self.limit = self.grid.size * 5
         self.positive_reward = +1
-        self.negative_reward = -5.0 * (self.goals) / self.limit
+        self.negative_reward = -0.001#-10.0 * (self.goals) / self.limit
+        # print(self.negative_reward)
 
         # Gym Stuff
         self.action_space = spaces.Discrete(4)
