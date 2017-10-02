@@ -14,7 +14,8 @@ from lru import LRU
 # from nearpy.distances import EuclideanDistance
 # from nearpy.filters import NearestFilter
 
-from scipy.spatial.ckdtree import cKDTree as KDTree
+# from scipy.spatial.ckdtree import cKDTree as KDTree
+from sklearn.neighbors.ball_tree import BallTree as KDTree
 
 # Taken from https://github.com/mjacar/pytorch-nec/blob/master/dnd.py
 
@@ -61,9 +62,10 @@ class DND:
         # keys = [key[1] for key in self.nearpy.neighbours(lookup_key_numpy)]
         if self.kd_tree is not None:
             # print(len(self.lru.keys()), lookup_key_numpy)
-            things_distances, things_index = self.kd_tree.query(lookup_key_numpy, k=self.num_neighbors, eps=1.0)
+            # things_distances, things_index = self.kd_tree.query(lookup_key_numpy, k=self.num_neighbors, eps=1.0)
+            things_index = self.kd_tree.query([lookup_key_numpy], k=min(self.num_neighbors, len(self.kd_tree.data)), return_distance=False, sort_results=False)
             # print(things_index)
-            keys = [self.lru.keys()[ii] for ii in things_index if ii != self.kd_tree.n]
+            keys = [self.lru.keys()[ii[0]] for ii in things_index]
             # print(keys)
         else:
             keys = []
@@ -142,7 +144,8 @@ class DND:
         # print(neighbours)
 
         self.lru[tuple(key)] = value
-        self.kd_tree = KDTree(data=self.lru.keys(), compact_nodes=False, copy_data=False, balanced_tree=False)
+        # self.kd_tree = KDTree(data=self.lru.keys(), compact_nodes=False, copy_data=False, balanced_tree=False)
+        self.kd_tree = KDTree(self.lru.keys())
 
         return
         if len(self.lru) == self.max_memory:
