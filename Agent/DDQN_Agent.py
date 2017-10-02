@@ -43,8 +43,8 @@ class DDQN_Agent:
             self.target_dqn.cuda()
 
         # Optimizer
-        # self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
-        self.optimizer = RMSprop(self.dqn.parameters(), lr=args.lr)
+        self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
+        # self.optimizer = RMSprop(self.dqn.parameters(), lr=args.lr)
 
         self.T = 0
         self.target_sync_T = -self.args.t_max
