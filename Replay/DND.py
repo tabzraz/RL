@@ -61,7 +61,7 @@ class DND:
         # keys = [key[1] for key in self.nearpy.neighbours(lookup_key_numpy)]
         if self.kd_tree is not None:
             # print(len(self.lru.keys()), lookup_key_numpy)
-            things_distances, things_index = self.kd_tree.query(lookup_key_numpy, k=self.num_neighbors, eps=0.1)
+            things_distances, things_index = self.kd_tree.query(lookup_key_numpy, k=self.num_neighbors, eps=1.0)
             # print(things_index)
             keys = [self.lru.keys()[ii] for ii in things_index if ii != self.kd_tree.n]
             # print(keys)
