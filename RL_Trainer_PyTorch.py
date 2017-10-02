@@ -320,10 +320,10 @@ class Trainer:
                 a = self.select_random_action()
 
                 # Prime the exploration model a little
-                # bonus = 0
-                # if self.args.count:
-                #     bonus, _ = self.exp_model.bonus(s)
-                #     self.max_exp_bonus = max(self.max_exp_bonus, bonus)
+                bonus = 0
+                if self.args.count:
+                    bonus, _ = self.exp_model.bonus(s)
+                    self.max_exp_bonus = max(self.max_exp_bonus, bonus)
 
                 sn, reward, terminated, env_info = env.step(a)
                 e_steps += 1
@@ -332,7 +332,7 @@ class Trainer:
                     terminated = True
                     break
 
-                self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=0, exploring=True)
+                self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=bonus, exploring=True)
                 s = sn
             self.agent.end_of_trajectory()
 
