@@ -142,7 +142,7 @@ class DND:
         # print(neighbours)
 
         self.lru[tuple(key)] = value
-        self.kd_tree = KDTree(data=self.lru.keys())
+        self.kd_tree = KDTree(data=self.lru.keys(), compact_nodes=False, copy_data=False, balanced_tree=False)
 
         return
         if len(self.lru) == self.max_memory:
