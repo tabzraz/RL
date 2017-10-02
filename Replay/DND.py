@@ -1,31 +1,37 @@
-import Replay.DND_Utils.kdtree as kdtree
-from .DND_Utils.lru_cache import LRUCache
+# import Replay.DND_Utils.kdtree as kdtree
+# from .DND_Utils.lru_cache import LRUCache
 import numpy as np
 import torch
 
 from torch import Tensor, FloatTensor
 from torch.autograd import Variable
 
-from .DND_Utils.lshash import LSHash
+# from .DND_Utils.lshash import LSHash
 from lru import LRU
 
-from nearpy import Engine
-from nearpy.hashes import RandomBinaryProjections
-from nearpy.distances import EuclideanDistance
-from nearpy.filters import NearestFilter
+# from nearpy import Engine
+# from nearpy.hashes import RandomBinaryProjections
+# from nearpy.distances import EuclideanDistance
+# from nearpy.filters import NearestFilter
+
+from scipy.spatial.ckdtree import cKDTree as KDTree
+
 # Taken from https://github.com/mjacar/pytorch-nec/blob/master/dnd.py
 
 
 class DND:
     def __init__(self, kernel, num_neighbors, max_memory, embedding_size):
-        self.dictionary = LRUCache(max_memory)
+        # self.dictionary = LRUCache(max_memory)
         # self.kd_tree = kdtree.create(dimensions=embedding_size)
-        rnd_projection = RandomBinaryProjections("RBP", 8)
-        distance = EuclideanDistance()
-        nearest = NearestFilter(num_neighbors)
-        self.nearpy = Engine(dim=embedding_size, lshashes=[rnd_projection], distance=distance, vector_filters=[nearest], fetch_vector_filters=[])
+        # rnd_projection = RandomBinaryProjections("RBP", 8)
+        # distance = EuclideanDistance()
+        # nearest = NearestFilter(num_neighbors)
+        # self.nearpy = Engine(dim=embedding_size, lshashes=[rnd_projection], distance=distance, vector_filters=[nearest], fetch_vector_filters=[])
 
-        self.lshash = LSHash(hash_size=embedding_size, input_dim=embedding_size, num_hashtables=10)
+        self.kd_tree = None
+        # self.data = []
+
+        # self.lshash = LSHash(hash_size=embedding_size, input_dim=embedding_size, num_hashtables=10)
         self.lru = LRU(size=max_memory)
 
         self.num_neighbors = num_neighbors
@@ -35,7 +41,7 @@ class DND:
         # self.keys_added = []
 
     def is_present(self, key):
-        return tuple(key) in self.lru#self.lru.has_key(tuple(key))
+        return tuple(key) in self.lru  # self.lru.has_key(tuple(key))
         # return self.dictionary.get(tuple(key)) is not None
         # return self.dictionary.get(tuple(key.data.cpu().numpy()[0])) is not None
 
@@ -52,7 +58,15 @@ class DND:
         # print(lookup_key)
 
         # keys = [key[0] for key in self.lshash.query_no_data(lookup_key_numpy, num_results=self.num_neighbors)]
-        keys = [key[1] for key in self.nearpy.neighbours(lookup_key_numpy)]
+        # keys = [key[1] for key in self.nearpy.neighbours(lookup_key_numpy)]
+        if self.kd_tree is not None:
+            # print(len(self.lru.keys()), lookup_key_numpy)
+            things_distances, things_index = self.kd_tree.query(lookup_key_numpy, k=self.num_neighbors, eps=0.1)
+            # print(things_index)
+            keys = [self.lru.keys()[ii] for ii in things_index if ii != self.kd_tree.n]
+            # print(keys)
+        else:
+            keys = []
 
         # print(keys)
         # print(keys)
@@ -67,7 +81,9 @@ class DND:
             if not np.all(key == lookup_key_numpy):
                 # print("Here")
                 # gg = Variable(FloatTensor(np.array(key)))
-                gg = Variable(FloatTensor(key))
+                # print(key)
+                # gg = Variable(FloatTensor(key))
+                gg = Variable(torch.from_numpy(np.array(key)))
                 # print(tuple(key))
                 # hh = lookup_key[0] - gg
                 # print("Key:", gg, "Lookup key", lookup_key[0])
@@ -119,11 +135,16 @@ class DND:
             # self.kd_tree.add(key)
             # print("Key going in", key)
         # self.lshash.index(input_point=key)
-        self.nearpy.store_vector(key, data=key)
+        # self.nearpy.store_vector(key, data=key)
+
         # print("Adding", tuple(key), key)
         # neighbours = self.nearpy.neighbours(key)
         # print(neighbours)
 
+        self.lru[tuple(key)] = value
+        self.kd_tree = KDTree(data=self.lru.keys())
+
+        return
         if len(self.lru) == self.max_memory:
             # Expel least recently used key from self.dictionary and self.kd_tree if memory used is at capacity
             # deleted_key = self.dictionary.delete_least_recently_used()[0]
@@ -147,7 +168,7 @@ class DND:
             #     self.lshash.index(np.array(k))
 
             # print("Deleting", np.array(key_to_delete[0]))
-            self.nearpy.delete_vector(key_to_delete[0])
+            # self.nearpy.delete_vector(key_to_delete[0])
             # self.nearpy.clean_all_buckets()
             # for k in self.lru.keys():
                 # self.nearpy.store_vector(np.array(k))
@@ -167,4 +188,5 @@ class DND:
         else:
             self.lru[tuple(key)] = value
 
+        self.kdtree = KDTree(self.data)
         # self.dictionary.set(tuple(key), value)
