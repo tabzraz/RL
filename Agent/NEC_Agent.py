@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.optim import Adam
+from torch.optim import Adam, RMSprop
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Models.Models import get_torch_models as get_models
@@ -42,7 +42,8 @@ class NEC_Agent:
             self.embedding.cuda()
 
         # Optimizer
-        self.optimizer = Adam(self.embedding.parameters(), lr=args.lr)
+        self.optimizer = RMSprop(self.embedding.parameters(), lr=args.lr)
+        # self.optimizer = Adam(self.embedding.parameters(), lr=args.lr)
 
         self.T = 0
         self.target_sync_T = -self.args.t_max

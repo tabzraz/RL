@@ -1,24 +1,24 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [4]]
 target_network = 1000
 tb_interval = 10
-lrs = [0.0001]
+lrs = [0.001, 0.0001]
 counts = [True]
 
 betas = [0.001]
-t_maxs = [x * 1000 for x in [300]]
-cts_sizes = [12]
+t_maxs = [x * 1000 for x in [200]]
+cts_sizes = [6]
 num_seeds = 2
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
-epsilon_steps = [200000]
+epsilon_steps = [100000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [20]]
 
 dnd_sizes = [x * 1000 for x in [5, 20]]
-nec_embeddings = [4, 16]
+nec_embeddings = [8, 16]
 nec_alphas = [0.1]
 nec_neighbours = [50]
 nec_updates = [10]
@@ -27,7 +27,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
-n_steps = [10, 100]
+n_steps = [100]
 
 gpu = True
 # debug_eval = True
