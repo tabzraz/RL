@@ -7,27 +7,27 @@ tb_interval = 10
 lrs = [0.0001]
 counts = [True]
 
-betas = [0.001, 0.0001]
+betas = [0.001]
 t_maxs = [x * 1000 for x in [300]]
 cts_sizes = [12]
 num_seeds = 2
-epsilon_starts = [0.05]
+epsilon_starts = [1]
 epsilon_finishs = [0.05]
-epsilon_steps = [1]
+epsilon_steps = [200000]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [100]]
+xp_replay_sizes = [x * 1000 for x in [20]]
 
 dnd_sizes = [x * 1000 for x in [5, 20]]
-nec_embeddings = [16]
+nec_embeddings = [4, 16]
 nec_alphas = [0.1]
-nec_neighbours = [10]
+nec_neighbours = [50]
 nec_updates = [10]
 
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
+epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
-n_steps = [100]
+n_steps = [10, 100]
 
 gpu = True
 # debug_eval = True
@@ -37,7 +37,7 @@ with_primitives = False
 files = 16
 # (Prioritised, I.S. correction, Negative td error scaler, Subtract pseudo rewards, alpha)
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
-gammas = [0.9999, 0.99]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
