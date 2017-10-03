@@ -74,7 +74,7 @@ class NEC_Agent:
         # print(estimate_from_dnds)
 
         self.keys.append(key.data[0].numpy())
-        self.q_val_estimates.append(estimate_from_dnds.numpy())
+        self.q_val_estimates.append(estimate_from_dnds.data.numpy())
 
         return estimate_from_dnds, key
         # return np.array(estimate_from_dnds), key
