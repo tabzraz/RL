@@ -317,7 +317,8 @@ class Trainer:
             terminated = False
             while not terminated:
                 print(e_steps, end="\r")
-                a = self.select_random_action()
+                # a = self.select_random_action()
+                a, _ = self.select_action(state=s, epsilon=1.0, training=False)
 
                 # Prime the exploration model a little
                 bonus = 0
