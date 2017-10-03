@@ -8,12 +8,12 @@ lrs = [0.001, 0.0001]
 counts = [True]
 
 betas = [0.001]
-t_maxs = [x * 1000 for x in [200]]
+t_maxs = [x * 1000 for x in [100]]
 cts_sizes = [6]
 num_seeds = 2
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
-epsilon_steps = [100000]
+epsilon_steps = [40000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [20]]
 
