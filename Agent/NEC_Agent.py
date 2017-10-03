@@ -21,6 +21,8 @@ class NEC_Agent:
         # Exploration Model
         self.exp_model = exp_model
 
+        self.log = logging_func["log"]
+
         # Experience Replay
         self.replay = ExpReplay(args.exp_replay_size, args)
         self.dnds = [DND(kernel=kernel, num_neighbors=args.nec_neighbours, max_memory=args.dnd_size, embedding_size=args.nec_embedding) for _ in range(self.args.actions)]
@@ -49,6 +51,10 @@ class NEC_Agent:
         self.target_sync_T = -self.args.t_max
 
         self.experiences = []
+        self.keys = []
+        self.q_val_estimates = []
+
+        self.table_updates = 0
 
     def Q_Value_Estimates(self, state):
         # Get state embedding
@@ -66,6 +72,10 @@ class NEC_Agent:
 
         estimate_from_dnds = torch.cat([dnd.lookup(key) for dnd in self.dnds])
         # print(estimate_from_dnds)
+
+        self.keys.append(key.data[0].numpy())
+        self.q_val_estimates.append(estimate_from_dnds.numpy())
+
         return estimate_from_dnds, key
         # return np.array(estimate_from_dnds), key
 
@@ -105,6 +115,12 @@ class NEC_Agent:
             self.add_experience()
 
     def add_experience(self):
+
+        # Match the key and q val estimates size to the number of experieneces
+        N = len(self.experiences)
+        self.keys = self.keys[-N:]
+        self.q_val_estimates = self.q_val_estimates[-N:]
+
         first_state = self.experiences[0][0]
         first_action = self.experiences[0][1]
         last_state = self.experiences[-1][4]
@@ -119,11 +135,14 @@ class NEC_Agent:
         if terminated_last_state:
             last_state_max_q_val = 0
         else:
-            last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
-            last_state_max_q_val = last_state_q_val_estimates.data.max(0)[0][0]
+            # last_state_q_val_estimates, last_state_key = self.Q_Value_Estimates(last_state)
+            # last_state_max_q_val = last_state_q_val_estimates.data.max(0)[0][0]
+            last_state_max_q_val = np.max(self.q_val_estimates[-1])
             # print(last_state_max_q_val)
-        first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
-        first_state_key = first_state_key.data[0].numpy()
+
+        # first_state_q_val_estimates, first_state_key = self.Q_Value_Estimates(first_state)
+        # first_state_key = first_state_key.data[0].numpy()
+        first_state_key = self.keys[0]
 
         n_step_q_val_estimate = accum_reward + (self.args.gamma ** len(self.experiences)) * last_state_max_q_val
         n_step_q_val_estimate = n_step_q_val_estimate
@@ -138,6 +157,8 @@ class NEC_Agent:
             current_q_val = self.dnds[first_action].get_value(key=first_state_key)
             new_q_val = current_q_val + self.args.nec_alpha * (n_step_q_val_estimate - current_q_val)
             self.dnds[first_action].upsert(key=first_state_key, value=new_q_val)
+            self.table_updates += 1
+            self.log("NEC/Table_Updates", self.table_updates, step=self.T)
         else:
             self.dnds[first_action].upsert(key=first_state_key, value=n_step_q_val_estimate)
 
