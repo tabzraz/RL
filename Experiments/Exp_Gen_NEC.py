@@ -7,7 +7,7 @@ tb_interval = 10
 lrs = [0.001]
 counts = [True]
 
-betas = [0.01]
+betas = [0.01, 0.1]
 t_maxs = [x * 1000 for x in [100]]
 cts_sizes = [6]
 num_seeds = 2
@@ -18,16 +18,16 @@ batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [20]]
 
 dnd_sizes = [x * 1000 for x in [20]]
-nec_embeddings = [4, 32]
-nec_alphas = [0.01, 1.0]
+nec_embeddings = [2, 16]
+nec_alphas = [1.0]
 nec_neighbours = [50]
-nec_updates = [10]
+nec_updates = [5, 10]
 
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
-n_steps = [10,100]
+n_steps = [100, 500]
 
 gpu = True
 # debug_eval = True

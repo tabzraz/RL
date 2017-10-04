@@ -23,6 +23,13 @@ class EnvWrapper(gym.Env):
     def _render(self, mode="human", close=False):
         return self.wrapped_env.render(mode, close)
 
+    def xp_and_frontier_overlayed(self, log=False):
+        try:
+            return self.wrapped_env.env.xp_and_frontier_states()
+        except AttributeError:
+            if log:
+                print("No xp and frontier vis here")
+
     def trained_on_states(self, states, log=False):
         try:
             return self.wrapped_env.env.trained_on_states(states, self.args)

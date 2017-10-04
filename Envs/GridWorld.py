@@ -219,6 +219,15 @@ class GridWorld(gym.Env):
         colour_images.append(colour_maze.astype(np.uint8))
         return colour_images[0]
 
+    def xp_and_frontier_states(self):
+        # We should have already computer the xp replay and frontier images
+        xp_replay_image = self.xp_replay_image
+        frontier_colours = self.frontier_image
+
+        overlayed_image = xp_replay_image + frontier_colours
+
+        return overlayed_image
+
     def xp_replay_states(self, player_visits, args):
 
         # interval = args.exp_replay_size
@@ -294,6 +303,9 @@ class GridWorld(gym.Env):
         colour_maze = np.clip(colour_maze, 0, 1) * 255
         # colour_maze = np.swapaxes(colour_maze, 0, 1)
         colour_images.append(colour_maze.astype(np.uint8))
+
+        self.xp_replay_image = np.copy(colour_images[0])
+
         return colour_images[0]
         # save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
@@ -479,10 +491,12 @@ class GridWorld(gym.Env):
 
                     bonus, _ = exp_model.bonus(state_copy, action=a, dont_remember=True)
                     # print(x,y,bonus)
-                    canvas[x, y + (grid_y * a), 0] = bonus
+                    canvas[x, y + (grid_y * a), 1] = bonus
 
         # canvas /= np.max(canvas)
         canvas /= max_bonus
+
+        self.frontier_image = np.copy(np.clip(canvas, 0, 1) * 255)
 
         # Walls
         for a in range(actions):

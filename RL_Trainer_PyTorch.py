@@ -77,6 +77,7 @@ class Trainer:
         self.trained_on_states_images = []
         self.replay_states_images = []
         self.player_visits_images = []
+        self.xp_frontier_overlay_images = []
 
         # Stuff to log
         self.Q_Values = []
@@ -270,6 +271,8 @@ class Trainer:
                 self.save_video("{}/exp_bonus/Bonuses__Interval_{}".format(self.args.log_path, self.args.interval_size, self.T), self.bonus_images)
             if len(self.frontier_images) > 0:
                 self.save_video("{}/exp_bonus/Frontier__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.frontier_images)
+            if len(self.xp_frontier_overlay_images) > 0:
+                self.save_video("{}/exp_bonus/Xp_Replay_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.xp_frontier_overlay_images)
         if len(self.player_visits_images) > 0:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}".format(self.args.log_path, self.args.interval_size), self.player_visits_images)
         if len(self.replay_states_images) > 0:
@@ -387,6 +390,11 @@ class Trainer:
                 self.frontier_images.append(image)
             self.frontier_T = self.T
 
+    def frontier_and_xp_vis(self):
+        image = self.env.xp_and_frontier_overlayed()
+        if image is not None:
+            self.xp_frontier_overlay_images.append(image)
+
     def bonus_landscape(self):
         if self.args.count:
             entries = self.args.t_max // self.args.interval_size
@@ -421,6 +429,8 @@ class Trainer:
             self.trained_on_states()
             self.replay_states()
             self.player_visits()
+            if self.args.frontier:
+                self.frontier_and_xp_vis()
 
             self.vis_T = self.T
 

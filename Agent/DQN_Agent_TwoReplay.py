@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.optim import Adam
+from torch.optim import Adam, RMSprop
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
@@ -43,7 +43,8 @@ class DQN_Agent_TwoReplay:
             self.target_dqn.cuda()
 
         # Optimizer
-        self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
+        self.optimizer = RMSprop(self.dqn.parameters(), lr=args.lr)
+        # self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
 
         self.T = 0
         self.target_sync_T = -self.args.t_max
