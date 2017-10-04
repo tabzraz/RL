@@ -79,62 +79,64 @@ for env in envs:
                                     for cts_size in cts_sizes:
                                         for dnd_size in dnd_sizes:
                                             for nec_embedding in nec_embeddings:
-                                                for nec_alpha, nec_neighbour, nec_update in zip(nec_alphas, nec_neighbours, nec_updates):
-                                                    for seed in seeds:
+                                                for nec_alpha in nec_alphas:
+                                                    for nec_neighbour in nec_neighbours:
+                                                        for nec_update in nec_updates:
+                                                            for seed in seeds:
 
-                                                        name = env.replace("-", "_")[:-3]
-                                                        name += "_{}_Step".format(n_step)
-                                                        name += "_LR_{}".format(lr)
-                                                        name += "_Gamma_{}".format(gamma)
-                                                        name += "_Batch_{}_Iters_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size)[:-3])
-                                                        if count:
-                                                            if eps_scaling:
-                                                                name += "_CEps_{}_Decay".format(eps_decay)
-                                                        if count:
-                                                            name += "_Count_{}_Stle_{}k_Beta_{}".format(cts_size, str(stale_val)[:-3], beta)
+                                                                name = env.replace("-", "_")[:-3]
+                                                                name += "_{}_Step".format(n_step)
+                                                                name += "_LR_{}".format(lr)
+                                                                name += "_Gamma_{}".format(gamma)
+                                                                name += "_Batch_{}_Iters_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size)[:-3])
+                                                                if count:
+                                                                    if eps_scaling:
+                                                                        name += "_CEps_{}_Decay".format(eps_decay)
+                                                                if count:
+                                                                    name += "_Count_{}_Stle_{}k_Beta_{}".format(cts_size, str(stale_val)[:-3], beta)
 
-                                                        name += "_NEC_{}k_DND_{}_Embed_{}_DLR_{}_Neigh_{}_Update".format(str(dnd_size)[:-3], nec_embedding, nec_alpha, nec_neighbour, nec_update)
+                                                                name += "_NEC_{}k_DND_{}_Embed_{}_DLR_{}_Neigh_{}_Update".format(str(dnd_size)[:-3], nec_embedding, nec_alpha, nec_neighbour, nec_update)
 
-                                                        name += "_Eps_{}_{}_{}k_uid_{}".format(eps, eps_finish, str(eps_steps)[:-3], uid)
+                                                                name += "_Eps_{}_{}_{}k_uid_{}".format(eps, eps_finish, str(eps_steps)[:-3], uid)
 
-                                                        python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
-                                                        python_command += " --epsilon-finish {}".format(eps_finish)
-                                                        python_command += " --logdir ../Logs"
-                                                        python_command += " --gamma {}".format(gamma)
-                                                        python_command += " --eps-steps {}".format(eps_steps)
-                                                        python_command += " --n-step {}".format(n_step)
-                                                        python_command += " --iters {}".format(iters)
+                                                                python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size)
+                                                                python_command += " --epsilon-finish {}".format(eps_finish)
+                                                                python_command += " --logdir ../Logs"
+                                                                python_command += " --gamma {}".format(gamma)
+                                                                python_command += " --eps-steps {}".format(eps_steps)
+                                                                python_command += " --n-step {}".format(n_step)
+                                                                python_command += " --iters {}".format(iters)
 
-                                                        python_command += " --nec"
-                                                        python_command += " --dnd-size {} --nec-embedding {}".format(dnd_size, nec_embedding)
-                                                        python_command += " --nec-alpha {} --nec-neighbours {} --nec-update {}".format(nec_alpha, nec_neighbour, nec_update)
+                                                                python_command += " --nec"
+                                                                python_command += " --dnd-size {} --nec-embedding {}".format(dnd_size, nec_embedding)
+                                                                python_command += " --nec-alpha {} --nec-neighbours {} --nec-update {}".format(nec_alpha, nec_neighbour, nec_update)
 
-                                                        python_command += " --tb-interval {}".format(tb_interval)
+                                                                python_command += " --tb-interval {}".format(tb_interval)
 
-                                                        if count:
-                                                            python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
-                                                            python_command += " --stale-limit {}".format(stale_val)
-                                                            if eps_scaling:
-                                                                python_command += " --count-epsilon"
-                                                                python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
-                                                        if gpu:
-                                                            python_command += " --gpu"
+                                                                if count:
+                                                                    python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
+                                                                    python_command += " --stale-limit {}".format(stale_val)
+                                                                    if eps_scaling:
+                                                                        python_command += " --count-epsilon"
+                                                                        python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
+                                                                if gpu:
+                                                                    python_command += " --gpu"
 
-                                                        # if debug_eval:
-                                                            # python_command += " --debug-eval"
-                                                        if tar:
-                                                            python_command += " --tar"
-                                                        if screen:
-                                                            screen_name = "DQN"
-                                                            if count:
-                                                                screen_name = "Count"
-                                                            screen_name += "_{}".format(seed)
-                                                            python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
-                                                        if seed == seeds[0]:
-                                                            print(python_command)
-                                                        commands.append(python_command)
-                                                        uid += 1
-                                                    print()
+                                                                # if debug_eval:
+                                                                    # python_command += " --debug-eval"
+                                                                if tar:
+                                                                    python_command += " --tar"
+                                                                if screen:
+                                                                    screen_name = "DQN"
+                                                                    if count:
+                                                                        screen_name = "Count"
+                                                                    screen_name += "_{}".format(seed)
+                                                                    python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
+                                                                if seed == seeds[0]:
+                                                                    print(python_command)
+                                                                commands.append(python_command)
+                                                                uid += 1
+                                                            print()
 
 if write_to_files:
     print("\n--WRITING TO FILES--\n")

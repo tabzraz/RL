@@ -112,6 +112,8 @@ parser.add_argument("--nec-embedding", type=int, default=2)
 parser.add_argument("--nec-alpha", type=float, default=0.1)
 parser.add_argument("--nec-neighbours", type=int, default=10)
 parser.add_argument("--nec-update", type=int, default=10)
+
+parser.add_argument("--one-step-bonus", action="store_true", default=False)
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:

@@ -221,14 +221,19 @@ class ExperienceReplay_Options_Pseudo:
             state_then = exps_to_use[-1].state_next
             terminate = exps_to_use[-1].terminal
             steps = len(exps_to_use)
-            rewards_to_use = list(map(lambda x: x.reward + x.pseudo_reward, exps_to_use))
+            real_rewards = list(map(lambda x: x.reward, exps_to_use))
             pseudo_rewards = list(map(lambda x: x.pseudo_reward, exps_to_use))
             accum_reward = 0
             accum_psuedo_reward = 0
-            for ri, pri in zip(reversed(rewards_to_use), reversed(pseudo_rewards)):
+            for ri, pri in zip(reversed(real_rewards), reversed(pseudo_rewards)):
                 accum_reward = ri + gamma * accum_reward
                 accum_psuedo_reward = pri + gamma * accum_psuedo_reward
-            new_exp = (state_now, action_now, accum_reward, state_then, steps, terminate)
+            accum_reward_to_use = accum_reward
+            if self.args.one_step_bonus:
+                accum_reward_to_use += exps_to_use[0].pseudo_reward
+            else:
+                accum_reward_to_use += accum_psuedo_reward
+            new_exp = (state_now, action_now, accum_reward_to_use, state_then, steps, terminate)
             batch_to_return.append(new_exp)
             pseudo_rewards_used.append(accum_psuedo_reward)
         # [] for indices to match the prioritized replay
