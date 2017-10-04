@@ -1,14 +1,14 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
-betas = [0.1, 0.01] # 0.0001
-t_maxs = [x * 1000 for x in [800]]
-cts_sizes = [21]
+betas = [0.001] # 0.0001
+t_maxs = [x * 1000 for x in [400]]
+cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
@@ -28,11 +28,11 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0.1]
-state_action_modes = [None]  #["Optimistic" for _ in optimism_scalers]
+optimism_scalers = [0.1, 0.1]
+state_action_modes = [None, "Optimistic"]  #["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
-ucb_bandits = [False] #[True, True, True, False, False, False]
+ucb_bandits = [False, False] #[True, True, True, False, False, False]
 
 bonus_replay = False
 bonus_replay_thresholds = [0.1, 0.2, 0.3, 0.4]
@@ -70,7 +70,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99, 0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
