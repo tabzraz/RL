@@ -17,17 +17,17 @@ epsilon_steps = [40000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [20]]
 
-dnd_sizes = [x * 1000 for x in [20]]
-nec_embeddings = [2, 16]
-nec_alphas = [1.0]
+dnd_sizes = [x * 1000 for x in [5, 20]]
+nec_embeddings = [32, 64]
+nec_alphas = [0.1]
 nec_neighbours = [50]
-nec_updates = [5, 10]
+nec_updates = [10]
 
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
-n_steps = [100, 500]
+n_steps = [10, 100]
 
 gpu = True
 # debug_eval = True
