@@ -78,6 +78,7 @@ class Trainer:
         self.replay_states_images = []
         self.player_visits_images = []
         self.xp_frontier_overlay_images = []
+        self.visits_frontier_overlay_images = []
 
         # Stuff to log
         self.Q_Values = []
@@ -273,6 +274,8 @@ class Trainer:
                 self.save_video("{}/exp_bonus/Frontier__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.frontier_images)
             if len(self.xp_frontier_overlay_images) > 0:
                 self.save_video("{}/exp_bonus/Xp_Replay_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.xp_frontier_overlay_images)
+            if len(self.visits_frontier_overlay_images) > 0:
+                self.save_video("{}/exp_bonus/Visits_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.visits_frontier_overlay_images)
         if len(self.player_visits_images) > 0:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}".format(self.args.log_path, self.args.interval_size), self.player_visits_images)
         if len(self.replay_states_images) > 0:
@@ -363,6 +366,7 @@ class Trainer:
 
         train_info = self.agent.train()
 
+        # TODO: Move these into the agent
         if self.args.tb and (self.T % self.args.tb_interval == 0 or self.args.nec):
             if "Norm" in train_info:
                 self.log_value("DQN/Gradient_Norm", train_info["Norm"], step=self.T)
@@ -394,6 +398,11 @@ class Trainer:
         image = self.env.xp_and_frontier_overlayed()
         if image is not None:
             self.xp_frontier_overlay_images.append(image)
+
+    def visits_and_frontier_vis(self):
+        image = self.env.visits_and_frontier_overlayed()
+        if image is not None:
+            self.visits_frontier_overlay_images.append(image)
 
     def bonus_landscape(self):
         if self.args.count:
@@ -429,8 +438,11 @@ class Trainer:
             self.trained_on_states()
             self.replay_states()
             self.player_visits()
+
+            # Do these 2 after
             if self.args.frontier:
                 self.frontier_and_xp_vis()
+            self.visits_and_frontier_vis()
 
             self.vis_T = self.T
 

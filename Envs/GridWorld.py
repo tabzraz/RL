@@ -228,6 +228,14 @@ class GridWorld(gym.Env):
 
         return overlayed_image
 
+    def visits_and_frontier_states(self):
+        visits_image = self.player_visits_image
+        frontier_colours = self.frontier_image
+
+        overlayed_image = visits_image + frontier_colours
+
+        return overlayed_image
+
     def xp_replay_states(self, player_visits, args):
 
         # interval = args.exp_replay_size
@@ -383,6 +391,9 @@ class GridWorld(gym.Env):
         colour_maze = np.clip(colour_maze, 0, 1) * 255
         # colour_maze = np.swapaxes(colour_maze, 0, 1)
         colour_images.append(colour_maze.astype(np.uint8))
+
+        self.player_visits_image = np.copy(colour_images[0])
+
         return colour_images[0]
         # save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)
 
