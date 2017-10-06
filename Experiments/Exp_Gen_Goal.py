@@ -1,14 +1,14 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-v0".format(size) for size in [14]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
 lrs = [0.0001]
 counts = [True]
 # cts_convs = [False]
-betas = [0.0001]
-t_maxs = [x * 1000 for x in [800]]
-cts_sizes = [21]
+betas = [0.001]
+t_maxs = [x * 1000 for x in [500]]
+cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
@@ -19,7 +19,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [100]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -35,7 +35,7 @@ bandit_no_epsilon_scaling = True #HACK
 ucb_bandit = False
 
 goal_intervals = [x * 1000 for x in [5, 10]]
-goal_thresholds = [0.75]
+goal_thresholds = [0.75, 0.9]
 goal_iters = [x * 1000 for x in [10]]
 goal_max_steps = [x * 100 for x in [1]]
 
@@ -63,7 +63,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.9999]
+gammas = [0.99]
 
 set_replays = [(False, 1)]
 doubles = [False]
@@ -84,7 +84,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 gpu_start = 0

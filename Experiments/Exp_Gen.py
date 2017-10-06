@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
@@ -14,12 +14,12 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [10]]
-stale_limits = [x * 1000 for x in [1, 100]]
+xp_replay_sizes = [x * 1000 for x in [25, 100]]
+stale_limits = [x * 1000 for x in [100]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [1]
+n_steps = [1, 10]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import Adam, RMSprop
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Goal_State import ExperienceReplay_Goal_State as ExpReplay
@@ -47,7 +47,8 @@ class Goal_DQN_Agent:
             self.target_dqn.cuda()
 
         # Optimizer
-        self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
+        self.optimizer = RMSprop(self.dqn.parameters(), lr=args.lr)
+        # self.optimizer = Adam(self.dqn.parameters(), lr=args.lr)
 
         self.T = 0
         self.target_sync_T = -self.args.t_max
@@ -183,7 +184,8 @@ class Goal_DQN_Agent:
             print("Moving goal_dqn to GPU")
             self.goal_dqn.cuda()
 
-        self.goal_optimizer = Adam(self.goal_dqn.parameters(), lr=self.args.lr)
+        self.goal_optimizer = RMSprop(self.goal_dqn.parameters(), lr=self.args.lr)
+        # self.goal_optimizer = Adam(self.goal_dqn.parameters(), lr=self.args.lr)
 
         option_num = len(self.goal_dqns)
         print("Training Goal DQN {}".format(option_num))
