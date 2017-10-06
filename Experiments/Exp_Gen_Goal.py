@@ -127,8 +127,6 @@ for env in envs:
                                                                             name += "_LR_{}".format(lr)
                                                                             name += "_Gamma_{}".format(gamma)
                                                                             name += "_Batch_{}_itrs_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
-                                                                            if big_model:
-                                                                                name += "_Big"
                                                                             if prioritized:
                                                                                 name += "_Prioritized_{}_Alpha_{}_NScaler".format(alpha, neg_scaler)
                                                                                 if density_priority:
@@ -178,8 +176,6 @@ for env in envs:
                                                                                 python_command += " --variable-n-step"
                                                                             if tabular:
                                                                                 python_command += " --tabular"
-                                                                            if big_model:
-                                                                                python_command += " --model {}-Big".format(env)
                                                                             if prioritized:
                                                                                 python_command += " --priority --negative-td-scaler {}".format(neg_scaler)
                                                                                 python_command += " --alpha {}".format(alpha)
