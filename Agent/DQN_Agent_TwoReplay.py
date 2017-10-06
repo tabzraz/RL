@@ -18,7 +18,7 @@ class DQN_Agent_TwoReplay:
         self.log = logging_funcs["log"]
 
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
-        self.bonus_replay = ExpReplay(args.exp_replay_size // 10, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.bonus_replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         self.bonus_replay_stuff = 0
 

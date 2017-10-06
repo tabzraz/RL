@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
@@ -14,12 +14,12 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [10, 25, 50, 100]]
-stale_limits = [x * 1000 for x in [100]]
+xp_replay_sizes = [x * 1000 for x in [10]]
+stale_limits = [x * 1000 for x in [1, 100]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [1, 10, 100]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -34,8 +34,8 @@ force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False] #[True, True, True, False, False, False]
 
-bonus_replay = False
-bonus_replay_thresholds = [0.1, 0.2, 0.3, 0.4]
+bonus_replay = True
+bonus_replay_thresholds = [0.5, 0.75, 0.9]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
 
