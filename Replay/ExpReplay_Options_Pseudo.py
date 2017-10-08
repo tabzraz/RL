@@ -119,7 +119,7 @@ class ExperienceReplay_Options_Pseudo:
                 density = new_bonus_info["Density"]
                 new_exp = self.Experience(state=exp.state, action=exp.action, reward=exp.reward, state_next=exp.state_next, steps=exp.steps, terminal=exp.terminal, pseudo_reward=new_bonus, density=density, pseudo_reward_t=self.T, trajectory_end=exp.trajectory_end)
                 self.Exps[i] = new_exp
-                self.densities[i] = 1 / density
+                # self.densities[i] = 1 / density
                 # if self.args.bonus_priority:
                 #     ps.append((1 / density))
 
