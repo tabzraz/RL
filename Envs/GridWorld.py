@@ -224,6 +224,12 @@ class GridWorld(gym.Env):
         xp_replay_image = self.xp_replay_image
         frontier_colours = self.frontier_image
 
+        if frontier_colours.shape[1] != xp_replay_image.shape[1]:
+            tiled_xp_replay_image = np.empty_like(frontier_colours)
+            times_to_tile = frontier_colours.shape[1] // xp_replay_image.shape[1]
+            for i in range(times_to_tile):
+                tiled_xp_replay_image[:, i * xp_replay_image.shape[1]:(i + 1) * xp_replay_image.shape[1], :] = xp_replay_image
+            xp_replay_image = tiled_xp_replay_image
         overlayed_image = xp_replay_image + frontier_colours
 
         return overlayed_image
