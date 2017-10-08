@@ -15,7 +15,7 @@ epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [100]]
-stale_limits = [x * 1000 for x in [1, 100]]
+stale_limits = [x * 1000 for x in [100]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
@@ -28,11 +28,11 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0.1]
-state_action_modes = [None]  #["Optimistic" for _ in optimism_scalers]
+optimism_scalers = [10, 1, 0.1, 0.01, 0.001, 0.0001]
+state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
-ucb_bandits = [False] #[True, True, True, False, False, False]
+ucb_bandits = [False for _ in optimism_scalers] #[True, True, True, False, False, False]
 
 bonus_replay = False
 bonus_replay_thresholds = [0.5, 0.75, 0.9]
@@ -58,7 +58,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.3, 0.5, 0.7]
-prioritiseds = [False, True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
