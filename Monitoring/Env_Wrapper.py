@@ -127,6 +127,10 @@ class EnvWrapper(gym.Env):
                 image = np.zeros(shape=(image_x, image_y, 3))
                 image[:env_image.shape[0], :env_image.shape[1], :] = env_image
 
+                if "Action_Bonus" in debug_info:
+                    # Add the action bonus stuff to the q values
+                    debug_info["Q_Values"] = debug_info["Q_Values"] + debug_info["Action_Bonus"]
+
                 # Draw the Q-Values
                 if "Q_Values" in debug_info:
                     q_vals_image = self.draw_q_values(debug_info, env_image.shape[0] - 1, 48)
@@ -149,6 +153,7 @@ class EnvWrapper(gym.Env):
         green = (0, 255, 0)
         blue = (0, 0, 255)
         purple = (255, 0, 255)
+        orange = (255, 165, 0)
 
         q_values = info["Q_Values"]
         max_q_value = info["Max_Q_Value"]
@@ -168,6 +173,7 @@ class EnvWrapper(gym.Env):
         actions = len(q_values)
         bar_width = int(width / actions)
 
+        # Draw the Q-Values
         for i, q_size in enumerate(q_val_sizes):
             if i == forced_action:
                 q_color = red
@@ -182,6 +188,18 @@ class EnvWrapper(gym.Env):
             rect_col = [r[1] for r in rect_coords]
             rect_array_coords = draw.polygon(rect_row, rect_col)
             draw.set_color(image, rect_array_coords, q_color)
+
+        # Draw the action bonus stuff if it is there
+        if "Action_Bonus" in info:
+            q_val_bonuses = info["Action_Bonus"]
+            q_val_bonus_sizes = [int((q_bonus - min_q_value) / (max_q_value - min_q_value) * (height - 4)) + 4 for q_bonus in q_val_bonuses]
+            for i, q_size in enumerate(q_val_bonus_sizes):
+                q_color = orange
+                rect_coords = [(i * bar_width, 4), (i * bar_width, q_size), ((i + 1) * bar_width, q_size), ((i + 1) * bar_width, 4)]
+                rect_row = [r[0] for r in rect_coords]
+                rect_col = [r[1] for r in rect_coords]
+                rect_array_coords = draw.polygon(rect_row, rect_col)
+                draw.set_color(image, rect_array_coords, q_color)
 
         # Epsilon
         bar_width = int(width * epsilon)
