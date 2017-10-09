@@ -329,7 +329,7 @@ class Trainer:
                 # Prime the exploration model a little
                 bonus = 0
                 if self.args.count:
-                    bonus, _ = self.exp_model.bonus(s)
+                    bonus, _ = self.exp_model.bonus(s, a)
                     self.max_exp_bonus = max(self.max_exp_bonus, bonus)
 
                 sn, reward, terminated, env_info = env.step(a)

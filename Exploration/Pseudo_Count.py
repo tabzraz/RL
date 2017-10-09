@@ -43,6 +43,10 @@ class PseudoCount:
         # if dont_remember:
             # self.cts_model = old_cts_model
 
+        # If we only have 1 model, then set action to 0
+        if len(self.models) == 1:
+            action = 0
+
         pg, pg_pixel, density = self.models[action].new_old(state_resized, keep=not dont_remember)
 
         # pg = rho_new - rho_old

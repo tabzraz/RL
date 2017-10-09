@@ -105,8 +105,9 @@ class DQN_Agent_TwoReplay:
         if pseudo_reward > self.max_bonus * self.args.bonus_replay_threshold:
             self.bonus_replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
             self.bonus_replay_stuff += 1
-            self.log("Bonus_Replay_Experience", self.bonus_replay_stuff, step=self.T)
-            self.log("Bonus_Replay_Bonus", pseudo_reward, step=self.T)
+            if not exploring:
+                self.log("Bonus_Replay_Experience", self.bonus_replay_stuff, step=self.T)
+                self.log("Bonus_Replay_Bonus", pseudo_reward, step=self.T)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()
