@@ -16,6 +16,8 @@ class DDQN_Agent:
         # Exploration Model
         self.exp_model = exp_model
 
+        self.log = logging_func["log"]
+
         # Experience Replay
         if self.args.set_replay:
             self.replay = ExpReplaySet(10, 10, exp_model, args, priority=False)
