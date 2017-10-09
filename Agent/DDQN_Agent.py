@@ -61,12 +61,12 @@ class DDQN_Agent:
         orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
-        q_values_numpy = np.copy(q_values.numpy())
+        q_values_numpy = q_values.numpy()
 
         extra_info = {}
-        extra_info["Q_Values"] = q_values_numpy
 
         if self.args.optimistic_init and not evaluation:
+            q_values_pre_bonus = np.copy(q_values_numpy)
             if not self.args.ucb:
                 for a in range(self.args.actions):
                     _, info = exp_model.bonus(orig_state, a, dont_remember=True)
@@ -88,7 +88,9 @@ class DDQN_Agent:
                     self.log("Bandit/UCB/Action_{}".format(ai), optimisim_bonus, step=self.T)
                     q_values[ai] += optimisim_bonus
 
-            extra_info["Action_Bonus"] = q_values.numpy() - q_values_numpy
+            extra_info["Action_Bonus"] = q_values_numpy - q_values_pre_bonus
+
+        extra_info["Q_Values"] = q_values_numpy
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)

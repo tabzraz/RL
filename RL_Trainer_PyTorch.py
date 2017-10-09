@@ -311,6 +311,9 @@ class Trainer:
                     for index in range(self.args.actions):
                         if self.T % self.args.tb_interval == 0:
                             self.log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=self.T)
+                            if "Action_Bonus" in extra_info:
+                                bonus_values_numpy = extra_info["Action_Bonus"]
+                                self.log_value("DQN/Action_{}_Q_Value_No_Bonus".format(index), q_values_numpy[index] - bonus_values_numpy[index], step=self.T)
 
         return action, extra_info
 
