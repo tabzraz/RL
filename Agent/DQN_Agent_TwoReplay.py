@@ -18,7 +18,7 @@ class DQN_Agent_TwoReplay:
         self.log = logging_funcs["log"]
 
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
-        self.bonus_replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.bonus_replay = ExpReplay(args.bonus_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         self.bonus_replay_stuff = 0
 
@@ -55,7 +55,7 @@ class DQN_Agent_TwoReplay:
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
-    def act(self, state, epsilon, exp_model):
+    def act(self, state, epsilon, exp_model, evaluation=False):
         # self.T += 1
         self.dqn.eval()
         orig_state = state[:, :, -1:]
@@ -66,13 +66,15 @@ class DQN_Agent_TwoReplay:
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
 
-        if self.args.optimistic_init:
+        if self.args.optimistic_init and not evaluation:
             if not self.args.ucb:
                 for a in range(self.args.actions):
                     _, info = exp_model.bonus(orig_state, a, dont_remember=True)
                     action_pseudo_count = info["Pseudo_Count"]
                     # TODO: Log the optimism bonuses
-                    q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+                    optimism_bonus = self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+                    self.log("Bandit/Action_{}".format(a), optimism_bonus, step=self.T)
+                    q_values[a] += optimism_bonus
             else:
                 action_counts = []
                 for a in range(self.args.actions):
@@ -82,23 +84,14 @@ class DQN_Agent_TwoReplay:
                 total_count = sum(action_counts)
                 for ai, a in enumerate(action_counts):
                     # TODO: Log the optimism bonuses
-                    q_values[ai] += self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
+                    optimisim_bonus = self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
+                    self.log("Bandit/UCB/Action_{}".format(ai), optimisim_bonus, step=self.T)
+                    q_values[ai] += optimisim_bonus
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
         else:
             action = q_values.max(0)[1][0]  # Torch...
-
-        if self.args.force_low_count_action:
-            # Calculate the counts for each actions
-            for a in range(self.args.actions):
-                _, info = exp_model.bonus(orig_state, a, dont_remember=True)
-                action_pseudo_count = info["Pseudo_Count"]
-                # Pick the first one out of simplicity
-                if action_pseudo_count < self.args.min_action_count:
-                    action = a
-                    extra_info["Forced_Action"] = a
-                    break
 
         extra_info["Action"] = action
 
@@ -107,12 +100,13 @@ class DQN_Agent_TwoReplay:
     def experience(self, state, action, reward, state_next, steps, terminated, pseudo_reward=0, density=1, exploring=False):
         if not exploring:
             self.T += 1
-        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
+        self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, 0, density)
         self.max_bonus = max(self.max_bonus, pseudo_reward)
         if pseudo_reward > self.max_bonus * self.args.bonus_replay_threshold:
             self.bonus_replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
             self.bonus_replay_stuff += 1
-            self.log("Bonus_Replay", self.bonus_replay_stuff, step=self.T)
+            self.log("Bonus_Replay_Experience", self.bonus_replay_stuff, step=self.T)
+            self.log("Bonus_Replay_Bonus", pseudo_reward, step=self.T)
 
     def end_of_trajectory(self):
         self.replay.end_of_trajectory()

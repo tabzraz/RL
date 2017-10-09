@@ -288,7 +288,7 @@ class Trainer:
         return np.random.choice(self.args.actions)
 
     def select_action(self, state, epsilon, training=True):
-        action, extra_info = self.agent.act(state, epsilon, self.exp_model)
+        action, extra_info = self.agent.act(state, epsilon, self.exp_model, evaluation=not training)
         extra_info["Epsilon"] = epsilon
 
         if "Q_Values" in extra_info:

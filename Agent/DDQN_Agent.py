@@ -53,7 +53,7 @@ class DDQN_Agent:
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
-    def act(self, state, epsilon, exp_model):
+    def act(self, state, epsilon, exp_model, evaluation=False):
         # self.T += 1
         self.dqn.eval()
         orig_state = state[:, :, -1:]
@@ -64,13 +64,15 @@ class DDQN_Agent:
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
 
-        if self.args.optimistic_init:
+        if self.args.optimistic_init and not evaluation:
             if not self.args.ucb:
                 for a in range(self.args.actions):
                     _, info = exp_model.bonus(orig_state, a, dont_remember=True)
                     action_pseudo_count = info["Pseudo_Count"]
                     # TODO: Log the optimism bonuses
-                    q_values[a] += self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+                    optimism_bonus = self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
+                    self.log("Bandit/Action_{}".format(a), optimism_bonus, step=self.T)
+                    q_values[a] += optimism_bonus
             else:
                 action_counts = []
                 for a in range(self.args.actions):
@@ -80,23 +82,14 @@ class DDQN_Agent:
                 total_count = sum(action_counts)
                 for ai, a in enumerate(action_counts):
                     # TODO: Log the optimism bonuses
-                    q_values[ai] += self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
+                    optimisim_bonus = self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
+                    self.log("Bandit/UCB/Action_{}".format(ai), optimisim_bonus, step=self.T)
+                    q_values[ai] += optimisim_bonus
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
         else:
             action = q_values.max(0)[1][0]  # Torch...
-
-        if self.args.force_low_count_action:
-            # Calculate the counts for each actions
-            for a in range(self.args.actions):
-                _, info = exp_model.bonus(orig_state, a, dont_remember=True)
-                action_pseudo_count = info["Pseudo_Count"]
-                # Pick the first one out of simplicity
-                if action_pseudo_count < self.args.min_action_count:
-                    action = a
-                    extra_info["Forced_Action"] = a
-                    break
 
         extra_info["Action"] = action
 
