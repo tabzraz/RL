@@ -113,7 +113,7 @@ class ExperienceReplay_Options_Pseudo:
         # ps = []
         for i in indices:
             exp = self.Exps[i]
-            if self.T - exp.pseudo_reward_t > self.pseudo_limit:
+            if self.T - exp.pseudo_reward_t > self.pseudo_limit and exp.pseudo_reward > 0:
                 # Recompute it
                 new_bonus, new_bonus_info = self.exp_model.bonus(exp.state, dont_remember=True)
                 density = new_bonus_info["Density"]
