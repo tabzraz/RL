@@ -36,6 +36,7 @@ ucb_bandits = [False for _ in optimism_scalers] #[True, True, True, False, False
 
 bonus_replay = False
 bonus_replay_thresholds = [0.5, 0.75, 0.9]
+bonus_replay_sizes = [x * 1000 for x in [1, 10, 25]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
 
@@ -118,7 +119,7 @@ for env in envs:
                                                         for sarsa_train in sarsa_trains:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
-                                                                    for bonus_replay_threshold in bonus_replay_thresholds:
+                                                                    for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
                                                                         for seed in seeds:
 
                                                                             if state_action_mode != None and count is False:
@@ -178,7 +179,7 @@ for env in envs:
                                                                                     name += "_ForceAction_{}_FCount".format(f_scaler)
 
                                                                             if bonus_replay:
-                                                                                name += "_2Replay_{}_Thr".format(bonus_replay_threshold)
+                                                                                name += "_{}k_2Replay_{}_Thr".format(str(bonus_replay_size)[:-3], bonus_replay_threshold)
 
                                                                             if SARSA:
                                                                                 name += "_SARSA_{}_".format(sarsa_train)
@@ -200,6 +201,7 @@ for env in envs:
                                                                             if bonus_replay:
                                                                                 python_command += " --bonus-replay-threshold {}".format(bonus_replay_threshold)
                                                                                 python_command += " --bonus-replay"
+                                                                                python_command += " --bonus-replay-size {}".format(bonus_replay_size)
                                                                             if variable_n_step:
                                                                                 python_command += " --variable-n-step"
                                                                             if tabular:
