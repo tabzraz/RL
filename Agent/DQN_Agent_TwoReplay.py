@@ -6,7 +6,7 @@ from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
 from Models.Models import get_torch_models as get_models
 
-
+# TODO: Make this a subclass of DDQN
 class DQN_Agent_TwoReplay:
 
     def __init__(self, args, exp_model, logging_funcs):
@@ -61,7 +61,7 @@ class DQN_Agent_TwoReplay:
         orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
-        q_values_numpy = q_values.numpy()
+        q_values_numpy = np.copy(q_values.numpy())
 
         extra_info = {}
         extra_info["Q_Values"] = q_values_numpy
@@ -87,6 +87,8 @@ class DQN_Agent_TwoReplay:
                     optimisim_bonus = self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
                     self.log("Bandit/UCB/Action_{}".format(ai), optimisim_bonus, step=self.T)
                     q_values[ai] += optimisim_bonus
+
+            extra_info["Action_Bonus"] = q_values.numpy() - q_values_numpy
 
         if np.random.random() < epsilon:
             action = np.random.randint(low=0, high=self.args.actions)
