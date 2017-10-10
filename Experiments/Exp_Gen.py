@@ -19,7 +19,7 @@ stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [10]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
