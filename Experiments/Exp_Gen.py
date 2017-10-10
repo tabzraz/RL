@@ -14,12 +14,12 @@ epsilon_starts = [0.05]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50, 100, 200]]
+xp_replay_sizes = [x * 1000 for x in [50, 100, 200, 300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
-n_steps = [1, 10]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
