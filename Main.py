@@ -115,6 +115,12 @@ parser.add_argument("--nec-neighbours", type=int, default=10)
 parser.add_argument("--nec-update", type=int, default=10)
 
 parser.add_argument("--one-step-bonus", action="store_true", default=False)
+
+parser.add_argument("--distrib", action="store_true", default=False)
+parser.add_argument("--v-min", type=int, default=-1)
+parser.add_argument("--v-max", type=int, default=1)
+parser.add_argument("--atoms", type=int, default=2)
+
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
@@ -136,6 +142,8 @@ if args.model == "":
 
 if args.nec:
     args.model = "NEC_" + args.model
+if args.distrib:
+    args.model += "-Distrib"
 
 print("\n" + "=" * 40)
 print(15 * " " + "Settings:" + " " * 15)

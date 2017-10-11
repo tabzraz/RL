@@ -3,6 +3,7 @@ from .Torch import DQN_Maze, DQN_Maze_Big, DQN_Maze_FC
 from .Torch import DQN_Atari
 from .Torch import DQN_Doom
 from .Torch import NEC_Maze
+from .Torch import DQN_Distrib_Maze
 
 # Define all the models here
 torch_models = {}
@@ -72,6 +73,10 @@ for n in range(50):
         return NEC_Maze.NEC_Embedding(input_size=(1, size * 3, size * 3), embedding=embedding)
     torch_models["NEC_Thin-Maze-{}-v0".format(n)] = nec_model_creator
     torch_models["NEC_Thin-Maze-{}-Neg-v0".format(n)] = nec_model_creator
+
+    def distrib_model_creator(actions, atoms, size=n):
+        return DQN_Distrib_Maze.DQN_Distrib(input_size=(1, size * 3, size * 3), actions=actions, atoms=atoms)
+    torch_models["Thin-Maze-{}-v0-Distrib".format(n)] = distrib_model_creator
 
 def get_torch_models(name):
     return torch_models[name]
