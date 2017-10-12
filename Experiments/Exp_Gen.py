@@ -3,7 +3,7 @@ from math import ceil
 
 envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
-lrs = [0.0001] # 0.0001
+lrs = [0.0001, 0.00001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.01] # 0.0001
@@ -42,9 +42,9 @@ if not bonus_replay:
     bonus_replay_sizes = [1]
 
 distrib_agent = True
-atoms = [2, 5, 11, 21]
-v_min = -10
-v_max = +10
+atoms = [5, 11, 21, 51]
+v_min = -14
+v_max = +1
 if not distrib_agent:
     atoms = [1]
 
