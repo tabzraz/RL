@@ -60,8 +60,11 @@ class DQN_Distribution_Agent:
         # TODO: Log Q-Value distributions
         # print(q_values_distributions)
         values = torch.linspace(self.args.v_min, self.args.v_max, steps=self.args.atoms)
-        # print(values)
-        q_value_expectations = q_values_distributions @ values
+        values = values.view(1, self.args.atoms)
+        values = values.expand(self.args.actions, self.args.atoms)
+
+        # print(values, q_values_distributions, torch.sum(q_values_distributions * values, dim=1))
+        q_value_expectations = torch.sum(q_values_distributions * values, dim=1)
         q_values_numpy = q_value_expectations.numpy()
 
         extra_info = {}

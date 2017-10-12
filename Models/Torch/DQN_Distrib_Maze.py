@@ -44,12 +44,20 @@ class DQN_Distrib(nn.Module):
 
         x = self.qvals(x)
 
-        x = x.view(x.size()[0], self.actions, self.atoms, 1)
+        x = x.view(x.size()[0], self.atoms, self.actions, 1)
+
+        # print(x)
 
         x = self.softmax(x)
 
+        # print("Softmaxed" ,x)
+
         # print(x)
-        x = x.view(x.size()[0], self.actions, self.atoms)
+        x = x.view(x.size()[0], self.atoms, self.actions)
+        # print(x)
+        x = x.transpose(1, 2)
+        # print(x)
+        # print(x)
         # print(x)
         # print(x)
         # print(self.softmax(x))
