@@ -7,7 +7,6 @@ import imageio
 
 from tensorboard_logger import configure
 from tensorboard_logger import log_value as tb_log_value
-from tensorboardX import SummaryWriter
 from multiprocessing import Queue as Queue_MP
 from multiprocessing import Process
 from multiprocessing.sharedctypes import Value
@@ -48,9 +47,7 @@ class Trainer:
         if args.count:
             self.exp_model = PseudoCount(args)
 
-        self.tb_logger = SummaryWriter("{}/tb".format(self.args.log_path))
-
-        agent_log_funcs = {"log": self.log_value, "image": self.save_image, "video": self.save_video, "env": self.env, "logger": self.tb_logger}
+        agent_log_funcs = {"log": self.log_value, "image": self.save_image, "video": self.save_video, "env": self.env}
         if args.tabular:
             self.agent = TabQ_Agent(args, self.exp_model)
         elif args.goal_dqn:
@@ -118,12 +115,11 @@ class Trainer:
 
     # Multiprocessing logger
     def logger(self, q, finished):
-        # configure("{}/tb".format(self.args.log_path), flush_secs=30)
+        configure("{}/tb".format(self.args.log_path), flush_secs=30)
         while finished.value < 1:
             try:
                 (name, value, step) = q.get(block=False)
-                # tb_log_value(name, value, step=step)
-                self.tb_logger.add_scalar(name, value, step)
+                tb_log_value(name, value, step=step)
             except queue.Empty:
                 pass
         print("Logging loop closed")
@@ -131,7 +127,6 @@ class Trainer:
     # This is here for compatability with older stuff
     def log_value(self, name, value, step):
         self.log_queue.put((name, value, step))
-        # self.tb_logger.add_scalar(name, value, step)
 
     def save_video(self, name, images):
         name = name + ".gif"
@@ -319,7 +314,7 @@ class Trainer:
                 if self.args.tb:
                     for index in range(self.args.actions):
                         if self.T % self.args.tb_interval == 0:
-                            self.log_value("DQN/Action_{}_Q_Value".format(index), q_values_numpy[index], step=self.T)
+                            self.log_value("DQN/Action_{}_Q_Value".format(index), float(q_values_numpy[index]), step=self.T)
                             if "Action_Bonus" in extra_info:
                                 bonus_values_numpy = extra_info["Action_Bonus"]
                                 self.log_value("DQN/Action_{}_Q_Value_No_Bonus".format(index), q_values_numpy[index] - bonus_values_numpy[index], step=self.T)

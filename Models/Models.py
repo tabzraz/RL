@@ -77,6 +77,7 @@ for n in range(50):
     def distrib_model_creator(actions, atoms, size=n):
         return DQN_Distrib_Maze.DQN_Distrib(input_size=(1, size * 3, size * 3), actions=actions, atoms=atoms)
     torch_models["Thin-Maze-{}-v0-Distrib".format(n)] = distrib_model_creator
+    torch_models["Thin-Maze-{}-Neg-v0-Distrib".format(n)] = distrib_model_creator
 
 def get_torch_models(name):
     return torch_models[name]
