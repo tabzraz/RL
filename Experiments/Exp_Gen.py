@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
@@ -36,7 +36,7 @@ ucb_bandits = [False for _ in optimism_scalers] #[True, True, True, False, False
 
 bonus_replay = True
 bonus_replay_thresholds = [0.01, 0.05, 0.1]
-bonus_replay_sizes = [x * 1000 for x in [1, 10, 25]]
+bonus_replay_sizes = [x * 1000 for x in [10, 25]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
