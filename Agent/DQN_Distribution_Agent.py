@@ -207,7 +207,8 @@ class DQN_Distribution_Agent:
             self.dqn.train()
             if self.args.gpu:
                 actions = actions.cuda()
-                q_value_targets = q_value_targets.cuda()
+                # q_value_targets = q_value_targets.cuda()
+                q_value_distribution_targets = q_value_distribution_targets.cuda()
             model_predictions = self.dqn(states).index_select(1, actions.view(-1))[:,0,:]
             q_value_distribution_targets = Variable(q_value_distribution_targets)
             # print(q_value_distribution_targets)
