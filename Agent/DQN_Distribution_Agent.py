@@ -16,6 +16,7 @@ class DQN_Distribution_Agent:
         self.exp_model = exp_model
 
         self.log = logging_func["log"]
+        self.logger = logging_func["logger"]
 
         # Experience Replay
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
@@ -61,6 +62,9 @@ class DQN_Distribution_Agent:
         # print(q_values_distributions)
         values = torch.linspace(self.args.v_min, self.args.v_max, steps=self.args.atoms)
         # print(values)
+        if self.T % self.args.tb_interval == 0 and not evaluation:
+            for i in range(self.args.actions):
+                self.logger.add_histogram("Q_Values_Distrib_Action_{}".format(i), q_values_distributions[i].numpy(), self.T)
         q_value_expectations = q_values_distributions @ values
         # print(q_value_expectations)
         q_values_numpy = q_value_expectations.numpy()
