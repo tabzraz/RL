@@ -1,13 +1,13 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.01] # 0.0001
-t_maxs = [x * 1000 for x in [1000]]
+t_maxs = [x * 1000 for x in [500]]
 cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [0.05]
@@ -34,12 +34,19 @@ force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in optimism_scalers] #[True, True, True, False, False, False]
 
-bonus_replay = True
+bonus_replay = False
 bonus_replay_thresholds = [0.01, 0.05, 0.1]
 bonus_replay_sizes = [x * 1000 for x in [10, 25]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
+
+distrib_agent = True
+atoms = [2, 5, 11, 21]
+v_min = -10
+v_max = +10
+if not distrib_agent:
+    atoms = [1]
 
 SARSA = False
 sarsa_trains = [100, 1000]
@@ -121,151 +128,157 @@ for env in envs:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
-                                                                        for seed in seeds:
+                                                                        for atom in atoms:
+                                                                            for seed in seeds:
 
-                                                                            if state_action_mode != None and count is False:
-                                                                                continue
-                                                                            if bandit_no_epsilon_scaling and state_action_mode != None:
-                                                                                eps_scaling = False
-                                                                            if set_replay:
-                                                                                xp_replay_size_ = t_max
-                                                                            else:
-                                                                                xp_replay_size_ = xp_replay_size
+                                                                                if state_action_mode != None and count is False:
+                                                                                    continue
+                                                                                if bandit_no_epsilon_scaling and state_action_mode != None:
+                                                                                    eps_scaling = False
+                                                                                if set_replay:
+                                                                                    xp_replay_size_ = t_max
+                                                                                else:
+                                                                                    xp_replay_size_ = xp_replay_size
 
-                                                                            name = env.replace("-", "_")[:-3]
-                                                                            if variable_n_step:
-                                                                                name += "_Variable"
-                                                                            name += "_{}_stp".format(n_step)
-                                                                            name += "_LR_{}".format(lr)
-                                                                            name += "_Gamma_{}".format(gamma)
-                                                                            name += "_Batch_{}_itrs_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
-                                                                            # if big_model:
-                                                                                # name += "_Big"
-                                                                            if fc_model:
-                                                                                name += "_FC"
-                                                                            if prioritized:
-                                                                                name += "_Prioritized_{}_Alpha_{}_NScaler".format(alpha, neg_scaler)
-                                                                                if density_priority:
-                                                                                    name += "_DensityP"
-                                                                                if is_weight:
-                                                                                    name += "_IS"
-                                                                                if sub_pseudo_reward:
-                                                                                    name += "_{}_MinusPseudo".format(count_td_scaler)
-                                                                            if set_replay:
-                                                                                name += "_SetReplay_{}".format(set_replay_num)
-                                                                            # name += "_BonusClip_{}".format(reward_clip)
-                                                                            # if option:
-                                                                            #     if random_macros:
-                                                                            #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
-                                                                            #     else:
-                                                                            #         name += "_Options"
-                                                                            if double:
-                                                                                name += "_Double"
-                                                                            if tabular:
-                                                                                name += "_TABULAR"
-                                                                            if count:
-                                                                                stale = stale_val #int(xp_replay_size * stale_val)
-                                                                                if neg_reward:
-                                                                                    name += "_NegativeReward_{}".format(neg_reward_scaler)
-                                                                                # print(stale)
-                                                                                if eps_scaling:
-                                                                                    name += "_CEps_{}_Decay".format(eps_decay)
-                                                                                if state_action_mode == "Plain":
-                                                                                    name += "_StateAction"
-                                                                                elif state_action_mode == "Optimistic":
-                                                                                    if ucb_bandit:
-                                                                                        name += "_UCB"
-                                                                                    name += "_Bandit_{}_Scaler".format(o_scaler)
-                                                                                elif state_action_mode == "Force":
-                                                                                    name += "_ForceAction_{}_FCount".format(f_scaler)
-
-                                                                            if bonus_replay:
-                                                                                name += "_{}k_2Replay_{}_Thr".format(str(bonus_replay_size)[:-3], bonus_replay_threshold)
-
-                                                                            if SARSA:
-                                                                                name += "_SARSA_{}_".format(sarsa_train)
-                                                                            if count:
-                                                                                name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
-                                                                            else:
-                                                                                name += "_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
-                                                                            python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
-                                                                            python_command += " --epsilon-finish {}".format(eps_finish)
-                                                                            python_command += " --target {}".format(target_network)
-                                                                            python_command += " --logdir ../Logs"
-                                                                            python_command += " --gamma {}".format(gamma)
-                                                                            python_command += " --eps-steps {}".format(eps_steps)
-                                                                            python_command += " --n-step {}".format(n_step)
-                                                                            python_command += " --iters {}".format(iters)
-                                                                            if SARSA:
-                                                                                python_command += " --sarsa --sarsa-train {}".format(sarsa_train)
-                                                                            # python_command += " --bonus-clip {}".format(reward_clip)
-                                                                            if bonus_replay:
-                                                                                python_command += " --bonus-replay-threshold {}".format(bonus_replay_threshold)
-                                                                                python_command += " --bonus-replay"
-                                                                                python_command += " --bonus-replay-size {}".format(bonus_replay_size)
-                                                                            if variable_n_step:
-                                                                                python_command += " --variable-n-step"
-                                                                            if tabular:
-                                                                                python_command += " --tabular"
-                                                                            # if big_model:
-                                                                                # python_command += " --model {}-Big".format(env)
-                                                                            if fc_model:
-                                                                                python_command += " --model {}-FC".format(env)
-                                                                            if set_replay:
-                                                                                python_command += " --set-replay"
-                                                                                python_command += " --set-replay-num {}".format(set_replay_num)
-                                                                            if prioritized:
-                                                                                python_command += " --priority --negative-td-scaler {}".format(neg_scaler)
-                                                                                python_command += " --alpha {}".format(alpha)
-                                                                                if density_priority:
-                                                                                    python_command += " --density-priority"
-                                                                                if is_weight:
-                                                                                    python_command += " --prioritized-is"
-                                                                                if sub_pseudo_reward:
-                                                                                    python_command += " --count-td-priority"
-                                                                                    python_command += " --count-td-scaler {}".format(count_td_scaler)
-                                                                            if double:
-                                                                                python_command += " --double"
-                                                                            if count:
-                                                                                python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
-                                                                                python_command += " --stale-limit {}".format(stale)
-                                                                                if neg_reward:
-                                                                                    python_command += " --negative-rewards --negative-reward-threshold {}".format(neg_reward_scaler)
-                                                                                if eps_scaling:
-                                                                                    python_command += " --count-epsilon"
-                                                                                    python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
-                                                                                if state_action_mode == "Plain":
-                                                                                    python_command += " --count-state-action"
-                                                                                elif state_action_mode == "Optimistic":
-                                                                                    python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
-                                                                                elif state_action_mode == "Force":
-                                                                                    python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
-                                                                                if ucb_bandit:
-                                                                                    python_command += " --ucb"
-                                                                            # if option:
-                                                                            #     if random_macros:
-                                                                            #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
-                                                                            #         if with_primitives:
-                                                                            #             python_command += " --train-primitives"
-                                                                            #     else:
-                                                                            #         python_command += " --options Maze_Good"
-                                                                            if gpu:
-                                                                                python_command += " --gpu"
-                                                                            # if debug_eval:
-                                                                                # python_command += " --debug-eval"
-                                                                            if tar:
-                                                                                python_command += " --tar"
-                                                                            if screen:
-                                                                                screen_name = "DQN"
+                                                                                name = env.replace("-", "_")[:-3]
+                                                                                if variable_n_step:
+                                                                                    name += "_Variable"
+                                                                                name += "_{}_stp".format(n_step)
+                                                                                name += "_LR_{}".format(lr)
+                                                                                name += "_Gamma_{}".format(gamma)
+                                                                                name += "_Batch_{}_itrs_{}_Xp_{}k".format(batch_size, iters, str(xp_replay_size_)[:-3])
+                                                                                # if big_model:
+                                                                                    # name += "_Big"
+                                                                                if fc_model:
+                                                                                    name += "_FC"
+                                                                                if prioritized:
+                                                                                    name += "_Prioritized_{}_Alpha_{}_NScaler".format(alpha, neg_scaler)
+                                                                                    if density_priority:
+                                                                                        name += "_DensityP"
+                                                                                    if is_weight:
+                                                                                        name += "_IS"
+                                                                                    if sub_pseudo_reward:
+                                                                                        name += "_{}_MinusPseudo".format(count_td_scaler)
+                                                                                if set_replay:
+                                                                                    name += "_SetReplay_{}".format(set_replay_num)
+                                                                                # name += "_BonusClip_{}".format(reward_clip)
+                                                                                # if option:
+                                                                                #     if random_macros:
+                                                                                #         name += "_Rnd_Macros_{}_Length_{}_Mseed_{}_Primitives_{}".format(num_macro, max_macro_length, macro_seed, with_primitives)
+                                                                                #     else:
+                                                                                #         name += "_Options"
+                                                                                if double:
+                                                                                    name += "_Double"
+                                                                                if tabular:
+                                                                                    name += "_TABULAR"
+                                                                                if distrib_agent:
+                                                                                    name += "_DISTRIB_{}_Atoms".format(atom)
                                                                                 if count:
-                                                                                    screen_name = "Count"
-                                                                                screen_name += "_{}".format(seed)
-                                                                                python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
-                                                                            if seed == seeds[0]:
-                                                                                print(python_command)
-                                                                            commands.append(python_command)
-                                                                            uid += 1
-                                                                        print()
+                                                                                    stale = stale_val #int(xp_replay_size * stale_val)
+                                                                                    if neg_reward:
+                                                                                        name += "_NegativeReward_{}".format(neg_reward_scaler)
+                                                                                    # print(stale)
+                                                                                    if eps_scaling:
+                                                                                        name += "_CEps_{}_Decay".format(eps_decay)
+                                                                                    if state_action_mode == "Plain":
+                                                                                        name += "_StateAction"
+                                                                                    elif state_action_mode == "Optimistic":
+                                                                                        if ucb_bandit:
+                                                                                            name += "_UCB"
+                                                                                        name += "_Bandit_{}_Scaler".format(o_scaler)
+                                                                                    elif state_action_mode == "Force":
+                                                                                        name += "_ForceAction_{}_FCount".format(f_scaler)
+
+                                                                                if bonus_replay:
+                                                                                    name += "_{}k_2Replay_{}_Thr".format(str(bonus_replay_size)[:-3], bonus_replay_threshold)
+
+                                                                                if SARSA:
+                                                                                    name += "_SARSA_{}_".format(sarsa_train)
+                                                                                if count:
+                                                                                    name += "_Count_{}_Stle_{}k_Beta_{}_Eps_{}_{}_{}k_uid_{}".format(cts_size, str(stale)[:-3], beta, eps, eps_finish, str(eps_steps)[:-3], uid)
+                                                                                else:
+                                                                                    name += "_Eps_{}_{}_uid_{}".format(eps, eps_finish, uid)
+                                                                                python_command = "python3 ../Main.py --name {} --env {} --lr {} --seed {} --t-max {} --eps-start {} --batch-size {} --xp {}".format(name, env, lr, seed, t_max, eps, batch_size, xp_replay_size_)
+                                                                                python_command += " --epsilon-finish {}".format(eps_finish)
+                                                                                python_command += " --target {}".format(target_network)
+                                                                                python_command += " --logdir ../Logs"
+                                                                                python_command += " --gamma {}".format(gamma)
+                                                                                python_command += " --eps-steps {}".format(eps_steps)
+                                                                                python_command += " --n-step {}".format(n_step)
+                                                                                python_command += " --iters {}".format(iters)
+                                                                                if SARSA:
+                                                                                    python_command += " --sarsa --sarsa-train {}".format(sarsa_train)
+                                                                                # python_command += " --bonus-clip {}".format(reward_clip)
+                                                                                if bonus_replay:
+                                                                                    python_command += " --bonus-replay-threshold {}".format(bonus_replay_threshold)
+                                                                                    python_command += " --bonus-replay"
+                                                                                    python_command += " --bonus-replay-size {}".format(bonus_replay_size)
+                                                                                if variable_n_step:
+                                                                                    python_command += " --variable-n-step"
+                                                                                if tabular:
+                                                                                    python_command += " --tabular"
+                                                                                # if big_model:
+                                                                                    # python_command += " --model {}-Big".format(env)
+                                                                                if fc_model:
+                                                                                    python_command += " --model {}-FC".format(env)
+                                                                                if set_replay:
+                                                                                    python_command += " --set-replay"
+                                                                                    python_command += " --set-replay-num {}".format(set_replay_num)
+                                                                                if prioritized:
+                                                                                    python_command += " --priority --negative-td-scaler {}".format(neg_scaler)
+                                                                                    python_command += " --alpha {}".format(alpha)
+                                                                                    if density_priority:
+                                                                                        python_command += " --density-priority"
+                                                                                    if is_weight:
+                                                                                        python_command += " --prioritized-is"
+                                                                                    if sub_pseudo_reward:
+                                                                                        python_command += " --count-td-priority"
+                                                                                        python_command += " --count-td-scaler {}".format(count_td_scaler)
+                                                                                if double:
+                                                                                    python_command += " --double"
+                                                                                if count:
+                                                                                    python_command += " --count --beta {} --cts-size {}".format(beta, cts_size)
+                                                                                    python_command += " --stale-limit {}".format(stale)
+                                                                                    if neg_reward:
+                                                                                        python_command += " --negative-rewards --negative-reward-threshold {}".format(neg_reward_scaler)
+                                                                                    if eps_scaling:
+                                                                                        python_command += " --count-epsilon"
+                                                                                        python_command += " --epsilon-decay --decay-rate {}".format(eps_decay)
+                                                                                    if state_action_mode == "Plain":
+                                                                                        python_command += " --count-state-action"
+                                                                                    elif state_action_mode == "Optimistic":
+                                                                                        python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
+                                                                                    elif state_action_mode == "Force":
+                                                                                        python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
+                                                                                    if ucb_bandit:
+                                                                                        python_command += " --ucb"
+                                                                                if distrib_agent:
+                                                                                    python_command += " --distrib"
+                                                                                    python_command += " --atoms {} --v-min {} --v-max {}".format(atom, v_min, v_max)
+                                                                                # if option:
+                                                                                #     if random_macros:
+                                                                                #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
+                                                                                #         if with_primitives:
+                                                                                #             python_command += " --train-primitives"
+                                                                                #     else:
+                                                                                #         python_command += " --options Maze_Good"
+                                                                                if gpu:
+                                                                                    python_command += " --gpu"
+                                                                                # if debug_eval:
+                                                                                    # python_command += " --debug-eval"
+                                                                                if tar:
+                                                                                    python_command += " --tar"
+                                                                                if screen:
+                                                                                    screen_name = "DQN"
+                                                                                    if count:
+                                                                                        screen_name = "Count"
+                                                                                    screen_name += "_{}".format(seed)
+                                                                                    python_command = "screen -mdS {}__{} bash -c \"{}\"".format(uid, screen_name, python_command)
+                                                                                if seed == seeds[0]:
+                                                                                    print(python_command)
+                                                                                commands.append(python_command)
+                                                                                uid += 1
+                                                                            print()
 
 if write_to_files:
     print("\n--WRITING TO FILES--\n")
