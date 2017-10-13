@@ -22,8 +22,8 @@ class DQN_Distrib(nn.Module):
         self.conv4 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
 
-        self.fc1 = nn.Linear(img_size * img_size * 32, 128)
-        self.qvals = nn.Linear(128, actions * atoms)
+        self.fc1 = nn.Linear(img_size * img_size * 32, actions * atoms * 2)
+        self.qvals = nn.Linear(actions * atoms * 2, actions * atoms)
         self.softmax = nn.Softmax2d()
         # self.value_branch = nn.Linear(128, 1)
         # self.adv_branch = nn.Linear(128, actions)
