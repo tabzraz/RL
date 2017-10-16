@@ -89,6 +89,13 @@ for n in range(50):
     )
 
     register(
+            id="Thin-Maze-{}-Deadly-v0".format(n),
+            entry_point="Envs.DeadlySnakingMaze:DeadlySnakingMaze",
+            kwargs={'size': n, 'corridor_width': 3},
+            tags={'wrapper_config.TimeLimit.max_episode_steps': n * n * 3 * 3 * 5 + 1},
+    )
+
+    register(
             id="Thin-Maze-{}-Neg-v0".format(n),
             entry_point="Envs.SnakingMaze:SnakingMaze",
             kwargs={'size': n, 'corridor_width': 3, 'neg_reward': True},
