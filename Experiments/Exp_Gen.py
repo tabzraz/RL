@@ -1,9 +1,9 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [8]]
 target_network = 1000
-lrs = [0.0001] # 0.0001
+lrs = [0.0001, 0.00001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.0001
@@ -29,7 +29,7 @@ reward_clips = [-1]
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
 optimism_scalers = [0.1, 0.01]
-state_action_modes = ["Optimistic" for _ in optimism_scalers]
+state_action_modes = [None]#["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in optimism_scalers]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in optimism_scalers] #[True, True, True, False, False, False]
@@ -41,7 +41,7 @@ if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
 
-distrib_agent = False
+distrib_agent = True
 atoms = [5, 11, 21, 51]
 v_min = -1
 v_max = +1
@@ -67,7 +67,7 @@ files = 16
 # prioritizeds = [(True, False, 8, False, 0.5)]  # [(True, False, True), (True, True, True)]
 
 alphas = [0.3, 0.5, 0.7]
-prioritiseds = [True]
+prioritiseds = [False]
 is_corrections = [False]
 minus_pseudos = [False]
 negative_td_scalers = [1]
@@ -79,7 +79,7 @@ if False in prioritiseds:
 count_td_scalers = [1]
 density_priority = False
 eligibility_trace = False
-gammas = [0.99]
+gammas = [0.9999]
 
 set_replays = [(False, 1)]
 doubles = [False]
