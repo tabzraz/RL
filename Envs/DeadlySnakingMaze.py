@@ -141,30 +141,59 @@ class DeadlySnakingMaze(DeadlyGridWorld):
         # image[-2, -2] = 2
 
         # Add spikes
-        random.seed(1)
-        for ii, jj in [(kk, vv) for kk in range(self.size - 1) for vv in range(self.size - 1)]:
+        for aa, bb in [(uu, tt) for uu in range(num_rows) for tt in range(num_cols) if uu % 3 == 0 and tt % 3 == 0]:
             suitable_place = False
-            sx = (ii) * num_rows
-            sy = (jj) * num_cols
+            aa *= corridor_width
+            bb *= corridor_width
+            sx = aa  
+            sy = bb  
             while not suitable_place:
                 # print(random.randint(1, num_rows * corridor_width - 1))
                 sx += 1
-                if sx >= (ii + 1) * num_rows:
+                if sx >= (aa) + corridor_width:
                     sy += 1
-                    if sy >= num_cols * corridor_width:
-                        sy = 0
-                    sx = (ii) * num_rows
-                sy = min(num_cols * corridor_width - 1, sy)
+                    sx = aa  
+                sx %= (num_rows * corridor_width)
                 # sy += 5
+                sy = sy % (num_cols * corridor_width)
                 # sy = random.randint(1, num_rows * corridor_width - 1)
-                print(sx, sy)
+                # print(sx, sy)
                 suitable_place = True
                 if image[sx, sy] != 0:
                     suitable_place = False
                 else:
-                    if image[sx - 1, sy] == 1 and image[sx + 1, sy] == 1:
+                    if image[sx - 1, sy] != 0 and image[sx + 1, sy] != 0:
                         suitable_place=False
-                    if image[sx, sy - 1] == 1 and image[sx, sy + 1] == 1:
+                    if image[sx, sy - 1] != 0 and image[sx, sy + 1] != 0:
+                        suitable_place=False
+                    if image[sx + 1, sy + 1] != 0 and image[sx - 1, sy - 1] != 0:
+                        suitable_place=False
+                    if image[sx - 1, sx + 1] != 0 and image[sx + 1, sy - 1] != 0:
                         suitable_place=False
             image[sx, sy] = 4
+
+        # random.seed(13)
+        # sx = 3*corridor_width + 1
+        # sy = 1
+        # for j in range(self.size):
+        #     suitable_place = False
+        #     while not suitable_place:
+        #         # print(random.randint(1, num_rows * corridor_width - 1))
+        #         sx += 3*corridor_width
+        #         if sx >= num_rows * corridor_width:
+        #             sy += 3*corridor_width
+        #             sx %= (num_rows * corridor_width)
+        #         # sy += 5
+        #         sy = sy % (num_cols * corridor_width)
+        #         # sy = random.randint(1, num_rows * corridor_width - 1)
+        #         # print(sx, sy)
+        #         suitable_place = True
+        #         if image[sx, sy] != 0:
+        #             suitable_place = False
+        #         else:
+        #             if image[sx - 1, sy] == 1 and image[sx + 1, sy] == 1:
+        #                 suitable_place=False
+        #             if image[sx, sy - 1] == 1 and image[sx, sy + 1] == 1:
+        #                 suitable_place=False
+        #     image[sx, sy] = 4
         self.grid = image
