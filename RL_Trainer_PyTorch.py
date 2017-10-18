@@ -23,6 +23,7 @@ from Agent.DQN_Agent_TwoReplay import DQN_Agent_TwoReplay
 from Agent.Sarsa_Agent import Sarsa_Agent
 from Agent.NEC_Agent import NEC_Agent
 from Agent.DQN_Distribution_Agent import DQN_Distribution_Agent
+from Agent.DQN_Model_Agent import DQN_Model_Agent
 from Exploration.Pseudo_Count import PseudoCount
 from Monitoring.Env_Wrapper import EnvWrapper
 
@@ -60,6 +61,8 @@ class Trainer:
             self.agent = NEC_Agent(args, self.exp_model, agent_log_funcs)
         elif args.distrib:
             self.agent = DQN_Distribution_Agent(args, self.exp_model, agent_log_funcs)
+        elif args.model_dqn:
+            self.agent = DQN_Model_Agent(args, self.exp_model, agent_log_funcs)
         else:
             self.agent = DDQN_Agent(args, self.exp_model, agent_log_funcs)
 

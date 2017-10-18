@@ -4,11 +4,10 @@ from torch.optim import Adam, RMSprop
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
-from Replay.ExpReplay_Options_Pseudo_Set import ExperienceReplay_Options_Pseudo_Set as ExpReplaySet
 from Models.Models import get_torch_models as get_models
 
 
-class DDQN_Agent:
+class DQN_Model_Agent:
 
     def __init__(self, args, exp_model, logging_func):
         self.args = args
@@ -19,10 +18,7 @@ class DDQN_Agent:
         self.log = logging_func["log"]
 
         # Experience Replay
-        if self.args.set_replay:
-            self.replay = ExpReplaySet(10, 10, exp_model, args, priority=False)
-        else:
-            self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
+        self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         # DQN and Target DQN
         model = get_models(args.model)
@@ -35,7 +31,7 @@ class DDQN_Agent:
             for s in weight.size():
                 weight_params *= s
             dqn_params += weight_params
-        print("DQN has {:,} parameters.".format(dqn_params))
+        print("Model DQN has {:,} parameters.".format(dqn_params))
 
         self.target_dqn.eval()
 
@@ -121,9 +117,7 @@ class DDQN_Agent:
             self.dqn.eval()
 
             # TODO: Use a named tuple for experience replay
-            n_step_sample = 1
-            if np.random.random() < self.args.n_step_mixing:
-                n_step_sample = self.args.n_step
+            n_step_sample = self.args.n_step
             batch, indices, is_weights = self.replay.Sample_N(self.args.batch_size, n_step_sample, self.args.gamma)
             columns = list(zip(*batch))
 
@@ -154,10 +148,18 @@ class DDQN_Agent:
             q_value_targets = q_value_targets + rewards
 
             self.dqn.train()
+
+            one_hot_actions = torch.zeros(self.args.batch_size, self.args.actions)
+
+            for i in range(self.args.batch_size):
+                one_hot_actions[i][actions[i].data] = 1
+
             if self.args.gpu:
                 actions = actions.cuda()
+                one_hot_actions = one_hot_actions.cuda()
                 q_value_targets = q_value_targets.cuda()
-            model_predictions = self.dqn(states).gather(1, actions.view(-1, 1))
+            model_predictions_q_vals, model_predictions_state = self.dqn(states, Variable(one_hot_actions))
+            model_predictions = model_predictions_q_vals.gather(1, actions.view(-1, 1))
 
             # info = {}
 
@@ -177,7 +179,16 @@ class DDQN_Agent:
                     weights_tensor = weights_tensor.cuda()
                 # print(weights_tensor)
                 td_error = td_error * weights_tensor
-            l2_loss = (td_error).pow(2).mean()
+
+            # Model 1 step state transition error
+            # print(model_predictions_state)
+            state_error = model_predictions_state - new_states
+            state_error_val = state_error.mean().data[0]
+            info["State_Error"] = state_error.mean().data[0]
+            self.log("DQN/State_Loss", state_error_val, step=self.T)
+
+            combined_loss = (1 - self.args.model_loss) * td_error.mean() + (self.args.model_loss) * state_error.mean()
+            l2_loss = (combined_loss).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
 
             # Update

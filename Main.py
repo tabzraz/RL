@@ -121,6 +121,9 @@ parser.add_argument("--v-min", type=int, default=-1)
 parser.add_argument("--v-max", type=int, default=1)
 parser.add_argument("--atoms", type=int, default=2)
 
+parser.add_argument("--model-dqn", action="store_true", default=False)
+parser.add_argument("--model-loss", type=float, default=0.25)
+
 args = parser.parse_args()
 
 if args.force_low_count_action or args.optimistic_init:
@@ -144,6 +147,8 @@ if args.nec:
     args.model = "NEC_" + args.model
 if args.distrib:
     args.model += "-Distrib"
+if args.model_dqn:
+    args.model += "-Model"
 
 print("\n" + "=" * 40)
 print(15 * " " + "Settings:" + " " * 15)
