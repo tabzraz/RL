@@ -141,7 +141,7 @@ class DeadlySnakingMaze(DeadlyGridWorld):
         # image[-2, -2] = 2
 
         # Add spikes
-        for aa, bb in [(uu, tt) for uu in range(num_rows) for tt in range(num_cols) if uu % 3 == 0 and tt % 3 == 0]:
+        for aa, bb in [(uu, tt) for uu in range(num_rows) for tt in range(num_cols) if uu % 2 == 0 and tt % 2 == 0 and (uu, tt) != (0, 0)]:
             suitable_place = False
             aa *= corridor_width
             bb *= corridor_width
