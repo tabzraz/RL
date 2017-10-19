@@ -3,10 +3,10 @@ from math import ceil
 
 envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
 target_network = 1000
-lrs = [0.001, 0.0001] # 0.0001
+lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
-betas = [0.01, 0.001] # 0.0001
+betas = [0.001] # 0.0001
 t_maxs = [x * 1000 for x in [1000]]
 cts_sizes = [12]
 num_seeds = 4
@@ -28,8 +28,8 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.1, 0.01, 0.001]
-state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
+optimism_scalers = [0.1, 0.01, 0.001]
+state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
@@ -47,6 +47,13 @@ v_min = -1
 v_max = +1
 if not distrib_agent:
     atoms = [1]
+
+model_agent = True
+model_save = 10000
+model_losses = [0.25, 0.5, 0.75, 0.9]
+if not model_agent:
+    model_loss = [0]
+
 
 SARSA = False
 sarsa_trains = [100, 1000]
@@ -128,7 +135,7 @@ for env in envs:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
-                                                                        for atom in atoms:
+                                                                        for model_loss in model_losses:
                                                                             for seed in seeds:
 
                                                                                 if state_action_mode != None and count is False:
@@ -174,8 +181,10 @@ for env in envs:
                                                                                     name += "_Double"
                                                                                 if tabular:
                                                                                     name += "_TABULAR"
-                                                                                if distrib_agent:
-                                                                                    name += "_DISTRIB_{}_Atoms".format(atom)
+                                                                                if model_agent:
+                                                                                    name += "_Model_{}_Loss".format(model_loss)
+                                                                                # if distrib_agent:
+                                                                                #     name += "_DISTRIB_{}_Atoms".format(atom)
                                                                                 if count:
                                                                                     stale = stale_val #int(xp_replay_size * stale_val)
                                                                                     if neg_reward:
@@ -255,9 +264,13 @@ for env in envs:
                                                                                         python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
                                                                                     if ucb_bandit:
                                                                                         python_command += " --ucb"
-                                                                                if distrib_agent:
-                                                                                    python_command += " --distrib"
-                                                                                    python_command += " --atoms {} --v-min {} --v-max {}".format(atom, v_min, v_max)
+                                                                                # if distrib_agent:
+                                                                                #     python_command += " --distrib"
+                                                                                #     python_command += " --atoms {} --v-min {} --v-max {}".format(atom, v_min, v_max)
+                                                                                if model_agent:
+                                                                                    python_command += " --model-dqn"
+                                                                                    python_command += " --model-loss {}".format(model_loss)
+                                                                                    python_command += " --model-save-image {}".format(model_save)
                                                                                 # if option:
                                                                                 #     if random_macros:
                                                                                 #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
