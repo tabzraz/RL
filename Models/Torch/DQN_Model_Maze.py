@@ -37,22 +37,25 @@ class DQN(nn.Module):
         # print(img_size)
         self.transition_fc1 = nn.Linear(128, img_size * img_size * 1)
         print("Transition FC1 {} -> {} x {} x {}".format(128, img_size, img_size, 8))
-        self.deconv1 = nn.ConvTranspose2d(1, 8, 4, padding=0, stride=2)
+        self.deconv1 = nn.ConvTranspose2d(1, 32, 4, padding=0, stride=2)
         img_size = (img_size - 1) * 2 + 4
         print("DeConv1, 4 x 4 filter, stride 2 -> {} x {} x {}".format(img_size, img_size, 8))
 
-        self.deconv2 = nn.ConvTranspose2d(8, 8, 4, padding=0, stride=2)
+        self.deconv2 = nn.ConvTranspose2d(32, 32, 4, padding=0, stride=2)
         img_size = (img_size - 1) * 2 + 4
         print("DeConv2, 4 x 4 filter, stride 2 -> {} x {} x {}".format(img_size, img_size, 8))
 
         # self.deconv3 = nn.ConvTranspose2d(8, 8, 2, padding=0, stride=1)
         # img_size = (img_size - 1) * 1 - 2 * 1 + 2
-        self.deconv3 = nn.Conv2d(8, 8, 3, stride=1, padding=1)
+        self.deconv3 = nn.Conv2d(32, 32, 3, stride=1, padding=1)
         img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
         print("DeConv3, 3 x 3 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 8))
-        self.deconv4 = nn.Conv2d(8, 1, 3, stride=1, padding=1)
+        self.deconv4 = nn.Conv2d(32, 32, 3, stride=1, padding=1)
         img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
-        print("DeConv4, 3 x 3 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 8))
+        print("DeConv4, 3 x 3 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 1))
+        self.deconv5 = nn.Conv2d(32, 1, 1, stride=1, padding=0)
+        # img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
+        print("DeConv5, 1 x 1 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 1))
 
         # self.deconv4 = nn.ConvTranspose2d(8, 1, 1, padding=0, stride=1)
         # img_size = (img_size - 1) * 1 + 1
@@ -81,9 +84,9 @@ class DQN(nn.Module):
         x = F.relu(self.fc1(x))
 
         if action is not None:
-            y = self.action_matrix(action)
+            ay = self.action_matrix(action)
             # print("Actioned",y)
-            y = y + x
+            y = ay * x
             # print("Added", y)
             y = self.transition_fc1(y)
             # print("Transed", y)
@@ -92,10 +95,11 @@ class DQN(nn.Module):
             # print("View", y)
             y = F.relu(self.deconv1(y))
             y = F.relu(self.deconv2(y))
-            y = y + input_state.expand(x.size()[0], 8, y.size()[2], y.size()[3])
+            y = y + input_state.expand(x.size()[0], 32, y.size()[2], y.size()[3])
             y = F.relu(self.deconv3(y))
             # print("deconv1",y)
-            y = self.deconv4(y)
+            y = F.relu(self.deconv4(y))
+            y = self.deconv5(y)
 
             # Residual connection
             # y = y + input_state

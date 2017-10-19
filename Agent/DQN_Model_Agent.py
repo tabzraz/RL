@@ -218,7 +218,9 @@ class DQN_Model_Agent:
 
             info["State_Error"] = state_error.mean().data[0]
             self.log("DQN/State_Loss", state_error.mean().data[0], step=self.T)
-            self.log("DQN/State_Loss_Max", state_error.max().data[0], step=self.T)
+            self.log("DQN/State_Loss_Squared", state_error.pow(2).mean().data[0], step=self.T)
+            self.log("DQN/State_Loss_Max", state_error.abs().max().data[0], step=self.T)
+            self.log("DQN/Action_Matrix_Norm", self.dqn.action_matrix.weight.norm().cpu().data[0], step=self.T)
 
             combined_loss = (1 - self.args.model_loss) * td_error.pow(2).mean() + (self.args.model_loss) * state_error.pow(2).mean()
             l2_loss = combined_loss
