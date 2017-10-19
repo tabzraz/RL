@@ -5,6 +5,7 @@ from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm
 from Replay.ExpReplay_Options_Pseudo import ExperienceReplay_Options_Pseudo as ExpReplay
 from Models.Models import get_torch_models as get_models
+import os
 
 
 class DQN_Model_Agent:
@@ -16,13 +17,17 @@ class DQN_Model_Agent:
         self.exp_model = exp_model
 
         self.log = logging_func["log"]
+        self.log_image = logging_func["image"]
+        os.makedirs("{}/transition_model".format(args.log_path))
 
         # Experience Replay
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
 
         # DQN and Target DQN
         model = get_models(args.model)
+        print("\n\nDQN")
         self.dqn = model(actions=args.actions)
+        print("Target DQN")
         self.target_dqn = model(actions=args.actions)
 
         dqn_params = 0
@@ -158,6 +163,7 @@ class DQN_Model_Agent:
                 actions = actions.cuda()
                 one_hot_actions = one_hot_actions.cuda()
                 q_value_targets = q_value_targets.cuda()
+                new_states = new_states.cuda()
             model_predictions_q_vals, model_predictions_state = self.dqn(states, Variable(one_hot_actions))
             model_predictions = model_predictions_q_vals.gather(1, actions.view(-1, 1))
 
@@ -181,14 +187,42 @@ class DQN_Model_Agent:
                 td_error = td_error * weights_tensor
 
             # Model 1 step state transition error
-            # print(model_predictions_state)
-            state_error = model_predictions_state - new_states
-            state_error_val = state_error.mean().data[0]
-            info["State_Error"] = state_error.mean().data[0]
-            self.log("DQN/State_Loss", state_error_val, step=self.T)
 
-            combined_loss = (1 - self.args.model_loss) * td_error.mean() + (self.args.model_loss) * state_error.mean()
-            l2_loss = (combined_loss).pow(2).mean()
+            # Save them every x steps
+            if self.T % self.args.model_save_image == 0:
+                os.makedirs("{}/transition_model/{}".format(self.args.log_path, self.T))
+                for ii, image, action, next_state, current_state in zip(range(self.args.batch_size), model_predictions_state.cpu().data, actions.data, new_states.cpu().data, states.cpu().data):
+                    image = image.numpy()[0]
+                    image = np.clip(image, 0, 1)
+                    # print(next_state)
+                    next_state = next_state.numpy()[0]
+                    current_state = current_state.numpy()[0]
+
+                    black_bars = np.zeros_like(next_state[:, :1])
+                    # print(black_bars.shape)
+
+                    joined_image = np.concatenate((current_state, black_bars, image, black_bars, next_state), axis=1)
+                    self.log_image("{}/transition_model/{}/{}_____Action_{}".format(self.args.log_path, self.T, ii + 1, action), joined_image * 255)
+
+                    # self.log_image("{}/transition_model/{}/{}_____Action_{}".format(self.args.log_path, self.T, ii + 1, action), image * 255)
+                    # self.log_image("{}/transition_model/{}/{}_____Correct".format(self.args.log_path, self.T, ii + 1), next_state * 255)
+
+            # print(model_predictions_state)
+
+            # Cross Entropy Loss
+            # TODO
+
+            # Regresssion loss
+            state_error = model_predictions_state - new_states
+            # state_error_val = state_error.mean().data[0]
+
+            info["State_Error"] = state_error.mean().data[0]
+            self.log("DQN/State_Loss", state_error.mean().data[0], step=self.T)
+            self.log("DQN/State_Loss_Max", state_error.max().data[0], step=self.T)
+
+            combined_loss = (1 - self.args.model_loss) * td_error.pow(2).mean() + (self.args.model_loss) * state_error.pow(2).mean()
+            l2_loss = combined_loss
+            # l2_loss = (combined_loss).pow(2).mean()
             info["Loss"] = l2_loss.data[0]
 
             # Update
