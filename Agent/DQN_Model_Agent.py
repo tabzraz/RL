@@ -52,12 +52,21 @@ class DQN_Model_Agent:
         self.T = 0
         self.target_sync_T = -self.args.t_max
 
+        # Action sequences
+        self.actions_to_take = []
+
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
     def act(self, state, epsilon, exp_model, evaluation=False):
         # self.T += 1
+        if not evaluation:
+            if len(self.actions_to_take) > 0:
+                action_to_take = self.actions_to_take[0]
+                self.actions_to_take = self.actions_to_take[1:]
+                return action_to_take, {}
+
         self.dqn.eval()
         orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
@@ -66,30 +75,60 @@ class DQN_Model_Agent:
 
         extra_info = {}
 
-        if self.args.optimistic_init and not evaluation:
-            q_values_pre_bonus = np.copy(q_values_numpy)
-            if not self.args.ucb:
-                for a in range(self.args.actions):
-                    _, info = exp_model.bonus(orig_state, a, dont_remember=True)
-                    action_pseudo_count = info["Pseudo_Count"]
-                    # TODO: Log the optimism bonuses
-                    optimism_bonus = self.args.optimistic_scaler / np.sqrt(action_pseudo_count + 0.01)
-                    self.log("Bandit/Action_{}".format(a), optimism_bonus, step=self.T)
-                    q_values[a] += optimism_bonus
-            else:
-                action_counts = []
-                for a in range(self.args.actions):
-                    _, info = exp_model.bonus(orig_state, a, dont_remember=True)
-                    action_pseudo_count = info["Pseudo_Count"]
-                    action_counts.append(action_pseudo_count)
-                total_count = sum(action_counts)
-                for ai, a in enumerate(action_counts):
-                    # TODO: Log the optimism bonuses
-                    optimisim_bonus = self.args.optimistic_scaler * np.sqrt(2 * np.log(max(1, total_count)) / (a + 0.01))
-                    self.log("Bandit/UCB/Action_{}".format(ai), optimisim_bonus, step=self.T)
-                    q_values[ai] += optimisim_bonus
+        if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0:
 
-            extra_info["Action_Bonus"] = q_values_numpy - q_values_pre_bonus
+            # 2 action lookahead
+            optimistic_estimates = []
+            for action_1 in range(self.args.actions):
+                second_action_estimates = []
+
+                one_hot_action_1 = torch.zeros(1, self.args.actions)
+                one_hot_action_1[0, action_1] = 1
+                first_state_qvals, next_state_prediction = self.dqn(Variable(state, volatile=True), Variable(one_hot_action_1, volatile=True))
+
+                next_state_qvals = self.dqn(next_state_prediction).cpu()
+                next_state_qvals = next_state_qvals.data[0].numpy()
+
+                first_state_qvals = first_state_qvals.data[0].numpy()
+
+                action_1_reward = first_state_qvals[action_1] - self.args.gamma * np.argmax(next_state_qvals)
+
+                numpy_state = state[0].numpy()
+                numpy_state = np.swapaxes(numpy_state, 0, 2)
+                _, info = exp_model.bonus(numpy_state, action_1, dont_remember=True)
+                action_1_pseudo_count = info["Pseudo_Count"]
+                action_1_bonus = self.args.optimistic_scaler / np.sqrt(action_1_pseudo_count + 0.01)
+
+                next_state_numpy = next_state_prediction.data[0].numpy()
+                next_state_numpy = np.swapaxes(next_state_numpy, 0, 2)
+
+                for action_2 in range(self.args.actions):
+                    action_2_q_val = next_state_qvals[action_2]
+
+                    _, info = exp_model.bonus(next_state_numpy, action_2, dont_remember=True)
+                    action_2_pseudo_count = info["Pseudo_Count"]
+                    action_2_bonus = self.args.optimistic_scaler / np.sqrt(action_2_pseudo_count + 0.01)
+
+                    seq_optimistic_estimate = action_1_reward + action_1_bonus + self.args.gamma * (action_2_q_val + action_2_bonus)
+                    # print(action_1_reward, action_1_bonus)
+                    # print("Esimate",seq_optimistic_estimate)
+                    second_action_estimates.append(seq_optimistic_estimate)
+
+                # print(second_action_estimates)
+                optimistic_estimates.append(second_action_estimates)
+
+            # print(optimistic_estimates)
+            # Find the maximum sequence 
+            max_so_far = -100000
+            best_seq = [0, 0]
+            for action_1 in range(self.args.actions):
+                for action_2 in range(self.args.actions):
+                    # print(optimistic_estimates[action_1], optimistic_estimates[action_1][action_2])
+                    if optimistic_estimates[action_1][action_2] > max_so_far:
+                        max_so_far = optimistic_estimates[action_1][action_2]
+                        best_seq = [action_1, action_2]
+
+            self.actions_to_take = best_seq
 
         extra_info["Q_Values"] = q_values_numpy
 
