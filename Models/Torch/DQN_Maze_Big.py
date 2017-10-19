@@ -10,16 +10,29 @@ class DQN(nn.Module):
         self.actions = actions
 
         img_size = input_size[1]
+        print("\n---DQN Architecture---")
+        print("Input: {} x {} x 1".format(img_size, img_size))
         self.conv1 = nn.Conv2d(1, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+
         self.conv2 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+
         self.conv3 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+ 
         self.conv4 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+ 
         self.fc1 = nn.Linear(img_size * img_size * 32, 128)
+        print("FC1 {} -> {}".format(img_size * img_size * 32, 128))
+
         self.qvals = nn.Linear(128, actions)
+        print("---\nQVals {} -> {}".format(128, actions))
         # self.value_branch = nn.Linear(128, 1)
         # self.adv_branch = nn.Linear(128, actions)
 

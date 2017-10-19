@@ -123,7 +123,7 @@ parser.add_argument("--atoms", type=int, default=2)
 
 parser.add_argument("--model-dqn", action="store_true", default=False)
 parser.add_argument("--model-loss", type=float, default=0.25)
-parser.add_argument("--model-save-image", type=int, default=1000)
+parser.add_argument("--model-save-image", type=int, default=10000)
 
 args = parser.parse_args()
 

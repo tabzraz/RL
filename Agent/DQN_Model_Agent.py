@@ -198,10 +198,11 @@ class DQN_Model_Agent:
                     next_state = next_state.numpy()[0]
                     current_state = current_state.numpy()[0]
 
-                    black_bars = np.zeros_like(next_state[:, :1])
+                    black_bars = np.zeros_like(next_state[:1, :])
                     # print(black_bars.shape)
 
-                    joined_image = np.concatenate((current_state, black_bars, image, black_bars, next_state), axis=1)
+                    joined_image = np.concatenate((current_state, black_bars, image, black_bars, next_state), axis=0)
+                    joined_image = np.transpose(joined_image)
                     self.log_image("{}/transition_model/{}/{}_____Action_{}".format(self.args.log_path, self.T, ii + 1, action), joined_image * 255)
 
                     # self.log_image("{}/transition_model/{}/{}_____Action_{}".format(self.args.log_path, self.T, ii + 1, action), image * 255)
@@ -220,7 +221,7 @@ class DQN_Model_Agent:
             self.log("DQN/State_Loss", state_error.mean().data[0], step=self.T)
             self.log("DQN/State_Loss_Squared", state_error.pow(2).mean().data[0], step=self.T)
             self.log("DQN/State_Loss_Max", state_error.abs().max().data[0], step=self.T)
-            self.log("DQN/Action_Matrix_Norm", self.dqn.action_matrix.weight.norm().cpu().data[0], step=self.T)
+            # self.log("DQN/Action_Matrix_Norm", self.dqn.action_matrix.weight.norm().cpu().data[0], step=self.T)
 
             combined_loss = (1 - self.args.model_loss) * td_error.pow(2).mean() + (self.args.model_loss) * state_error.pow(2).mean()
             l2_loss = combined_loss
