@@ -81,6 +81,8 @@ class DQN(nn.Module):
     def forward(self, x, action=None):
         if next(self.parameters()).is_cuda:
             x = x.cuda()
+            if action is not None:
+                action = action.cuda()
 
         if action is not None:
             input_state = x + 0
