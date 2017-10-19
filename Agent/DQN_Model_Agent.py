@@ -85,6 +85,8 @@ class DQN_Model_Agent:
                 one_hot_action_1 = torch.zeros(1, self.args.actions)
                 one_hot_action_1[0, action_1] = 1
                 first_state_qvals, next_state_prediction = self.dqn(Variable(state, volatile=True), Variable(one_hot_action_1, volatile=True))
+                first_state_qvals = first_state_qvals.cpu()
+                next_state_prediction = next_state_prediction.cpu()
 
                 next_state_qvals = self.dqn(next_state_prediction).cpu()
                 next_state_qvals = next_state_qvals.data[0].numpy()
