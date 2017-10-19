@@ -65,7 +65,7 @@ class DQN_Model_Agent:
             if len(self.actions_to_take) > 0:
                 action_to_take = self.actions_to_take[0]
                 self.actions_to_take = self.actions_to_take[1:]
-                return action_to_take, {}
+                return action_to_take, {"Action": action_to_take, "Q_Values": np.array([0 for _ in range(self.args.actions)])}
 
         self.dqn.eval()
         orig_state = state[:, :, -1:]
