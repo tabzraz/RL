@@ -59,6 +59,39 @@ class DQN_Model_Agent:
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
             target.data = source.data
 
+
+    def get_pc_estimates(self, root_state, depth=0, starts=None):
+        state = root_state
+        bonuses = []
+        for action in range(self.args.actions):
+
+            # Current pc estimates
+            numpy_state = state.data[0].numpy().swapaxes(0, 2)
+            _, info = self.exp_model.bonus(numpy_state, action, dont_remember=True)
+            action_pseudo_count = info["Pseudo_Count"]
+            action_bonus = self.args.optimistic_scaler / np.power(action_pseudo_count + 0.01, self.args.bandit_p)
+            if starts is not None:
+                action_bonus += starts[action]
+
+
+            # If the depth is 0 we don't want to look any further ahead
+            if depth == 0:
+                bonuses.append(action_bonus)
+                continue
+
+            one_hot_action = torch.zeros(1, self.args.actions)
+            one_hot_action[0, action] = 1
+            _, next_state_prediction = self.dqn(Variable(state, volatile=True), Variable(one_hot_action, volatile=True))
+            next_state_prediction = next_state_prediction.cpu()
+
+            next_state_pc_estimates = self.get_pc_estimates(next_state_prediction, depth=depth - 1)
+
+            ahead_pc_estimates = [action_bonus + self.args.gamma * n for n in next_state_pc_estimates]
+
+            bonuses.concatenate(ahead_pc_estimates)
+
+        return bonuses
+
     def act(self, state, epsilon, exp_model, evaluation=False):
         # self.T += 1
         if not evaluation:
@@ -68,7 +101,7 @@ class DQN_Model_Agent:
                 return action_to_take, {"Action": action_to_take, "Q_Values": np.array([0 for _ in range(self.args.actions)])}
 
         self.dqn.eval()
-        orig_state = state[:, :, -1:]
+        # orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
         q_values_numpy = q_values.numpy()
@@ -78,59 +111,22 @@ class DQN_Model_Agent:
         if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0 and self.args.lookahead_plan:
 
             # 2 action lookahead
-            optimistic_estimates = []
-            for action_1 in range(self.args.actions):
-                second_action_estimates = []
+            action_bonuses = self.get_pc_estimates(state, depth=self.args.lookahead_depth, starts=q_values_numpy)
 
-                one_hot_action_1 = torch.zeros(1, self.args.actions)
-                one_hot_action_1[0, action_1] = 1
-                first_state_qvals, next_state_prediction = self.dqn(Variable(state, volatile=True), Variable(one_hot_action_1, volatile=True))
-                first_state_qvals = first_state_qvals.cpu()
-                next_state_prediction = next_state_prediction.cpu()
-
-                next_state_qvals = self.dqn(next_state_prediction).cpu()
-                next_state_qvals = next_state_qvals.data[0].numpy()
-
-                first_state_qvals = first_state_qvals.data[0].numpy()
-
-                # action_1_reward = first_state_qvals[action_1] - self.args.gamma * np.argmax(next_state_qvals)
-
-                numpy_state = state[0].numpy()
-                numpy_state = np.swapaxes(numpy_state, 0, 2)
-                _, info = exp_model.bonus(numpy_state, action_1, dont_remember=True)
-                action_1_pseudo_count = info["Pseudo_Count"]
-                action_1_bonus = self.args.optimistic_scaler / np.sqrt(action_1_pseudo_count + 0.01)
-
-                next_state_numpy = next_state_prediction.data[0].numpy()
-                next_state_numpy = np.swapaxes(next_state_numpy, 0, 2)
-
-                for action_2 in range(self.args.actions):
-                    action_2_q_val = next_state_qvals[action_2]
-
-                    _, info = exp_model.bonus(next_state_numpy, action_2, dont_remember=True)
-                    action_2_pseudo_count = info["Pseudo_Count"]
-                    action_2_bonus = self.args.optimistic_scaler / np.sqrt(action_2_pseudo_count + 0.01)
-
-                    # No extrinsic reward at the moment
-                    action_1_reward = 0
-                    seq_optimistic_estimate = action_1_reward + action_1_bonus + self.args.gamma * (action_2_q_val + action_2_bonus)
-                    # print(action_1_reward, action_1_bonus)
-                    # print("Esimate",seq_optimistic_estimate)
-                    second_action_estimates.append(seq_optimistic_estimate)
-
-                # print(second_action_estimates)
-                optimistic_estimates.append(second_action_estimates)
-
-            # print(optimistic_estimates)
             # Find the maximum sequence 
             max_so_far = -100000
-            best_seq = [0, 0]
-            for action_1 in range(self.args.actions):
-                for action_2 in range(self.args.actions):
-                    # print(optimistic_estimates[action_1], optimistic_estimates[action_1][action_2])
-                    if optimistic_estimates[action_1][action_2] > max_so_far:
-                        max_so_far = optimistic_estimates[action_1][action_2]
-                        best_seq = [action_1, action_2]
+            best_index = 0
+            best_seq = None
+
+            for ii, bonus in enumerate(action_bonuses):
+                if bonus > max_so_far:
+                    best_index = ii
+                    max_so_far = bonus
+
+            for depth in range(self.args.lookahead_depth):
+                last_action = best_index % self.args.actions
+                best_index = best_index // self.args.actions
+                best_seq = best_seq + [last_action]
 
             self.actions_to_take = best_seq
 
