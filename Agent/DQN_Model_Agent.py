@@ -75,7 +75,7 @@ class DQN_Model_Agent:
 
         extra_info = {}
 
-        if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0:
+        if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0 and self.args.lookahead_plan:
 
             # 2 action lookahead
             optimistic_estimates = []
@@ -93,7 +93,7 @@ class DQN_Model_Agent:
 
                 first_state_qvals = first_state_qvals.data[0].numpy()
 
-                action_1_reward = first_state_qvals[action_1] - self.args.gamma * np.argmax(next_state_qvals)
+                # action_1_reward = first_state_qvals[action_1] - self.args.gamma * np.argmax(next_state_qvals)
 
                 numpy_state = state[0].numpy()
                 numpy_state = np.swapaxes(numpy_state, 0, 2)
@@ -111,6 +111,8 @@ class DQN_Model_Agent:
                     action_2_pseudo_count = info["Pseudo_Count"]
                     action_2_bonus = self.args.optimistic_scaler / np.sqrt(action_2_pseudo_count + 0.01)
 
+                    # No extrinsic reward at the moment
+                    action_1_reward = 0
                     seq_optimistic_estimate = action_1_reward + action_1_bonus + self.args.gamma * (action_2_q_val + action_2_bonus)
                     # print(action_1_reward, action_1_bonus)
                     # print("Esimate",seq_optimistic_estimate)

@@ -28,7 +28,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0.1, 0.01, 0.001]
+optimism_scalers = [0.01, 0.001]
 state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
@@ -50,9 +50,11 @@ if not distrib_agent:
 
 model_agent = True
 model_save = 10000
-model_losses = [0.25, 0.5, 0.75, 0.9]
+model_losses = [0.25, 0.5, 0.75]
+model_lookaheads = [False, True]
 if not model_agent:
     model_loss = [0]
+    model_lookaheads = [False]
 
 
 SARSA = False
@@ -135,7 +137,7 @@ for env in envs:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
-                                                                        for model_loss in model_losses:
+                                                                        for model_loss, model_lookahead in [(ml, mla) for ml in model_losses for mla in model_lookaheads]:
                                                                             for seed in seeds:
 
                                                                                 if state_action_mode != None and count is False:
@@ -182,7 +184,7 @@ for env in envs:
                                                                                 if tabular:
                                                                                     name += "_TABULAR"
                                                                                 if model_agent:
-                                                                                    name += "_Model_{}_Loss".format(model_loss)
+                                                                                    name += "_Model_{}_Loss_{}_Look".format(model_loss, model_lookahead)
                                                                                 # if distrib_agent:
                                                                                 #     name += "_DISTRIB_{}_Atoms".format(atom)
                                                                                 if count:
@@ -271,6 +273,8 @@ for env in envs:
                                                                                     python_command += " --model-dqn"
                                                                                     python_command += " --model-loss {}".format(model_loss)
                                                                                     python_command += " --model-save-image {}".format(model_save)
+                                                                                    if model_lookahead:
+                                                                                        python_command += " --lookahead-plan"
                                                                                 # if option:
                                                                                 #     if random_macros:
                                                                                 #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
