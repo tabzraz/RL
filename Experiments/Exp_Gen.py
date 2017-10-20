@@ -28,7 +28,8 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0.01, 0.001]
+optimism_scalers = [1, 0.1, 0.01, 0.001]
+bandit_ps = [(1/4), (1/2), (1), (2)]
 state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
@@ -48,12 +49,12 @@ v_max = +1
 if not distrib_agent:
     atoms = [1]
 
-model_agent = True
+model_agent = False
 model_save = 10000
 model_losses = [0.25, 0.5, 0.75]
 model_lookaheads = [False, True]
 if not model_agent:
-    model_loss = [0]
+    model_losses = [0]
     model_lookaheads = [False]
 
 
@@ -133,7 +134,7 @@ for env in envs:
                                             for cts_size in cts_sizes:
                                                 for neg_reward, neg_reward_scaler in negative_rewards:
                                                     for prioritized, is_weight, neg_scaler, sub_pseudo_reward, alpha in prioritizeds:
-                                                        for sarsa_train in sarsa_trains:
+                                                        for bandit_p in bandit_ps:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
@@ -199,7 +200,7 @@ for env in envs:
                                                                                     elif state_action_mode == "Optimistic":
                                                                                         if ucb_bandit:
                                                                                             name += "_UCB"
-                                                                                        name += "_Bandit_{}_Scaler".format(o_scaler)
+                                                                                        name += "_{}_Bandit_{}_Scaler".format(bandit_p, o_scaler)
                                                                                     elif state_action_mode == "Force":
                                                                                         name += "_ForceAction_{}_FCount".format(f_scaler)
 
@@ -262,6 +263,7 @@ for env in envs:
                                                                                         python_command += " --count-state-action"
                                                                                     elif state_action_mode == "Optimistic":
                                                                                         python_command += " --optimistic-init --optimistic-scaler {}".format(o_scaler)
+                                                                                        python_command += " --bandit-p {}".format(bandit_p)
                                                                                     elif state_action_mode == "Force":
                                                                                         python_command += " --force-low-count-action --min-action-count {}".format(f_scaler)
                                                                                     if ucb_bandit:
