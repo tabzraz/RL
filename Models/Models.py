@@ -66,9 +66,9 @@ for n in range(50):
     def model_creator(actions, size=n):
         return DQN_Maze.DQN(input_size=(1, size * 3, size * 3), actions=actions)
 
-    torch_models["Thin-Maze-{}-v0".format(n)] = model_creator
-    torch_models["Thin-Maze-{}-Neg-v0".format(n)] = model_creator
-    torch_models["Thin-Maze-{}-Deadly-v0".format(n)] = model_creator
+    torch_models["Thin-Maze-{}-v0".format(n)] = model_creator_big
+    torch_models["Thin-Maze-{}-Neg-v0".format(n)] = model_creator_big
+    torch_models["Thin-Maze-{}-Deadly-v0".format(n)] = model_creator_big
 
     def model_creator_big(actions, size=n):
         return DQN_Maze_FC.DQN(input_size=(1, size * 3, size * 3), actions=actions)
