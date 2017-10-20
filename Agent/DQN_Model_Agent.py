@@ -66,7 +66,7 @@ class DQN_Model_Agent:
         for action in range(self.args.actions):
 
             # Current pc estimates
-            numpy_state = state.data[0].numpy().swapaxes(0, 2)
+            numpy_state = state[0].numpy().swapaxes(0, 2)
             _, info = self.exp_model.bonus(numpy_state, action, dont_remember=True)
             action_pseudo_count = info["Pseudo_Count"]
             action_bonus = self.args.optimistic_scaler / np.power(action_pseudo_count + 0.01, self.args.bandit_p)
@@ -82,13 +82,13 @@ class DQN_Model_Agent:
             one_hot_action = torch.zeros(1, self.args.actions)
             one_hot_action[0, action] = 1
             _, next_state_prediction = self.dqn(Variable(state, volatile=True), Variable(one_hot_action, volatile=True))
-            next_state_prediction = next_state_prediction.cpu()
+            next_state_prediction = next_state_prediction.cpu().data
 
             next_state_pc_estimates = self.get_pc_estimates(next_state_prediction, depth=depth - 1)
 
             ahead_pc_estimates = [action_bonus + self.args.gamma * n for n in next_state_pc_estimates]
 
-            bonuses.concatenate(ahead_pc_estimates)
+            bonuses += ahead_pc_estimates
 
         return bonuses
 
@@ -98,17 +98,18 @@ class DQN_Model_Agent:
             if len(self.actions_to_take) > 0:
                 action_to_take = self.actions_to_take[0]
                 self.actions_to_take = self.actions_to_take[1:]
-                return action_to_take, {"Action": action_to_take, "Q_Values": np.array([0 for _ in range(self.args.actions)])}
+                return action_to_take, {"Action": action_to_take, "Q_Values": self.prev_q_vals}
 
         self.dqn.eval()
         # orig_state = state[:, :, -1:]
         state = torch.from_numpy(state).float().transpose_(0, 2).unsqueeze(0)
         q_values = self.dqn(Variable(state, volatile=True)).cpu().data[0]
         q_values_numpy = q_values.numpy()
+        self.prev_q_vals = q_values_numpy
 
         extra_info = {}
 
-        if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0 and self.args.lookahead_plan:
+        if self.args.optimistic_init and not evaluation and len(self.actions_to_take) == 0:
 
             # 2 action lookahead
             action_bonuses = self.get_pc_estimates(state, depth=self.args.lookahead_depth, starts=q_values_numpy)
@@ -116,7 +117,7 @@ class DQN_Model_Agent:
             # Find the maximum sequence 
             max_so_far = -100000
             best_index = 0
-            best_seq = None
+            best_seq = []
 
             for ii, bonus in enumerate(action_bonuses):
                 if bonus > max_so_far:
@@ -128,6 +129,7 @@ class DQN_Model_Agent:
                 best_index = best_index // self.args.actions
                 best_seq = best_seq + [last_action]
 
+            # print(best_seq)
             self.actions_to_take = best_seq
 
         extra_info["Q_Values"] = q_values_numpy

@@ -28,8 +28,8 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [1, 0.1, 0.01, 0.001]
-bandit_ps = [(1/4), (1/2), (1), (2)]
+optimism_scalers = [0.01, 0.001]
+bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
@@ -49,13 +49,13 @@ v_max = +1
 if not distrib_agent:
     atoms = [1]
 
-model_agent = False
+model_agent = True
 model_save = 10000
 model_losses = [0.25, 0.5, 0.75]
-model_lookaheads = [False, True]
+model_depths = [0, 1, 2]
 if not model_agent:
     model_losses = [0]
-    model_lookaheads = [False]
+    model_depths = [False]
 
 
 SARSA = False
@@ -138,7 +138,7 @@ for env in envs:
                                                             for set_replay, set_replay_num in set_replays:
                                                                 for double in doubles:
                                                                     for bonus_replay_size, bonus_replay_threshold in [(a, b)for a in bonus_replay_sizes for b in bonus_replay_thresholds]:
-                                                                        for model_loss, model_lookahead in [(ml, mla) for ml in model_losses for mla in model_lookaheads]:
+                                                                        for model_loss, model_depth in [(ml, mla) for ml in model_losses for mla in model_depths]:
                                                                             for seed in seeds:
 
                                                                                 if state_action_mode != None and count is False:
@@ -185,7 +185,7 @@ for env in envs:
                                                                                 if tabular:
                                                                                     name += "_TABULAR"
                                                                                 if model_agent:
-                                                                                    name += "_Model_{}_Loss_{}_Look".format(model_loss, model_lookahead)
+                                                                                    name += "_Model_{}_Loss_{}_Look".format(model_loss, model_depth)
                                                                                 # if distrib_agent:
                                                                                 #     name += "_DISTRIB_{}_Atoms".format(atom)
                                                                                 if count:
@@ -275,8 +275,9 @@ for env in envs:
                                                                                     python_command += " --model-dqn"
                                                                                     python_command += " --model-loss {}".format(model_loss)
                                                                                     python_command += " --model-save-image {}".format(model_save)
-                                                                                    if model_lookahead:
-                                                                                        python_command += " --lookahead-plan"
+                                                                                    python_command += " --lookahead-depth {}".format(model_depth)
+                                                                                    # if model_lookahead:
+                                                                                        # python_command += " --lookahead-plan"
                                                                                 # if option:
                                                                                 #     if random_macros:
                                                                                 #         python_command += " --options Random_Macros --num-macros {} --max-macro-length {} --macro-seed {}".format(num_macro, max_macro_length, macro_seed)
