@@ -128,6 +128,7 @@ parser.add_argument("--model-loss", type=float, default=0.25)
 parser.add_argument("--model-save-image", type=int, default=10000)
 parser.add_argument("--lookahead-plan", action="store_true", default=False)
 parser.add_argument("--lookahead-depth", type=int, default=1)
+parser.add_argument("--only-leaf", action="store_true", default=False)
 
 args = parser.parse_args()
 

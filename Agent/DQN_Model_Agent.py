@@ -66,13 +66,13 @@ class DQN_Model_Agent:
         for action in range(self.args.actions):
 
             # Current pc estimates
-            numpy_state = state[0].numpy().swapaxes(0, 2)
-            _, info = self.exp_model.bonus(numpy_state, action, dont_remember=True)
-            action_pseudo_count = info["Pseudo_Count"]
-            action_bonus = self.args.optimistic_scaler / np.power(action_pseudo_count + 0.01, self.args.bandit_p)
-            if starts is not None:
-                action_bonus += starts[action]
-
+            if depth == 0 or not self.args.only_leaf:
+                numpy_state = state[0].numpy().swapaxes(0, 2)
+                _, info = self.exp_model.bonus(numpy_state, action, dont_remember=True)
+                action_pseudo_count = info["Pseudo_Count"]
+                action_bonus = self.args.optimistic_scaler / np.power(action_pseudo_count + 0.01, self.args.bandit_p)
+                if starts is not None:
+                    action_bonus += starts[action]
 
             # If the depth is 0 we don't want to look any further ahead
             if depth == 0:
@@ -86,9 +86,11 @@ class DQN_Model_Agent:
 
             next_state_pc_estimates = self.get_pc_estimates(next_state_prediction, depth=depth - 1)
 
-            ahead_pc_estimates = [action_bonus + self.args.gamma * n for n in next_state_pc_estimates]
-
-            bonuses += ahead_pc_estimates
+            if self.args.only_leaf:
+                bonuses += next_state_pc_estimates
+            else:
+                ahead_pc_estimates = [action_bonus + self.args.gamma * n for n in next_state_pc_estimates]
+                bonuses += ahead_pc_estimates
 
         return bonuses
 

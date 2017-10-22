@@ -14,60 +14,77 @@ class DQN(nn.Module):
         # print("{} x {} -> img_size)
         print("\n---DQN Architecture---")
         print("Input: {} x {} x 1".format(img_size, img_size))
-        self.conv1 = nn.Conv2d(1, 16, 4, stride=2)
-        img_size = int((img_size + 2 * 0 - 4) / 2 + 1)
-        print("Conv1, 4 x 4 filter, stride 2 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 16))
-        # print(img_size)
-        self.conv2 = nn.Conv2d(16, 16, 4, stride=2)
-        img_size = int((img_size + 2 * 0 - 4) / 2 + 1)
-        print("Conv2, 4 x 4 filter, stride 2 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 16))
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1, stride=2)
+        img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
 
-        self.conv3 = nn.Conv2d(16, 16, 4, stride=1)
-        img_size = int((img_size + 2 * 0 - 4) / 1 + 1)
-        print("Conv3, 4 x 4 filter, stride 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 16))
+        self.conv2 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
+        img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv2, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+
+        self.conv3 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
+        img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv3, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
+ 
+        self.conv4 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
+        img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
+        print("Conv4, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
 
         # print(img_size)
         # self.conv3 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         # img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
         # self.conv4 = nn.Conv2d(32, 32, 3, padding=1, stride=2)
         # img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
-        self.fc1 = nn.Linear(img_size * img_size * 16, 128)
-        print("FC1 {} -> {}".format(img_size * img_size * 16, 128))
+        self.fc1 = nn.Linear(img_size * img_size * 32, 128)
+        print("FC1 {} -> {}".format(img_size * img_size * 32, 128))
+        # self.qvals1 = nn.Linear(128, 128)
+        print("---")
+        # print("QHead {} -> {}".format(128, 128))
         self.qvals = nn.Linear(128, actions)
-        print("---\nQVals {} -> {}".format(128, actions))
+        print("QVals {} -> {}".format(128, actions))
 
         self.action_matrix = nn.Linear(actions, 128)
         print("---\nActions {} -> {}".format(actions, 128))
+        print("Actions x Embedding 128 -> 128")
 
         self.img_size = img_size
         # print(img_size)
         # gg = 128 // (img_size * img_size)
-        self.transition_fc1 = nn.Linear(128, img_size * img_size * 16)
-        print("Transition FC1 {} -> {}".format(128, img_size * img_size * 16))
-        print("Reshape {} -> {} x {} x {}".format(img_size * img_size * 16, img_size, img_size, 16))
-        self.deconv1 = nn.ConvTranspose2d(16, 32, 4, padding=0, stride=1)
-        img_size = (img_size - 1) * 1 + 4
-        print("DeConv1, 4 x 4 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 32))
+        self.transition_fc1 = nn.Linear(128, img_size * img_size * 32)
+        print("Transition FC1 {} -> {}".format(128, img_size * img_size * 32))
+        print("Reshape {} -> {} x {} x {}".format(img_size * img_size * 32, img_size, img_size, 32))
 
-        self.deconv2 = nn.ConvTranspose2d(32, 32, 4, padding=0, stride=2)
-        img_size = (img_size - 1) * 2 + 4
-        print("DeConv2, 4 x 4 filter, stride 2 -> {} x {} x {}".format(img_size, img_size, 32))
+        filter_size = 3
+        deconv_stride = 2
 
-        self.deconv2_ = nn.ConvTranspose2d(32, 32, 4, padding=0, stride=2)
-        img_size = (img_size - 1) * 2 + 4
-        print("DeConv2_, 4 x 4 filter, stride 2 -> {} x {} x {}".format(img_size, img_size, 32))
+        self.deconv1 = nn.ConvTranspose2d(32, 32, filter_size, padding=1, stride=3)
+        img_size = (img_size - 1) * 3 + filter_size - 2 * 1 + 0 * 1
+        print("DeConv1, 3 x 3 filter, stride 3, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
 
+        self.deconv2 = nn.ConvTranspose2d(32, 32, filter_size, padding=0, stride=1, output_padding=2)
+        img_size = (img_size - 1) * 1 + filter_size + 2
+        print("DeConv2, 3 x 3 filter, stride 1, output_padding 2 -> {} x {} x {}".format(img_size, img_size, 32))
+
+        self.deconv2_ = nn.ConvTranspose2d(32, 32, filter_size, padding=1, stride=2)
+        img_size = (img_size - 1) * 2 + filter_size - 2 * 1
+        print("DeConv3, 3 x 3 filter, stride 1, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
+
+        self.deconv2__ = nn.ConvTranspose2d(32, 1, filter_size, padding=1, stride=2, output_padding=1)
+        img_size = (img_size - 1) * 2 + filter_size - 2 + 1
+        print("DeConv4, 3 x 3 filter, stride 2, padding 1, output_padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
+
+        # print("Concat State onto channels -> {} x {} x {}".format(img_size, img_size, 32))
         # self.deconv3 = nn.ConvTranspose2d(8, 8, 2, padding=0, stride=1)
         # img_size = (img_size - 1) * 1 - 2 * 1 + 2
         self.deconv3 = nn.Conv2d(33, 32, 3, stride=1, padding=1)
         img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
-        print("DeConv3, 3 x 3 filter, stride 1, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
+        # print("DeConv5, 3 x 3 filter, stride 1, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
         self.deconv4 = nn.Conv2d(32, 32, 3, stride=1, padding=1)
         img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
-        print("DeConv4, 3 x 3 filter, stride 1, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
+        # print("DeConv6, 3 x 3 filter, stride 1, padding 1 -> {} x {} x {}".format(img_size, img_size, 32))
         self.deconv5 = nn.Conv2d(32, 1, 1, stride=1, padding=0)
         # img_size = int((img_size + 2 * 1 - 3) / 1 + 1)
-        print("DeConv5, 1 x 1 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 1))
+        # print("DeConv7, 1 x 1 filter, stride 1 -> {} x {} x {}".format(img_size, img_size, 1))
 
         # self.deconv4 = nn.ConvTranspose2d(8, 1, 1, padding=0, stride=1)
         # img_size = (img_size - 1) * 1 + 1
@@ -90,12 +107,11 @@ class DQN(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        # x = F.relu(self.conv4(x))
+        x = F.relu(self.conv4(x))
         # Flatten the final conv layer
         # print(x)
         x = x.view(x.size()[0], -1)
         # FC layer
-        x = F.relu(self.fc1(x))
 
         if action is not None:
             ay = self.action_matrix(action)
@@ -110,18 +126,20 @@ class DQN(nn.Module):
             y = F.relu(self.deconv1(y))
             y = F.relu(self.deconv2(y))
             y = F.relu(self.deconv2_(y))
+            # y = F.relu(self.deconv2__(y))
+            y = (self.deconv2__(y))
 
             # Makes all the difference...
             # y = y + input_state.expand(x.size()[0], 32, y.size()[2], y.size()[3])
             # print(input_state)
             # print(y)
-            y = torch.cat((y, input_state), dim=1)
+            # y = torch.cat((y, input_state), dim=1)
             # print(y)
 
-            y = F.relu(self.deconv3(y))
+            # y = F.relu(self.deconv3(y))
             # print("deconv1",y)
-            y = F.relu(self.deconv4(y))
-            y = self.deconv5(y)
+            # y = F.relu(self.deconv4(y))
+            # y = self.deconv5(y)
 
             # Residual connection
             # y = y + input_state
@@ -132,6 +150,8 @@ class DQN(nn.Module):
             # y = self.deconv4(y)
             # print("deconv4",y)
 
+        x = F.relu(self.fc1(x))
+        # x = self.qvals1(x)
         x = self.qvals(x)
 
         if action is not None:
