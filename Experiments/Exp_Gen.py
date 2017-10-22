@@ -1,20 +1,20 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]]
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.0001
-t_maxs = [x * 1000 for x in [1000]]
+t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [1, 300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -30,14 +30,14 @@ reward_clips = [-1]
 # state_action_modes = [None]
 optimism_scalers = [0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
-state_action_modes = ["Optimistic" for _ in optimism_scalers]
+state_action_modes = [None] #["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = False
-bonus_replay_thresholds = [0.001, 0.005, 0.01]
-bonus_replay_sizes = [x * 1000 for x in [25, 50, 100]]
+bonus_replay = True
+bonus_replay_thresholds = [0.0005, 0.001, 0.005, 0.01]
+bonus_replay_sizes = [x * 1000 for x in [50, 100]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
@@ -49,7 +49,7 @@ v_max = +1
 if not distrib_agent:
     atoms = [1]
 
-model_agent = True
+model_agent = False
 model_save = 10000
 model_losses = [0.25, 0.5, 0.75]
 model_depths = [0, 1, 2]
