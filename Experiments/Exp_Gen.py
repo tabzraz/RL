@@ -1,23 +1,23 @@
 import sys
 from math import ceil
 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]]
+envs = ["DoomMazeHard-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
-betas = [0.001] # 0.0001
-t_maxs = [x * 1000 for x in [1200]]
+betas = [0.001] # 0.001
+t_maxs = [x * 1000 for x in [4000]]
 cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [1, 300]]
+xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999]
+epsilon_decay = [0.9] #[0.9999]
 
 n_steps = [1]
 variable_n_step = False
@@ -28,16 +28,16 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0.01, 0.001]
+optimism_scalers = [0, 0.01, 0.001, 0.0001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
-state_action_modes = [None] #["Optimistic" for _ in optimism_scalers]
+state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = True
-bonus_replay_thresholds = [0.0005, 0.001, 0.005, 0.01]
-bonus_replay_sizes = [x * 1000 for x in [50, 100]]
+bonus_replay = False
+bonus_replay_thresholds = [0.001, 0.005]
+bonus_replay_sizes = [x * 1000 for x in [100]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
@@ -111,7 +111,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 2
+exps_per_gpu = 1
 files = gpus * exps_per_gpu
 
 gpu_start = 0

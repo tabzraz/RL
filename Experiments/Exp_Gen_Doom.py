@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["Doom_Maze_{}-v0".format(i + 1) for i in range(5)]
+envs = ["DoomMazeHard-v0"]
 target_network = 1000
 exp_bonus_save = 1.0
 lrs = [0.0001]
@@ -20,7 +20,7 @@ stale_limits = [x * 1000 for x in [500]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9]
 
-n_steps = [100]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
