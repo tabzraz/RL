@@ -2,6 +2,7 @@ import sys
 from math import ceil
 
 envs = ["DoomMazeHard-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+DOOM = True
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
@@ -312,7 +313,39 @@ print("\n--- {} Different Hyperparameters ---\n".format(round(uid / num_seeds)))
 print("\n--- {} Runs ---\n--- {} Files => Upto {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
 print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
 
-if write_to_files:
+
+if DOOM and write_to_files:
+
+    if not append:
+        for i in range(files):
+            with open("doom_exps{}.sh".format(i + 1), "w") as f:
+                f.write("")
+                print("Cleared doom_exps{}.sh".format(i + 1))
+
+    for i in range(uid):
+        i += start_at
+        i = i % files
+        with open("doom_exps{}.sh".format(i + 1), "a") as f:
+            # for cc in commands[i::files]:
+            if len(commands) > 0:
+                print("Writing to doom_exps{}.sh".format(i + 1))
+                cc = commands[0]
+                f.write("{}\n".format(cc))
+                commands = commands[1:]
+
+    # Write to the file running the experiments
+    if not append:
+        exp_num = 1
+        with open("run_doom_experiments.sh", "w") as f:
+            for _ in range(exps_per_gpu):
+                for g in range(gpus):
+                    if exp_num == exps_per_gpu * gpus:
+                        f.write("CUDA_VISIBLE_DEVICES='{}' bash doom_exps{}.sh\n".format(g, exp_num))
+                    else:
+                        f.write("screen -mdS {}_Exps bash -c \"sleep {}; export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash doom_exps{}.sh\"\n".format(exp_num, 10 * exp_num, g, exp_num))
+                    exp_num += 1
+            f.write("# {} Experiments total\n".format(uid))
+elif write_to_files:
 
     if not append:
         for i in range(files):
