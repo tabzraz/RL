@@ -1,24 +1,24 @@
 import sys
 from math import ceil
 
-envs = ["DoomMazeHard-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
-DOOM = True
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [10]] 
+DOOM = False
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [4000]]
+t_maxs = [x * 1000 for x in [1000]]
 cts_sizes = [12]
 num_seeds = 4
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [500]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9] #[0.9999]
+epsilon_decay = [0.9999]
 
 n_steps = [1]
 variable_n_step = False
@@ -29,9 +29,9 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01, 0.001, 0.0001]
+optimism_scalers = [0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
-state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
+state_action_modes = ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
@@ -50,10 +50,11 @@ v_max = +1
 if not distrib_agent:
     atoms = [1]
 
-model_agent = False
+model_agent = True
 model_save = 10000
-model_losses = [0.25, 0.5, 0.75]
+model_losses = [0.25, 0.5]
 model_depths = [0, 1, 2]
+leaf_only = True
 if not model_agent:
     model_losses = [0]
     model_depths = [False]
@@ -112,7 +113,7 @@ if "--append" in sys.argv:
 start_at = 0
 
 gpus = 8
-exps_per_gpu = 1
+exps_per_gpu = 2
 files = gpus * exps_per_gpu
 
 gpu_start = 0
@@ -277,6 +278,8 @@ for env in envs:
                                                                                     python_command += " --model-loss {}".format(model_loss)
                                                                                     python_command += " --model-save-image {}".format(model_save)
                                                                                     python_command += " --lookahead-depth {}".format(model_depth)
+                                                                                    if leaf_only:
+                                                                                        python_command += " --only-leaf"
                                                                                     # if model_lookahead:
                                                                                         # python_command += " --lookahead-plan"
                                                                                 # if option:
