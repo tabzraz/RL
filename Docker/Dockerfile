@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-cudnn6-devel
+FROM nvidia/cuda:9.0-cudnn7-devel
 
 MAINTAINER Tabish Rashid
 
@@ -44,7 +44,7 @@ RUN pip install scikit-image
 RUN pip install matplotlib
 
 # PyTorch
-RUN pip install http://download.pytorch.org/whl/cu80/torch-0.1.12.post2-cp36-cp36m-linux_x86_64.whl
+RUN pip install http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp36-cp36m-manylinux1_x86_64.whl 
 RUN pip install torchvision
 
 RUN pip install imageio
