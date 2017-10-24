@@ -82,8 +82,10 @@ class Trainer:
         self.bonus_images = []
         self.trained_on_states_images = []
         self.replay_states_images = []
+        self.bonus_replay_states_images = []
         self.player_visits_images = []
         self.xp_frontier_overlay_images = []
+        self.bonus_xp_frontier_overlay_images = []
         self.visits_frontier_overlay_images = []
 
         # Stuff to log
@@ -283,6 +285,11 @@ class Trainer:
                 self.save_video("{}/exp_bonus/Xp_Replay_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.xp_frontier_overlay_images)
             if len(self.visits_frontier_overlay_images) > 0:
                 self.save_video("{}/exp_bonus/Visits_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.visits_frontier_overlay_images)
+
+            if len(self.bonus_xp_frontier_overlay_images) > 0:
+                self.save_video("{}/exp_bonus/Bonus_Xp_Replay_Frontier_Overlayed__Interval_{}".format(self.args.log_path, self.args.frontier_interval), self.bonus_xp_frontier_overlay_images)
+            if len(self.bonus_replay_states_images) > 0:
+                self.save_video("{}/visitations/Bonus_Xp_Replay_{:,}__Interval_{}".format(self.args.log_path, self.args.exp_replay_size, self.args.interval_size), self.bonus_replay_states_images)
         if len(self.player_visits_images) > 0:
             self.save_video("{}/visitations/Goal_Visits__Interval_{}".format(self.args.log_path, self.args.interval_size), self.player_visits_images)
         if len(self.replay_states_images) > 0:
@@ -409,6 +416,11 @@ class Trainer:
         if image is not None:
             self.xp_frontier_overlay_images.append(image)
 
+    def frontier_and_bonus_xp_vis(self):
+        image = self.env.bonus_xp_and_frontier_overlayed()
+        if image is not None:
+            self.bonus_xp_frontier_overlay_images.append(image)
+
     def visits_and_frontier_vis(self):
         image = self.env.visits_and_frontier_overlayed()
         if image is not None:
@@ -433,6 +445,12 @@ class Trainer:
         if image is not None:
             self.replay_states_images.append(image)
 
+    def bonus_replay_states(self):
+        self.agent.player_bonus_positions = self.agent.player_bonus_positions[-self.args.bonus_replay_size:]
+        image = self.env.xp_replay_states(self.agent.player_bonus_positions, bonus_replay=True)
+        if image is not None:
+            self.bonus_replay_states_images.append(image)
+
     def player_visits(self):
         entries = self.args.t_max // self.args.interval_size
         image = self.env.visitations(self.Player_Positions[-entries:])
@@ -447,12 +465,16 @@ class Trainer:
             self.bonus_landscape()
             self.trained_on_states()
             self.replay_states()
+            if self.args.bonus_replay:
+                self.player_bonus_replay_states()
             self.player_visits()
 
             # Do these 2 after
             if self.args.frontier:
                 self.frontier_and_xp_vis()
             self.visits_and_frontier_vis()
+            if self.args.bonus_replay:
+                self.frontier_and_bonus_xp_vis()
 
             self.vis_T = self.T
 

@@ -235,6 +235,22 @@ class GridWorld(gym.Env):
 
         return overlayed_image
 
+    def bonus_xp_and_frontier_states(self):
+        # We should have already computer the xp replay and frontier images
+        xp_replay_image = self.bonus_replay_image
+        frontier_colours = self.frontier_image
+
+        if frontier_colours.shape[1] != xp_replay_image.shape[1]:
+            tiled_xp_replay_image = np.empty_like(frontier_colours)
+            times_to_tile = frontier_colours.shape[1] // xp_replay_image.shape[1]
+            for i in range(times_to_tile):
+                tiled_xp_replay_image[:, i * xp_replay_image.shape[1]:(i + 1) * xp_replay_image.shape[1], :] = xp_replay_image
+            xp_replay_image = tiled_xp_replay_image
+
+        overlayed_image = xp_replay_image + frontier_colours
+
+        return overlayed_image
+
     def visits_and_frontier_states(self):
         visits_image = self.player_visits_image
         frontier_colours = self.frontier_image
@@ -250,7 +266,7 @@ class GridWorld(gym.Env):
 
         return overlayed_image
 
-    def xp_replay_states(self, player_visits, args):
+    def xp_replay_states(self, player_visits, args, bonus_replay=False):
 
         # interval = args.exp_replay_size
 
@@ -292,6 +308,8 @@ class GridWorld(gym.Env):
         if np.max(canvas) == 0:
             return
         # canvas = canvas / (np.max(canvas) / scaling)
+        if bonus_replay:
+            canvas = np.swapaxes(canvas, 0, 2)
 
         # TODO: Colour the unvisited goals
         for goal in self.goals_order:
@@ -326,7 +344,10 @@ class GridWorld(gym.Env):
         # colour_maze = np.swapaxes(colour_maze, 0, 1)
         colour_images.append(colour_maze.astype(np.uint8))
 
-        self.xp_replay_image = np.copy(colour_images[0])
+        if not bonus_replay:
+            self.xp_replay_image = np.copy(colour_images[0])
+        else:
+            self.bonus_replay_image = np.copy(colour_images[0])
 
         return colour_images[0]
         # save_video("{}/visitations/Goal_Visits__Interval_{}__T_{}".format(LOGDIR, interval_size, T), colour_images)

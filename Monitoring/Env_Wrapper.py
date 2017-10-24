@@ -37,6 +37,13 @@ class EnvWrapper(gym.Env):
             if log:
                 print("No xp and frontier vis here")
 
+    def bonus_xp_and_frontier_overlayed(self, log=False):
+        try:
+            return self.wrapped_env.env.bonus_xp_and_frontier_states()
+        except AttributeError:
+            if log:
+                print("No bonus_xp and frontier vis here")
+
     def trained_on_states(self, states, log=False):
         try:
             return self.wrapped_env.env.trained_on_states(states, self.args)

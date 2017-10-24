@@ -16,6 +16,7 @@ class DQN_Agent_TwoReplay:
         self.exp_model = exp_model
 
         self.log = logging_funcs["log"]
+        self.env = logging_funcs["env"]
 
         self.replay = ExpReplay(args.exp_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
         self.bonus_replay = ExpReplay(args.bonus_replay_size, args.stale_limit, exp_model, args, priority=self.args.prioritized)
@@ -50,6 +51,8 @@ class DQN_Agent_TwoReplay:
         self.target_sync_T = -self.args.t_max
 
         self.max_bonus = 0
+
+        self.player_bonus_positions = []
 
     def sync_target_network(self):
         for target, source in zip(self.target_dqn.parameters(), self.dqn.parameters()):
@@ -105,6 +108,7 @@ class DQN_Agent_TwoReplay:
         self.replay.Add_Exp(state, action, reward, state_next, steps, terminated, 0, density)
         self.max_bonus = max(self.max_bonus, pseudo_reward)
         if pseudo_reward > self.max_bonus * self.args.bonus_replay_threshold:
+            self.player_bonus_positions.append(self.env.log_visitation())
             self.bonus_replay.Add_Exp(state, action, reward, state_next, steps, terminated, pseudo_reward, density)
             self.bonus_replay_stuff += 1
             if not exploring:
