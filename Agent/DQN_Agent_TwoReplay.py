@@ -131,6 +131,9 @@ class DQN_Agent_TwoReplay:
 
         info = {}
 
+        if self.args.exp_replay_size <= 1000 and not bonus_replay:
+            return info
+
         for _ in range(self.args.iters):
             self.dqn.eval()
 
