@@ -3,6 +3,8 @@ from math import ceil
 
 envs = ["DoomMazeHard-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [10]] 
 DOOM = False
+if "Doom" in envs[0]:
+    DOOM = True
 target_network = 1000
 lrs = [0.0001] # 0.0001
 counts = [True]
