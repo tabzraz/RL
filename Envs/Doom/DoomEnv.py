@@ -202,6 +202,9 @@ class DoomEnv(gym.Env):
             list_action = [int(x) for x in action]
         try:
             reward = self.game.make_action(list_action)
+            # Make the negative reward larger
+            if reward < 0:
+                reward = -0.01
             state = self.game.get_state()
             info = self._get_game_variables(state.game_variables)
             info["TOTAL_REWARD"] = round(self.game.get_total_reward(), 4)
