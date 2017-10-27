@@ -51,9 +51,9 @@ class EnvWrapper(gym.Env):
             if log:
                 print("No trained on states vis for this environment")
 
-    def xp_replay_states(self, player_positions, log=False):
+    def xp_replay_states(self, player_positions, log=False, bonus_replay=False):
         try:
-            return self.wrapped_env.unwrapped.xp_replay_states(player_positions, self.args)
+            return self.wrapped_env.unwrapped.xp_replay_states(player_positions, self.args, bonus_replay=bonus_replay)
         except AttributeError:
             if log:
                 print("No xp replay states for this environment")

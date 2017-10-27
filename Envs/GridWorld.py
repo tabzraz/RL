@@ -285,6 +285,12 @@ class GridWorld(gym.Env):
         # end_t = int(args.t_max * i / 100)
         # start_t = max(0, end_t - args.exp_replay_size)
 
+        # print("\n\n")
+        # print(self.num_goals)
+        # print(self.goals_order)
+        # print(canvas.shape)
+        # print("\n\n")
+
         for visit in player_visits:
             # print(visit)
             px = visit[0]
@@ -309,7 +315,10 @@ class GridWorld(gym.Env):
             return
         # canvas = canvas / (np.max(canvas) / scaling)
         if bonus_replay:
-            canvas = np.swapaxes(canvas, 0, 2)
+            # Blue instead of red
+            red_canvas = np.copy(canvas[:, :, 0])
+            canvas[:, :, 0] = canvas[:, :, 2]
+            canvas[:, :, 2] = red_canvas
 
         # TODO: Colour the unvisited goals
         for goal in self.goals_order:
