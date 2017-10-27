@@ -466,7 +466,7 @@ class Trainer:
             self.trained_on_states()
             self.replay_states()
             if self.args.bonus_replay:
-                self.player_bonus_replay_states()
+                self.bonus_replay_states()
             self.player_visits()
 
             # Do these 2 after
