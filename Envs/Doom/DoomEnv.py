@@ -306,7 +306,7 @@ class DoomEnv(gym.Env):
         # info['AMMO2'] = state_variables[13]
         # info['AMMO3'] = state_variables[14]
         # info['AMMO4'] = state_variables[15]
-        # info['AMMO5'] = state_variables[16]
+    # info['AMMO5'] = state_variables[16]
         # info['AMMO6'] = state_variables[17]
         # info['AMMO7'] = state_variables[18]
         # info['AMMO8'] = state_variables[19]
@@ -315,4 +315,12 @@ class DoomEnv(gym.Env):
         return info
 
     def log_player_pos(self):
-        return (int(self.x / 10), int(self.y / 10))
+        return(int(self.x / 10), int(self.y / 10))
+
+    # At the moment this is just to save the player positions
+    def player_visits(self, player_visits, args):
+        # Log the visitations
+        with open("{}/logs/Player_Positions.txt".format(args.log_path), "a") as file:
+            file.write('\n'.join(" ".join(str(x) for x in t) for t in player_visits))
+
+        return None

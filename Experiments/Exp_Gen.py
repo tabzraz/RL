@@ -1,7 +1,7 @@
 import sys
 from math import ceil
 
-envs = ["DoomMazeHard-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [10]] 
+envs = ["DoomMaze-v0"] #["Thin-Maze-{}-Neg-v0".format(size) for size in [10]] 
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
