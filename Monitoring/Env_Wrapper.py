@@ -25,75 +25,75 @@ class EnvWrapper(gym.Env):
 
     def visits_and_frontier_overlayed(self, log=False):
         try:
-            return self.wrapped_env.env.visits_and_frontier_states()
+            return self.wrapped_env.unwrapped.visits_and_frontier_states()
         except AttributeError:
             if log:
                 print("No visits and frontier vis here")
 
     def xp_and_frontier_overlayed(self, log=False):
         try:
-            return self.wrapped_env.env.xp_and_frontier_states()
+            return self.wrapped_env.unwrapped.xp_and_frontier_states()
         except AttributeError:
             if log:
                 print("No xp and frontier vis here")
 
     def bonus_xp_and_frontier_overlayed(self, log=False):
         try:
-            return self.wrapped_env.env.bonus_xp_and_frontier_states()
+            return self.wrapped_env.unwrapped.bonus_xp_and_frontier_states()
         except AttributeError:
             if log:
                 print("No bonus_xp and frontier vis here")
 
     def trained_on_states(self, states, log=False):
         try:
-            return self.wrapped_env.env.trained_on_states(states, self.args)
+            return self.wrapped_env.unwrapped.trained_on_states(states, self.args)
         except AttributeError:
             if log:
                 print("No trained on states vis for this environment")
 
     def xp_replay_states(self, player_positions, log=False):
         try:
-            return self.wrapped_env.env.xp_replay_states(player_positions, self.args)
+            return self.wrapped_env.unwrapped.xp_replay_states(player_positions, self.args)
         except AttributeError:
             if log:
                 print("No xp replay states for this environment")
 
     def visitations(self, player_positions, log=False):
         try:
-            return self.wrapped_env.env.player_visits(player_positions, self.args)
+            return self.wrapped_env.unwrapped.player_visits(player_positions, self.args)
         except AttributeError:
             if log:
                 print("No visitations for this environment")
 
     def frontier(self, exp_model, max_bonus, log=False):
         try:
-            return self.wrapped_env.env.frontier(exp_model, self.args, max_bonus)
+            return self.wrapped_env.unwrapped.frontier(exp_model, self.args, max_bonus)
         except AttributeError:
             if log:
                 print("No frontier for this environment")
 
     def explorations(self, player_positions, exploration_bonuses, max_bonus, log=False):
         try:
-            return self.wrapped_env.env.bonus_landscape(player_positions, exploration_bonuses, max_bonus, self.args)
+            return self.wrapped_env.unwrapped.bonus_landscape(player_positions, exploration_bonuses, max_bonus, self.args)
         except AttributeError:
             if log:
                 print("No bonus landscape for this environment")
 
     def log_visitation(self):
         try:
-            return self.wrapped_env.env.log_player_pos()
+            return self.wrapped_env.unwrapped.log_player_pos()
         except AttributeError:
             pass
 
     def state_to_player_pos(self, state):
         try:
-            return self.wrapped_env.env.state_to_player_pos(state)
+            return self.wrapped_env.unwrapped.state_to_player_pos(state)
         except AttributeError:
             pass
 
     def state_to_image(self, state):
         try:
-            return self.wrapped_env.env.state_to_image(state)
+            return self.wrapped_env.unwrapped.state_to_image(state)
         except AttributeError:
             return self.debug_render(mode="rgb_array")
 
