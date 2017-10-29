@@ -301,8 +301,8 @@ for env in envs:
                                                                                 #     else:
                                                                                 #         python_command += " --options Maze_Good"
 
-                                                                                python_command += "--eval-interval {}".format(eval_interval)
-                                                                                python_command += "--interval-size {} --frontier-interval {}".format(vis_interval, vis_interval)
+                                                                                python_command += " --eval-interval {}".format(eval_interval)
+                                                                                python_command += " --interval-size {} --frontier-interval {}".format(vis_interval, vis_interval)
                                                                                 if gpu:
                                                                                     python_command += " --gpu"
                                                                                 # if debug_eval:
