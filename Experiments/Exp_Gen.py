@@ -1,26 +1,32 @@
 import sys
 from math import ceil
 
-envs = ["DoomMaze-v0"] 
+# envs = ["DoomMaze-v0"] 
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+envs = ["Empty-Room-{}-v0".format(16, 18)]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
 target_network = 1000
+
+eval_interval = 2
+vis_interval = 1000
+
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [3000]]
+t_maxs = [x * 1000 for x in [300]]
 cts_sizes = [12]
-num_seeds = 4
-epsilon_starts = [1]
-epsilon_finishs = [0.05]
-epsilon_steps = [1]
+# num_seeds = 4
+num_seeds = 2
+epsilon_starts = [1, 1, 1]
+epsilon_finishs = [0.05, 0.05, 0.05]
+epsilon_steps = [1] + [x * 1000 for x in [100, 200]]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [500]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
+epsilon_scaling = [False]
 epsilon_decay = [0.9999]
 
 n_steps = [1]
@@ -32,14 +38,14 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01]
+optimism_scalers = [0, 0.01, 0.1, 1, 10]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = True
+bonus_replay = False
 bonus_replay_thresholds = [0.1, 0.25]
 bonus_replay_sizes = [x * 1000 for x in [100]]
 if not bonus_replay:
@@ -294,6 +300,9 @@ for env in envs:
                                                                                 #             python_command += " --train-primitives"
                                                                                 #     else:
                                                                                 #         python_command += " --options Maze_Good"
+
+                                                                                python_command += "--eval-interval {}".format(eval_interval)
+                                                                                python_command += "--interval-size {} --frontier-interval {}".format(vis_interval, vis_interval)
                                                                                 if gpu:
                                                                                     python_command += " --gpu"
                                                                                 # if debug_eval:
