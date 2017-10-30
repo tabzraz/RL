@@ -314,11 +314,6 @@ class GridWorld(gym.Env):
         if np.max(canvas) == 0:
             return
         # canvas = canvas / (np.max(canvas) / scaling)
-        if bonus_replay:
-            # Blue instead of red
-            red_canvas = np.copy(canvas[:, :, 0])
-            canvas[:, :, 0] = canvas[:, :, 2]
-            canvas[:, :, 2] = red_canvas
 
         # TODO: Colour the unvisited goals
         for goal in self.goals_order:
@@ -347,6 +342,14 @@ class GridWorld(gym.Env):
         canvas = np.insert(canvas, [(z + 1) * grid_x for z in range(self.num_goals - 1)], 1, axis=0)
         canvas = np.insert(canvas, [(z + 1) * grid_x for z in range(self.num_goals - 1)], 1, axis=1)
         canvas[0:grid_x, grid_y + 1:, :] = 0
+
+        # Flip red and blue to make the bonus replay states blue instead of red
+        if bonus_replay:
+            # Blue instead of red
+            red_canvas = np.copy(canvas[:, :, 0])
+            canvas[:, :, 0] = canvas[:, :, 2]
+            canvas[:, :, 2] = red_canvas
+
         colour_maze = canvas
 
         colour_maze = np.clip(colour_maze, 0, 1) * 255
