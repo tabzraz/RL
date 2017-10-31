@@ -1,5 +1,3 @@
-# import ppaquette_gym_doom
-import ppaquette_gym_super_mario
 from gym.envs.registration import register
 
 # Atari Games with a deterministic frameskip
@@ -133,3 +131,11 @@ for i in range(5):
             kwargs={'level': (11 + i)},
             tags={'wrapper_config.TimeLimit.max_episode_steps': 20000}
     )
+
+# Mario
+register(
+        id="Mario-1-1-v0",
+        entry_point='Envs.Mario:Mario',
+        kwargs={},
+        tags={'wrapper_config.TimeLimit.max_episode_steps': 10000}
+)

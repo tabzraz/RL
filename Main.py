@@ -9,7 +9,6 @@ import Envs
 from Utils.Utils import time_str
 from RL_Trainer_PyTorch import Trainer
 from Envs.OpenAI_AtariWrapper import wrap_deepmind, wrap_vizdoom, wrap_maze, wrap_mario
-import ppaquette_gym_super_mario
 
 # Argument passing stuff is here
 # TODO: Spread these out into useful groups and provide comments
@@ -208,10 +207,10 @@ if args.env.startswith("Doom"):
     env = wrap_vizdoom(env)
     eval_env = wrap_vizdoom(eval_env)
 
-# Mario wrapping
-if args.env.startswith("ppaquette/SuperMarioBros"):
-    env = wrap_mario(env)
-    eval_env = wrap_mario(eval_env)
+# # Mario wrapping
+# if args.env.startswith("ppaquette/SuperMarioBros"):
+#     env = wrap_mario(env)
+#     eval_env = wrap_mario(eval_env)
 
 args.actions = env.action_space.n
 args.primitive_actions = args.actions
