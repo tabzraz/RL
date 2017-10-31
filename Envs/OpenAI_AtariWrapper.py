@@ -125,6 +125,10 @@ class ClipNegativeRewardEnv(gym.RewardWrapper):
         else:
             return 0
 
+class NoRewardEnv(gym.RewardWrapper):
+    def _reward(self, reward):
+        return 0
+
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env, res=84):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
@@ -417,4 +421,47 @@ def wrap_vizdoom(env, stack=4):
     discrete_action_wrapper = ToDiscrete("minimal")
     env = discrete_action_wrapper(env)
     print("Wrapping environment with vizdoom settings.")
+    return env
+
+def ToDiscreteMario():
+
+    class ToDiscreteWrapper(gym.Wrapper):
+        """
+            Wrapper to convert MultiDiscrete action space to Discrete
+            Only supports one config, which maps to the most logical discrete space possible
+        """
+        def __init__(self, env):
+            super(ToDiscreteWrapper, self).__init__(env)
+            mapping = {
+                0: [0, 0, 0, 0, 0, 0],  # NOOP
+                1: [1, 0, 0, 0, 0, 0],  # Up
+                2: [0, 0, 1, 0, 0, 0],  # Down
+                3: [0, 1, 0, 0, 0, 0],  # Left
+                4: [0, 1, 0, 0, 1, 0],  # Left + A
+                5: [0, 1, 0, 0, 0, 1],  # Left + B
+                6: [0, 1, 0, 0, 1, 1],  # Left + A + B
+                7: [0, 0, 0, 1, 0, 0],  # Right
+                8: [0, 0, 0, 1, 1, 0],  # Right + A
+                9: [0, 0, 0, 1, 0, 1],  # Right + B
+                10: [0, 0, 0, 1, 1, 1],  # Right + A + B
+                11: [0, 0, 0, 0, 1, 0],  # A
+                12: [0, 0, 0, 0, 0, 1],  # B
+                13: [0, 0, 0, 0, 1, 1],  # A + B
+            }
+            self.action_space = DiscreteToMultiDiscrete(self.action_space, mapping)
+        def _step(self, action):
+            return self.env._step(self.action_space(action))
+
+    return ToDiscreteWrapper
+
+def wrap_mario(env, stack=4):
+    env = MaxAndSkipEnv(env, skip=4, max_over=1)
+    env = WarpFrame(env, res=42)
+    env = FrameStack(env, 4)
+    env = GreyscaleRender(env)
+    discrete_action_wrapper = ToDiscreteMario()
+    env = discrete_action_wrapper(env)
+    # No reward
+    env = NoRewardEnv(env)
+    print("Wrapping mario env")
     return env

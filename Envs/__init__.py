@@ -1,4 +1,5 @@
 # import ppaquette_gym_doom
+import ppaquette_gym_super_mario
 from gym.envs.registration import register
 
 # Atari Games with a deterministic frameskip

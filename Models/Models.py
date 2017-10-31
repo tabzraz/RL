@@ -23,6 +23,9 @@ for i in range(5):
 torch_models["DoomMazeBig-v0"] = DQN_Doom.DQN
 torch_models["DoomMazeBigHard-v0"] = DQN_Doom.DQN
 
+# Mario
+torch_models["ppaquette/SuperMarioBros-1-1-v0"] = DQN_Doom.DQN
+
 # DQN Maze
 # torch_models["Maze-1"] = DQN_Maze.DQN
 for s in range(10):
