@@ -270,8 +270,8 @@ class GridWorld(gym.Env):
 
         # interval = args.exp_replay_size
 
-        if self.num_goals > 3:
-            raise Exception("Cant do xp replay states for >3 goals atm")
+        if self.num_goals > 1:
+            raise Exception("Cant do xp replay states for >1 goals atm")
 
         # We want to show visualisations for the agent depending on which goals they've visited as well
         # Keep it seperate from the other one
@@ -300,15 +300,17 @@ class GridWorld(gym.Env):
             goal_colours = [ig for ig, c in enumerate(visit[2:]) if c == True]
             if goal_colours == []:
                 goal_colours = [0, 1, 2]
-            x_place = px + grid_x * (np_goals == False).sum()
+            x_place = px#
             yy = 0
             if (np_goals == False).sum() == 1:
                 yy = np.argwhere(np_goals == False)[0]
             elif (np_goals == False).sum() == 2:
                 yy = np.argwhere(np_goals == True)[0]
-            y_place = py + grid_y * yy
+            y_place = py#
 
             # print(x_place, y_place, goal_colours, canvas.shape)
+            if x_place >= grid_x or y_place >= grid_y:
+                print(px, py, np_goals, goal_colours, x_place, y_place)
             canvas[x_place, y_place, goal_colours] = 1
 
         if np.max(canvas) == 0:
