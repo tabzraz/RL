@@ -6,11 +6,12 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "ThinMazeNeg12_Bonus_Replay_Bandit"
+exps_batch_name = "Mario_Test"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+envs = ["Mario-1-1-v0"]
+# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
 if "Doom" in envs[0]:
@@ -27,13 +28,13 @@ counts = [True]
 betas = [0.001] # 0.001
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12] #[12]
-num_seeds = 4
+num_seeds = 2
 # num_seeds = 2
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [1, 300]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
 epsilon_decay = [0.9999]
@@ -54,7 +55,7 @@ force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = True
+bonus_replay = False
 bonus_replay_thresholds = [0.0005, 0.001, 0.01]
 bonus_replay_sizes = [x * 1000 for x in [100]]
 if not bonus_replay:
@@ -337,8 +338,8 @@ for env in envs:
 Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
-Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-# Servers = [("dgx1", [i for i in range(8)], 1)]
+# Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
+Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
 
@@ -368,6 +369,9 @@ with open("{}/screen_wipe.sh".format(path), "w") as f:
     f.write("\n")
 
 with open("{}/copy_logs.sh".format(path), "w") as f:
+    f.write("\n")
+
+with open("{}/kill_screens.sh".format(path), "w") as f:
     f.write("\n")
 
 uid = 0
@@ -403,7 +407,7 @@ for server, gpus, exps_per in Servers:
     exp_num = 1
     for _ in range(exps_per):
         for g in gpus:
-            exps_file += "screen -mdS {}_Exps_{} bash -c \\\"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash server_exps_{}.sh\\\"\n".format(exp_num, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"), g, exp_num)
+            exps_file += "sleep {}; screen -mdS {}_Exps_{} bash -c \\\"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash server_exps_{}.sh\\\"\n".format(exp_num, exp_num, exps_batch_name, g, exp_num)
             exp_num += 1
     # exps_file += "# {} Experiments total\n".format(num_exps_for_this_server)
 
@@ -453,5 +457,17 @@ for server, gpus, exps_per in Servers:
         f.write("\necho \"Copying {} Logs\"\n".format(server))
         f.write(ssh_copy_command)
         f.write("\necho \"Finished copying {} Logs\"\n".format(server))
+
+    # Kill screens
+    kill_screens_command = ""
+    for i in range(exp_num - 1):
+        kill_screens_command += "screen -X -S {}_Exps_{} kill;".format(i + 1, exps_batch_name)
+    docker_kill_screens = "docker exec -it tabhid_exps /bin/bash -c \\\"{}\\\"".format(kill_screens_command)
+    ssh_kill_screens = "ssh -t {} \"{}\"\n".format(server, docker_kill_screens)
+
+    with open("{}/kill_screens.sh".format(path), "a") as f:
+        f.write("\necho \"Killing screens on {}\"\n".format(server))
+        f.write(ssh_kill_screens)
+        f.write("\necho \"Killed screens on {}\"\n".format(server))
 
 print("\nWritten to {}".format(exps_batch_name))
