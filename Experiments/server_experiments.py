@@ -6,36 +6,36 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Empty_Room_20"
+exps_batch_name = "ThinMazeNeg12_Bonus_Replay_Bandit"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-# envs = ["DoomMaze-v0"] 
-# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
-envs = ["Empty-Room-{}-v0".format(20)]
+# envs = ["DoomMazeHard-v0"] 
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+# envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
 target_network = 1000
 
-eval_interval = 1
-vis_interval = 1000
-exploration_steps = 0
+eval_interval = 100
+vis_interval = 100
+exploration_steps = 500
 
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
 t_maxs = [x * 1000 for x in [1200]]
-cts_sizes = [20] #[12]
-# num_seeds = 4
+cts_sizes = [12] #[12]
 num_seeds = 4
-epsilon_starts = [1, 1, 1]
-epsilon_finishs = [0.05, 0.05, 0.05]
-epsilon_steps = [1] + [x * 1000 for x in [100, 200]]
+# num_seeds = 2
+epsilon_starts = [1]
+epsilon_finishs = [0.05]
+epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [1, 300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
+epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
 n_steps = [1]
@@ -47,14 +47,14 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01, 0.1, 1]
+optimism_scalers = [0, 0.001, 0.01, 0.1]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = False
+bonus_replay = True
 bonus_replay_thresholds = [0.0005, 0.001, 0.01]
 bonus_replay_sizes = [x * 1000 for x in [100]]
 if not bonus_replay:
@@ -337,8 +337,8 @@ for env in envs:
 Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
-# Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("savitar", [2, 4, 5, 6], 1)]
+Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
+# Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
 
@@ -347,7 +347,15 @@ num_experiments = len(Experiments)
 server_ratios = [(len(gpus) * exps_per) for _, gpus, exps_per in Servers]
 sum_server_ratios = sum(server_ratios)
 
-print("{} Experiments Total\n".format(num_experiments))
+print("--- {} Experiments Total ---".format(num_experiments))
+
+print("\n--- {} Different Hyperparameters ---\n".format(round(uid / num_seeds)))
+# print("\n--- {} Runs ---\n--- {} Files => Upto {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
+# print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
+
+if not write_to_files:
+    print("Not writing")
+    exit()
 
 path = "{}__Experiments".format(exps_batch_name)
 if not os.path.exists(path):
@@ -372,7 +380,7 @@ for server, gpus, exps_per in Servers:
 
     cd_to_docker = "cd /data/{}/tabhid".format(server)
     run_docker = "bash run_docker_server.sh"
-    cd_to_rl = "cd RL/Server_Exps"
+    cd_to_rl = "cd RL"
     mk_server_exps = "mkdir -p Server_Exps"
     cd_server_exps = "cd Server_Exps"
 
@@ -411,7 +419,7 @@ for server, gpus, exps_per in Servers:
     server_exps_commands = [cd_to_docker, cd_server_exps, write_to_exp_files, write_exps_file]
     server_command = ";".join(server_exps_commands)
 
-    docker_commands = [git_pull, cd_to_rl, run_server_exps, started_running]
+    docker_commands = [cd_to_rl, git_pull, cd_server_exps, run_server_exps, started_running]
     docker_commands = ";".join(docker_commands)
     docker_command = "docker exec -it tabhid_exps /bin/bash -c \\\"{}\\\"".format(docker_commands)
     # print(docker_command)
@@ -446,3 +454,4 @@ for server, gpus, exps_per in Servers:
         f.write(ssh_copy_command)
         f.write("\necho \"Finished copying {} Logs\"\n".format(server))
 
+print("\nWritten to {}".format(exps_batch_name))
