@@ -364,7 +364,7 @@ class Trainer:
 
         # Write the maximum exp bonus here just in case
         if self.args.count:
-            with open("{}/exp_bonus/exploring_max_exp_bonus.txt".format(self.args.log_path)) as f:
+            with open("{}/exp_bonus/exploring_max_exp_bonus.txt".format(self.args.log_path), "w") as f:
                 f.write("Bonus:\n{}\nSteps:\n{}\n".format(self.max_exp_bonus, e_steps))
 
     def print_time(self):
