@@ -218,12 +218,12 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True, stack=4):
     env = MaxAndSkipEnv(env, skip=4)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-    env = WarpFrame(env)
+    env = WarpFrame(env, res=42)
     if clip_rewards:
         env = ClipRewardEnv(env)
     if stack > 1:
         env = FrameStack(env, 4)
-    print("Wrapping environment with Deepmind-style setttings.")
+    print("Wrapping environment with Deepmind-style setttings but 42 x 42.")
     env = GreyscaleRender(env)
     return env
 

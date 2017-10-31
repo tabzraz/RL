@@ -6,11 +6,11 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Mario_Test"
+exps_batch_name = "Montezuma_HailMary"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
-envs = ["Mario-1-1-v0"]
+envs = ["MontezumaRevengeNoFrameskip-v4"]
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
@@ -26,8 +26,8 @@ lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [1200]]
-cts_sizes = [12] #[12]
+t_maxs = [x * 1000 for x in [3000]]
+cts_sizes = [21] #[12]
 num_seeds = 2
 # num_seeds = 2
 epsilon_starts = [1]
