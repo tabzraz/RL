@@ -410,7 +410,8 @@ for server, gpus, exps_per in Servers:
         for g in gpus:
             exps_file += "sleep {}; screen -mdS {}_Exps_{} bash -c \\\"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash server_exps_{}.sh\\\"\n".format(exp_num, exp_num, exps_batch_name, g, exp_num)
             exp_num += 1
-    # exps_file += "# {} Experiments total\n".format(num_exps_for_this_server)
+    # exps_file += "sleep {}; screen -mdS DudScreen_{} bash -c".format(num_exps_for_this_server)
+    exps_file += "sleep 20; screen -mdS DUDSCREEN_{} bash -c \\\"sleep 120\\\"\n".format(exps_batch_name)
 
     write_exps_file = "echo '{}' > run_server_experiments.sh".format(exps_file)
 
@@ -436,7 +437,7 @@ for server, gpus, exps_per in Servers:
         f.write(ssh_exps_command)
         f.write("\necho 'Written experiments to {}'\n".format(server))
         f.write(ssh_run_command)
-        f.write("\necho 'Started running {} exps on {}'\n\n\n".format(num_exps_for_this_server, server))
+        f.write("\necho 'Started running {} exps on {} with {} screens'\n\n\n".format(num_exps_for_this_server, server, exp_num - 1))
 
     # Check for dead screens
     screen_wipe = "screen -wipe"
