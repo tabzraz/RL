@@ -1,4 +1,5 @@
 import ppaquette_gym_super_mario
+from ppaquette_gym_super_mario import wrappers
 import gym
 from .OpenAI_AtariWrapper import wrap_mario
 
@@ -10,6 +11,8 @@ class Mario(gym.Env):
 
     def __init__(self):
         self.mario_env = gym.make("ppaquette/SuperMarioBros-1-1-v0")
+        modewrapper = wrappers.SetPlayingMode('algo')
+        self.mario_env = modewrapper(self.mario_env)
         self.mario_env = wrap_mario(self.mario_env)
         self.mario_x = 0
         self.action_space = self.mario_env.action_space

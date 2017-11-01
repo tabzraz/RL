@@ -453,8 +453,8 @@ for server, gpus, exps_per in Servers:
         f.write("echo \"$server_output\"\n\n")
 
     # Copy all experiments over to a central place (savitar at the moment)
-    copy_command = "cp -r /data/{}/tabhid/Server_Logs/{} {}/{}".format(server, exps_batch_name, Central_Logs, exps_batch_name)
-    ssh_copy_command = "ssh -t {} \"{}\"\n".format(server, copy_command)
+    copy_command = "cp -r /data/{}/tabhid/Server_Logs/{}/. {}/{}".format(server, exps_batch_name, Central_Logs, exps_batch_name)
+    ssh_copy_command = "ssh -t savitar \"{}\"\n".format(server, copy_command)
     with open("{}/copy_logs.sh".format(path), "a") as f:
         f.write("\necho \"Copying {} Logs\"\n".format(server))
         f.write(ssh_copy_command)
