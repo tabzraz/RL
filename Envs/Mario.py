@@ -23,7 +23,7 @@ class Mario(gym.Env):
             # We have reached the flagpole
             r = +1
         else:
-            r = -0.01
+            r = 0
         self.mario_x = info_dict["distance"]
         return s, r, finished, info_dict
 
