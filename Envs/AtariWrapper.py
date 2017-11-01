@@ -1,8 +1,6 @@
 import numpy as np
 import gym
-# from skimage.transform import resize
-from scipy.misc import imresize as resize
-from skimage.color import rgb2grey  # Grey because we speak the Queen's English
+from .OpenAI_AtariWrapper import wrap_deepmind
 
 
 class AtariEnv(gym.Env):
@@ -12,73 +10,57 @@ class AtariEnv(gym.Env):
     def __init__(self, game_name="Breakout", colours=True, history_length=4, resized_size=(42, 42), action_repeat=4):
         env_name = "{}NoFrameskip-v4".format(game_name)
         self.env = gym.make(env_name)
-        self.colours = colours
-        self.resized_size = resized_size
-        self.history_length = history_length
-        self.action_repeat = action_repeat
+        self.env = wrap_deepmind(self.env)
 
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        # Gym Atari env dosen't seem to set reward_range
-
-        self.frames = self.start_frames(self.env.reset())
-
-    def add_frame(self, new_frame):
-        if not self.colours:
-            new_frame = rgb2grey(new_frame)
-        resized_frame = resize(new_frame, self.resized_size, mode="F", interp="bilinear")
-        # resize(state[:, :, 0], self.cts_model_shape, mode="F", interp="bilinear")
-        if self.colours:
-            self.frames = np.concatenate([self.frames[:, :, 3:], resized_frame], axis=2)
-        else:
-            self.frames = np.concatenate([self.frames[:, :, 1:], resized_frame[:, :, np.newaxis]], axis=2)
-
-    def start_frames(self, frame):
-        if not self.colours:
-            frame = rgb2grey(frame)
-        # resized_frame = resize(frame, self.resized_size)
-        resized_frame = resize(frame, self.resized_size, mode="F", interp="bilinear")
-        if self.colours:
-            new_frames = np.concatenate([resized_frame for _ in range(self.history_length)], axis=2)
-        else:
-            new_frames = np.stack([resized_frame for _ in range(self.history_length)], axis=-1)
-        return new_frames
-
-    # Gym Env required methods:
+        self.ale = self.env.unwrapped.ale
+        ale_ram_size = self.ale.getRAMSize()
+        self.ram = np.zeros((ale_ram_size), dtype=np.uint8)
+        # (Screen, x, y)
+        self.position = (0, 0, 0)
 
     def _step(self, a):
-        episode_finished = False
-        r = 0
-        for _ in range(self.action_repeat):
-            if not episode_finished:
-                s_t, r_t, episode_finished, info = self.env.step(a)
-                r += r_t
-            else:
-                break
-        self.add_frame(s_t)
-        return self.frames, r, episode_finished, info
+        s, r, finished, info_dict = self.env.step(a)
+        # Log the position for Montezuma. TODO: Move this elsewhere
+        self.ale.getRAM(self.ram)
+        self.position = (self.ram[3], self.ram[42], self.ram[43])
+        return s, r, finished, info_dict
 
     def _reset(self):
-        self.frames = self.start_frames(self.env.reset())
-        return self.frames
+        return self.env.reset()
 
-    def _render(self, mode='human', close=False):
-        # return self.env.render(mode=mode, close=close)
-        if mode == "human":
-            self.env.render(mode="human", close=close)
-        # print(self.frames.shape)
-        grid = self.frames[:, :, -1]
-        # print(grid.shape)
-        image = np.zeros(shape=(grid.shape[0], grid.shape[1], 3))
-        for x in range(grid.shape[0]):
-            for y in range(grid.shape[1]):
-                if grid[x, y] != 0:
-                    image[x, y] = (255 * grid[x, y], 255 * grid[x, y], 255 * grid[x, y])
-        return image
+    def _render(self, mode="rgb_array", close=False):
+        return self.env.render(mode=mode, close=close)
 
-    def _seed(self, seed=None):
-        return self.env.seed(seed)
+    def log_player_pos(self):
+        return self.position
 
-    # Gym Atari dosen't implement the following:
-    # _close
-    # _configure
+    # At the moment this is just to save the player positions
+    def player_visits(self, player_visits, args):
+        # Log the visitations
+        with open("{}/logs/Player_Positions.txt".format(args.log_path), "a") as file:
+            file.write('\n'.join(" ".join(str(x) for x in t) for t in player_visits))
+
+        return None
+
+    def trained_on_states(self, player_visits, args):
+        pass
+
+    def xp_and_frontier_states(self):
+        pass
+
+    def bonus_xp_and_frontier_states(self):
+        pass
+
+    def visits_and_frontier_states(self):
+        pass
+
+    def xp_replay_states(self, player_visits, args, bonus_replay=False):
+        pass
+
+    def bonus_landscape(self, player_visits, exploration_bonuses, max_bonus, args):
+        pass
+
+    def frontier(self, exp_model, args, max_bonus=None):
+        pass

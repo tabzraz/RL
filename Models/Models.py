@@ -11,8 +11,10 @@ torch_models = {}
 
 # DQN Atari
 torch_models["VentureNoFrameskip-v4"] = DQN_Atari.DQN
-torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Doom.DQN
-# torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Atari.DQN
+torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Atari.DQN
+
+# Wrappred Atari 42 x 42
+torch_models["Wrapped_MontezumaRevenge-v0"] = DQN_Doom.DQN
 
 # DQN VizDoom
 torch_models["ppaquette/DoomMyWayHome-v0"] = DQN_Doom.DQN

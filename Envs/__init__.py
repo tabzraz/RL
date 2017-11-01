@@ -25,7 +25,7 @@ for game in ['air_raid', 'alien', 'amidar', 'assault', 'asterix', 'asteroids', '
             nondeterministic = True
 
         register(
-            id='Tabz_{}-v0'.format(name),
+            id='Wrapped_{}-v0'.format(name),
             entry_point='Envs.AtariWrapper:AtariEnv',
             kwargs={'game_name': name, 'colours': False},
             tags={'wrapper_config.TimeLimit.max_episode_steps': 100000},

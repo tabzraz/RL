@@ -9,7 +9,7 @@ class DQN(nn.Module):
 
         img_size = 42
         print("\n---DQN Architecture---")
-        print("Input: {} x {} x 1".format(img_size, img_size))
+        print("Input: {} x {} x 4".format(img_size, img_size))
         self.conv1 = nn.Conv2d(4, 32, 3, padding=1, stride=2)
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
         print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
