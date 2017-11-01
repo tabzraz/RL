@@ -6,12 +6,12 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Montezuma_HailMary"
+exps_batch_name = "ThinMaze12_2Iters"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
-envs = ["MontezumaRevengeNoFrameskip-v4"]
-# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+# envs = ["MontezumaRevengeNoFrameskip-v4"]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
 if "Doom" in envs[0]:
@@ -26,14 +26,14 @@ lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [3000]]
-cts_sizes = [21] #[12]
-num_seeds = 2
+t_maxs = [x * 1000 for x in [1200]]
+cts_sizes = [12] #[12]
+num_seeds = 4
 # num_seeds = 2
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
-batch_sizes = [(32, 1)]
+batch_sizes = [(32, 2)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
@@ -48,7 +48,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.001, 0.01, 0.1]
+optimism_scalers = [0, 0.01, 0.1]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
@@ -339,7 +339,8 @@ Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("dgx1", [i for i in range(8)], 1)]
+Servers = [("brown", [0, 2, 3, 4, 6], 1)]
+# Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
 
