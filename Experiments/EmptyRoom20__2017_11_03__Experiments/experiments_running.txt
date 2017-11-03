@@ -1,0 +1,2 @@
+Stuff that should be running:
+14 experiments on dgx1 with 16 screens

@@ -6,40 +6,40 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "DoomMazeHard_25_Stp"
+exps_batch_name = "EmptyRoom20"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-envs = ["DoomMazeHard-v0"] 
+# envs = ["DoomMazeHard-v0"] 
 # envs = ["MontezumaRevengeNoFrameskip-v4"]
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
-# envs = ["Empty-Room-{}-v0".format(20)]
+envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
 target_network = 1000
 
-eval_interval = 100
-vis_interval = 100
-exploration_steps = 500
+eval_interval = 2
+vis_interval = 1000
+exploration_steps = 0#500
 
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [3000]]
-cts_sizes = [21] #[12]
+t_maxs = [x * 1000 for x in [300]]
+cts_sizes = [20] #[12]
 num_seeds = 2
 # num_seeds = 2
-epsilon_starts = [1]
-epsilon_finishs = [0.05]
-epsilon_steps = [1]
+epsilon_starts = [1, 1, 1]
+epsilon_finishs = [0.05, 0.05, 0.05]
+epsilon_steps = [1, 100000, 200000]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
-epsilon_decay = [0.9]
+epsilon_scaling = [False]
+epsilon_decay = [0.9999]
 
-n_steps = [25]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -48,7 +48,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01, 0.001]
+optimism_scalers = [0, 1, 0.1 , 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
@@ -339,7 +339,7 @@ Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("savitar", [0, 1, 7], 1), ("brown", [0, 2, 3], 1)]# ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1)]
+Servers = [("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 2)]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
@@ -374,6 +374,9 @@ with open("{}/copy_logs.sh".format(path), "w") as f:
 
 with open("{}/kill_screens.sh".format(path), "w") as f:
     f.write("\n")
+
+with open("{}/experiments_running.txt".format(path), "w") as f:
+    f.write("Stuff that should be running:\n")
 
 uid = 0
 
@@ -439,6 +442,9 @@ for server, gpus, exps_per in Servers:
         f.write(ssh_run_command)
         f.write("\necho 'Started running {} exps on {} with {} screens'\n\n\n".format(num_exps_for_this_server, server, exp_num - 1))
 
+    with open("{}/experiments_running.txt".format(path), "a") as f:
+        f.write("{} experiments on {} with {} screens\n".format(num_exps_for_this_server, server, exp_num - 1))
+
     # Check for dead screens
     screen_wipe = "screen -wipe"
     screen_commands = [screen_wipe]
@@ -454,7 +460,7 @@ for server, gpus, exps_per in Servers:
 
     # Copy all experiments over to a central place (savitar at the moment)
     copy_command = "cp -r /data/{}/tabhid/Server_Logs/{}/. {}/{}".format(server, exps_batch_name, Central_Logs, exps_batch_name)
-    ssh_copy_command = "ssh -t savitar \"{}\"\n".format(server, copy_command)
+    ssh_copy_command = "ssh -t savitar \"{}\"\n".format(copy_command)
     with open("{}/copy_logs.sh".format(path), "a") as f:
         f.write("\necho \"Copying {} Logs\"\n".format(server))
         f.write(ssh_copy_command)
