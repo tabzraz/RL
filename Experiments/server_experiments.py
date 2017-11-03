@@ -6,38 +6,38 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "EmptyRoom20"
+exps_batch_name = "Doom_512FC"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-# envs = ["DoomMazeHard-v0"] 
+envs = ["DoomMazeHard-v0"] 
 # envs = ["MontezumaRevengeNoFrameskip-v4"]
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
-envs = ["Empty-Room-{}-v0".format(20)]
+# envs = ["Empty-Room-{}-v0".format(20)]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
 target_network = 1000
 
-eval_interval = 2
-vis_interval = 1000
-exploration_steps = 0#500
+eval_interval = 100
+vis_interval = 100
+exploration_steps = 500
 
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [300]]
-cts_sizes = [20] #[12]
-num_seeds = 2
+t_maxs = [x * 1000 for x in [3000]]
+cts_sizes = [21] #[12]
+num_seeds = 1
 # num_seeds = 2
-epsilon_starts = [1, 1, 1]
-epsilon_finishs = [0.05, 0.05, 0.05]
-epsilon_steps = [1, 100000, 200000]
+epsilon_starts = [1]
+epsilon_finishs = [0.05]
+epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
-epsilon_decay = [0.9999]
+epsilon_scaling = [True]
+epsilon_decay = [0.9]
 
 n_steps = [1]
 variable_n_step = False
@@ -48,7 +48,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 1, 0.1 , 0.01, 0.001]
+optimism_scalers = [0, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
@@ -339,7 +339,7 @@ Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 2)]
+Servers = [("savitar", [0, 1, 7], 1)]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
