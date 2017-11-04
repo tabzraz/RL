@@ -1,0 +1,4 @@
+Stuff that should be running:
+7 experiments on savitar with 6 screens
+9 experiments on dgx1 with 8 screens
+6 experiments on brown with 5 screens

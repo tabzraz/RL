@@ -6,7 +6,7 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Maze12_Epsilon_Schedule"
+exps_batch_name = "Maze12_Epsilon_Decay"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
@@ -30,14 +30,14 @@ t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12] #[12]
 num_seeds = 4
 # num_seeds = 2
-epsilon_starts = [1, 1, 1, 1]
-epsilon_finishs = [0.05, 0.05, 0.05, 0.05]
-epsilon_steps = [1] + [x * 1000 for x in [300, 600, 900]]
+epsilon_starts = [1]
+epsilon_finishs = [0.05]
+epsilon_steps = [1]
 batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
-epsilon_decay = [0.9999]
+epsilon_scaling = [True]
+epsilon_decay = [0.9, 0.99, 0.999, 0.9999, 0.99999]
 
 n_steps = [1]
 variable_n_step = False
@@ -339,7 +339,7 @@ Experiments = commands
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("brown", [0, 2, 3, 4, 6], 1), ("savitar", [0, 1, 7], 1)]
+Servers = [("savitar", [0, 1,2,5,6, 7], 1), ("dgx1", [i for i in range(8)], 1), ("brown", [0, 2, 3, 4, 6], 1)]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
@@ -350,10 +350,19 @@ server_ratios = [(len(gpus) * exps_per) for _, gpus, exps_per in Servers]
 sum_server_ratios = sum(server_ratios)
 
 print("--- {} Experiments Total ---".format(num_experiments))
+print("--- {} ---".format(exps_batch_name))
 
 print("\n--- {} Different Hyperparameters ---\n".format(round(uid / num_seeds)))
 # print("\n--- {} Runs ---\n--- {} Files => Upto {} Runs per file ---\n".format(uid, files, ceil(uid / files)))
 # print("--- {} GPUs, {} Concurrent runs per GPU ---\n".format(gpus, exps_per_gpu))
+uid = 0
+for server, gpus, exps_per in Servers:
+    ratio_of_exps_for_this_server = (sum_server_ratios / (len(gpus) * exps_per))
+    num_exps_for_this_server = ceil(num_experiments / ratio_of_exps_for_this_server)
+    exps_for_this_server = Experiments[uid: uid + num_exps_for_this_server]
+    print("{} Experiments on {}".format(len(exps_for_this_server), server))
+    for _ in exps_for_this_server:
+        uid +=1 
 
 if not write_to_files:
     print("Not writing")
