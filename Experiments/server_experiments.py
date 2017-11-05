@@ -338,9 +338,13 @@ for env in envs:
 # Experiments = ["touch ../Logs/{}.test".format(i) for i in range(3)]
 Experiments = commands
 
+Brown = ("brown", [0, 2, 3, 4, 6], 1)
+Savitar = ("savitar", [0,1,2,4,5,6,7], 1)
+DGX1 = ("dgx1", [i for i in range(8)], 1)
+
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [("savitar", [0, 1,2,5,6, 7], 1)]#, ("dgx1", [i for i in range(8)], 1), ("brown", [0, 2, 3, 4, 6], 1)]
+Servers = [Brown, DGX1, Savitar]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
