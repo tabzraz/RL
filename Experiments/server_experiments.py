@@ -363,7 +363,7 @@ for server, gpus, exps_per in Servers:
     exps_for_this_server = Experiments[uid: uid + num_exps_for_this_server]
     print("{} Experiments on {}".format(len(exps_for_this_server), server))
     for _ in exps_for_this_server:
-        uid +=1 
+        uid += 1
 print("\n\n")
 if not write_to_files:
     print("Not writing")
@@ -414,22 +414,22 @@ for server, gpus, exps_per in Servers:
     write_to_exp_files = ""
     for index, exps in enumerate(experiment_files):
         # write_to_exp_files += "\ntouch server_exps_{}.sh\n".format(index + 1)
-        write_to_exp_files += "echo '{}' > server_exps_{}.sh;".format(exps, index + 1)
+        write_to_exp_files += "echo '{}' > server_exps_{}__{}.sh;".format(exps, index + 1, exps_batch_name)
     write_to_exp_files = write_to_exp_files[:-1]
 
-    make_exps_file = "touch run_server_experiments.sh"
+    make_exps_file = "touch run_server_experiments__{}.sh".format(exps_batch_name)
     exps_file = ""
     exp_num = 1
     for _ in range(exps_per):
         for g in gpus:
-            exps_file += "sleep {}; screen -mdS {}_Exps_{} bash -c \\\"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash server_exps_{}.sh\\\"\n".format(exp_num, exp_num, exps_batch_name, g, exp_num)
+            exps_file += "sleep {}; screen -mdS {}_Exps_{} bash -c \\\"export LD_LIBRARY_PATH='/usr/local/nvidia/lib:/usr/local/nvidia/lib64'; CUDA_VISIBLE_DEVICES='{}' bash server_exps_{}__{}.sh\\\"\n".format(exp_num, exp_num, exps_batch_name, g, exp_num, exps_batch_name)
             exp_num += 1
     # exps_file += "sleep {}; screen -mdS DudScreen_{} bash -c".format(num_exps_for_this_server)
     exps_file += "sleep 20; screen -mdS DUDSCREEN_{} bash -c \\\"sleep 120\\\"\n".format(exps_batch_name)
 
-    write_exps_file = "echo '{}' > run_server_experiments.sh".format(exps_file)
+    write_exps_file = "echo '{}' > run_server_experiments__{}.sh".format(exps_file, exps_batch_name)
 
-    run_server_exps = "bash run_server_experiments.sh"
+    run_server_exps = "bash run_server_experiments__{}.sh".format(exps_batch_name)
     started_running = "echo 'Started Running Experiments on {}'".format(server)
 
     # ssh_commands_to_run = [cd_to_docker, run_docker, cd_to_rl, mk_server_exps, cd_server_exps, write_to_exp_files, make_exps_file, write_exps_file, run_server_exps, started_running]

@@ -19,12 +19,13 @@ class Mario(gym.Env):
 
     def _step(self, a):
         s, r, finished, info_dict = self.mario_env.step(a)
-        if info_dict["distance"] >= 3200:
-            # We have reached the flagpole
-            r = +1
-        else:
-            r = 0
-        self.mario_x = info_dict["distance"]
+        if "distance" in info_dict:
+            if info_dict["distance"] >= 3200:
+                # We have reached the flagpole
+                r = +1
+            else:
+                r = 0
+            self.mario_x = info_dict["distance"]
         return s, r, finished, info_dict
 
     def _reset(self):
