@@ -6,12 +6,12 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Doom_100stp"
+exps_batch_name = "Maze_12_XpSizes_v2"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-envs = ["DoomMazeHard-v0"] 
+# envs = ["DoomMazeHard-v0"] 
 # envs = ["MontezumaRevengeNoFrameskip-v4"]
-# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 # envs = ["Mario-1-1-v0"]
 DOOM = False
@@ -27,20 +27,20 @@ lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [3000]]
-cts_sizes = [21] #[12]
-num_seeds = 2
+t_maxs = [x * 1000 for x in [1200]]
+cts_sizes = [12] #[12]
+num_seeds = 4
 # num_seeds = 2
 epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [50, 100, 300, 500, 700]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9]
+epsilon_decay = [0.9999]
 
-n_steps = [100]
+n_steps = [1]
 variable_n_step = False
 
 negative_rewards = [(False, 0)]
@@ -49,7 +49,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01, 0.001]
+optimism_scalers = [0]#, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = ["Plain"] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
