@@ -6,7 +6,7 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Maze12_XpSizes_StateCounts"
+exps_batch_name = "Maze12_EpsilonDecay_StateCounts"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
@@ -35,10 +35,10 @@ epsilon_starts = [1]
 epsilon_finishs = [0.05]
 epsilon_steps = [1]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [50, 100, 300, 500, 700]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999]
+epsilon_decay = [0.9, 0.99, 0.999, 0.9999, 0.99999]
 
 n_steps = [1]
 variable_n_step = False
