@@ -6,7 +6,7 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Maze_12_XpSizes_v2"
+exps_batch_name = "Maze12_XpSizes_StateCounts"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
@@ -51,7 +51,7 @@ reward_clips = [-1]
 # state_action_modes = [None]
 optimism_scalers = [0]#, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
-state_action_modes = ["Plain"] + ["Optimistic" for _ in optimism_scalers]
+state_action_modes = [None] #["Plain"] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
