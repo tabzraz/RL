@@ -417,7 +417,7 @@ def wrap_vizdoom(env, stack=4):
     # env = resolution_wrapper(env)
     env = MaxAndSkipEnv(env, skip=4, max_over=1)
     env = WarpFrame(env, res=42)
-    # env = ClipNegativeRewardEnv(env)
+    env = ClipNegativeRewardEnv(env)
     env = FrameStack(env, 4)
     env = GreyscaleRender(env)
     discrete_action_wrapper = ToDiscrete("minimal")
