@@ -3,6 +3,8 @@ from collections import deque
 from PIL import Image
 import gym
 from gym import spaces
+import sys
+import time
 
 
 class NoopResetEnv(gym.Wrapper):
