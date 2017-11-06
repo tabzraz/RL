@@ -26,11 +26,11 @@ class DQN(nn.Module):
         img_size = int((img_size - 3 + 2 * 1) / 2 + 1)
         print("Conv1, 3 x 3 filter, stride 2, padding 1 -> {} x {} x {}  (w x h x c)".format(img_size, img_size, 32))
 
-        self.fc1 = nn.Linear(img_size * img_size * 32, 512)
-        print("FC1 {} -> {}".format(img_size * img_size * 32, 512))
+        self.fc1 = nn.Linear(img_size * img_size * 32, 256)
+        print("FC1 {} -> {}".format(img_size * img_size * 32, 256))
 
-        self.qvals = nn.Linear(512, actions)
-        print("---\nQVals {} -> {}".format(512, actions))
+        self.qvals = nn.Linear(256, actions)
+        print("---\nQVals {} -> {}".format(256, actions))
 
     def forward(self, x):
         if next(self.parameters()).is_cuda:
