@@ -1,7 +1,7 @@
 import ppaquette_gym_super_mario
 from ppaquette_gym_super_mario import wrappers
 import gym
-from .OpenAI_AtariWrapper import wrap_mario
+from .OpenAI_AtariWrapper import wrap_mario, MarioEnv
 
 
 class Mario(gym.Env):
@@ -14,6 +14,7 @@ class Mario(gym.Env):
         modewrapper = wrappers.SetPlayingMode('algo')
         self.mario_env = modewrapper(self.mario_env)
         self.mario_env = wrap_mario(self.mario_env)
+        self.mario_env = MarioEnv(self.mario_env)
         self.mario_x = 0
         self.action_space = self.mario_env.action_space
 

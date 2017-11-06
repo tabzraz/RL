@@ -500,7 +500,7 @@ class MarioEnv(gym.Wrapper):
         return self.env.close()
 
 def wrap_mario(env, stack=4):
-    env = MarioEnv(env)
+    # env = MarioEnv(env)
     env = MaxAndSkipEnv(env, skip=4, max_over=1)
     env = WarpFrame(env, res=42)
     env = FrameStack(env, 4)
