@@ -6,7 +6,7 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Maze12_EpsilonSchedule_StateCounts"
+exps_batch_name = "Maze12_Bonus_Replay_Bandits_v3"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
@@ -31,13 +31,13 @@ t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12] #[12]
 num_seeds = 4
 # num_seeds = 2
-epsilon_starts = [1 for _ in range(6)]
-epsilon_finishs = [0.05 for _ in range(6)]
-epsilon_steps = [1] + [x * 1000 for x in [200, 400, 600, 800, 1000]]
-batch_sizes = [(32, 1)]
+epsilon_starts = [1 for _ in range(1)]
+epsilon_finishs = [0.05 for _ in range(1)]
+epsilon_steps = [1]# + [x * 1000 for x in [200, 400, 600, 800, 1000]]
+batch_sizes = [(16, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [False]
+epsilon_scaling = [True]
 epsilon_decay = [0.9999]
 
 n_steps = [1]
@@ -49,16 +49,16 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0]#, 0.01, 0.001]
+optimism_scalers = [0, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
-state_action_modes = [None] #["Plain"] + ["Optimistic" for _ in optimism_scalers]
+state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = False
-bonus_replay_thresholds = [0.0005, 0.001]
-bonus_replay_sizes = [x * 1000 for x in [100]]
+bonus_replay = True
+bonus_replay_thresholds = [0.001, 0.005]
+bonus_replay_sizes = [x * 1000 for x in [10, 50, 100]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
