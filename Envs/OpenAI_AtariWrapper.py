@@ -472,7 +472,7 @@ class MarioEnv(gym.Wrapper):
 
     def _reset(self):
         if self.resetCount < 0:
-            print('\nDoing hard mario fceux reset (40 seconds wait) !')
+            print('\nDoing hard mario fceux reset (4 seconds wait) !')
             sys.stdout.flush()
             self.env.reset()
             time.sleep(4)
@@ -488,6 +488,8 @@ class MarioEnv(gym.Wrapper):
 
     def _step(self, action):
         obs, reward, done, info = self.env.step(action)
+        if info.get('ignore', True):
+            return self.reset(), 0, False, info
         # print('info:', info)
         done = info['iteration'] > self.resetCount
         reward = float(reward)/self.maxDistance # note: we do not use this rewards at all.
