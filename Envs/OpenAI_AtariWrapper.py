@@ -454,7 +454,51 @@ def ToDiscreteMario():
 
     return ToDiscreteWrapper
 
+# From https://github.com/pathak22/noreward-rl/blob/master/src/env_wrapper.py
+class MarioEnv(gym.Wrapper):
+    def __init__(self, env=None, tilesEnv=False):
+        """Reset mario environment without actually restarting fceux everytime.
+        This speeds up unrolling by approximately 10 times.
+        """
+        super(MarioEnv, self).__init__(env)
+        self.resetCount = -1
+        # reward is distance travelled. So normalize it with total distance
+        # https://github.com/ppaquette/gym-super-mario/blob/master/ppaquette_gym_super_mario/lua/super-mario-bros.lua
+        # However, we will not use this reward at all. It is only for completion.
+        self.maxDistance = 3000.0
+        self.tilesEnv = tilesEnv
+
+    def _reset(self):
+        if self.resetCount < 0:
+            print('\nDoing hard mario fceux reset (40 seconds wait) !')
+            sys.stdout.flush()
+            self.env.reset()
+            time.sleep(40)
+        obs, _, _, info = self.env.step(7)  # take right once to start game
+        if info.get('ignore', False):  # assuming this happens only in beginning
+            self.resetCount = -1
+            self.env.close()
+            return self._reset()
+        self.resetCount = info.get('iteration', -1)
+        if self.tilesEnv:
+            return obs
+        return obs[24:-12,8:-8,:]
+
+    def _step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        # print('info:', info)
+        done = info['iteration'] > self.resetCount
+        reward = float(reward)/self.maxDistance # note: we do not use this rewards at all.
+        if self.tilesEnv:
+            return obs, reward, done, info
+        return obs[24:-12,8:-8,:], reward, done, info
+
+    def _close(self):
+        self.resetCount = -1
+        return self.env.close()
+
 def wrap_mario(env, stack=4):
+    env = MarioEnv(env)
     env = MaxAndSkipEnv(env, skip=4, max_over=1)
     env = WarpFrame(env, res=42)
     env = FrameStack(env, 4)

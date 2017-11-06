@@ -20,7 +20,7 @@ class Mario(gym.Env):
     def _step(self, a):
         s, r, finished, info_dict = self.mario_env.step(a)
         if "distance" in info_dict:
-            if info_dict["distance"] >= 3200:
+            if info_dict["distance"] >= 3000:
                 # We have reached the flagpole
                 r = +1
             else:

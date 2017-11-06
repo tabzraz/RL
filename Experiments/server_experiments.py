@@ -6,17 +6,20 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Maze12_Bonus_Replay_Bandits_v3"
+exps_batch_name = "MarioTest_v2"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
 # envs = ["MontezumaRevengeNoFrameskip-v4"]
-envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
-# envs = ["Mario-1-1-v0"]
+envs = ["Mario-1-1-v0"]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
+MARIO = False
+if "Mario" in envs[0]:
+    MARIO = True
 target_network = 1000
 
 eval_interval = 100
@@ -29,12 +32,12 @@ counts = [True]
 betas = [0.001] # 0.001
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12] #[12]
-num_seeds = 4
+num_seeds = 2
 # num_seeds = 2
 epsilon_starts = [1 for _ in range(1)]
 epsilon_finishs = [0.05 for _ in range(1)]
 epsilon_steps = [1]# + [x * 1000 for x in [200, 400, 600, 800, 1000]]
-batch_sizes = [(16, 1)]
+batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
@@ -56,7 +59,7 @@ force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = True
+bonus_replay = False
 bonus_replay_thresholds = [0.001, 0.005]
 bonus_replay_sizes = [x * 1000 for x in [10, 50, 100]]
 if not bonus_replay:
@@ -344,7 +347,7 @@ DGX1 = ("dgx1", [i for i in range(8)], 1)
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [Brown, DGX1, Savitar]
+Servers = [Savitar]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
@@ -418,6 +421,8 @@ for server, gpus, exps_per in Servers:
     write_to_exp_files = ""
     for index, exps in enumerate(experiment_files):
         # write_to_exp_files += "\ntouch server_exps_{}.sh\n".format(index + 1)
+        if MARIO:
+            exps = "xvfb-run-safe -s \\\"-screen 0 1400x900x24\\\" " + exps
         write_to_exp_files += "echo '{}' > server_exps_{}__{}.sh;".format(exps, index + 1, exps_batch_name)
     write_to_exp_files = write_to_exp_files[:-1]
 
