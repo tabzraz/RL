@@ -347,7 +347,8 @@ class Trainer:
                 bonus = 0
                 if self.args.count:
                     bonus, _ = self.exp_model.bonus(s[:, :, -1:], a)
-                    self.max_exp_bonus = max(self.max_exp_bonus, bonus)
+                    # This seems to regress performance quite a bit, get rid of it
+                    # self.max_exp_bonus = max(self.max_exp_bonus, bonus)
 
                 sn, reward, terminated, env_info = env.step(a)
                 e_steps += 1
