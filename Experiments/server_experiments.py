@@ -6,14 +6,14 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "MarioTest_v2"
+exps_batch_name = "DoomHard_NoNegReward"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-# envs = ["DoomMazeHard-v0"] 
+envs = ["DoomMazeHard-v0"] 
 # envs = ["MontezumaRevengeNoFrameskip-v4"]
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
-envs = ["Mario-1-1-v0"]
+# envs = ["Mario-1-1-v0"]
 DOOM = False
 if "Doom" in envs[0]:
     DOOM = True
@@ -30,8 +30,8 @@ lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 betas = [0.001] # 0.001
-t_maxs = [x * 1000 for x in [1200]]
-cts_sizes = [12] #[12]
+t_maxs = [x * 1000 for x in [3000]]
+cts_sizes = [21] #[12]
 num_seeds = 2
 # num_seeds = 2
 epsilon_starts = [1 for _ in range(1)]
@@ -41,7 +41,7 @@ batch_sizes = [(32, 1)]
 xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9999]
+epsilon_decay = [0.9]
 
 n_steps = [1]
 variable_n_step = False
@@ -52,7 +52,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.01, 0.001]
+optimism_scalers = [0, 0.1, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
@@ -347,7 +347,7 @@ DGX1 = ("dgx1", [i for i in range(8)], 1)
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [Savitar]
+Servers = [DGX1]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"
