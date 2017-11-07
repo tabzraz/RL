@@ -535,6 +535,8 @@ class GridWorld(gym.Env):
         grid_y = self.grid.shape[1]
         grid = self.grid
 
+        highest_count = 0
+        lowest_count = 100000
         for a in range(actions):
             for x in range(grid_x):
                 for y in range(grid_y):
@@ -549,12 +551,29 @@ class GridWorld(gym.Env):
                     # print(state_copy)
                     state_copy = state_copy[:, :, np.newaxis] / 3
 
-                    bonus, _ = exp_model.bonus(state_copy, action=a, dont_remember=True)
+                    bonus, info = exp_model.bonus(state_copy, action=a, dont_remember=True)
+                    count = info["Pseudo_Count"]
                     # print(x,y,bonus)
-                    canvas[x, y + (grid_y * a), 1] = bonus
+                    unknown_colour = (0,1,0) # Green
+                    frontier_colour = (1,0,1) # Purple
+                    known_colour = (0, 0, 0) # Black
+
+                    highest_count = max(highest_count, count)
+                    lowest_count = min(lowest_count, count)
+                    L = 1
+                    U = 10
+                    if count < L:
+                        canvas[x, y + (grid_y * a), :] = unknown_colour
+                    elif count >= L and count <= U:
+                        canvas[x, y + (grid_y * a), :] = frontier_colour
+                    else:
+                        canvas[x, y + (grid_y * a), :] = known_colour
+        print("Highest Count:", highest_count)
+        print("Lowest Count:", lowest_count)
+
 
         # canvas /= np.max(canvas)
-        canvas /= max_bonus
+        # canvas /= max_bonus
 
         self.frontier_image = np.copy(np.clip(canvas, 0, 1) * 255)
 

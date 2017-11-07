@@ -148,6 +148,7 @@ class Trainer:
 
     def eval_agent(self, last=False):
         self.eval_T = self.T
+        return
         env = self.eval_env
 
         will_save_states = self.args.eval_images and (last or self.T - self.eval_video_T > (self.args.t_max // self.args.eval_images_interval))
@@ -338,7 +339,7 @@ class Trainer:
         while e_steps < self.args.exploration_steps:
             s = env.reset()
             terminated = False
-            while not terminated:
+            while not terminated and e_steps < self.args.exploration_steps:
                 print(e_steps, end="\r")
                 # a = self.select_random_action()
                 a, _ = self.select_action(state=s, epsilon=1.0, training=False)
@@ -415,6 +416,7 @@ class Trainer:
             image = self.env.frontier(self.exp_model, max_bonus=self.max_exp_bonus)
             if image is not None:
                 self.frontier_images.append(image)
+                self.save_image("{}/exp_bonus/vis__{}".format(self.args.log_path, self.T), np.copy(image))
             self.frontier_T = self.T
 
     def frontier_and_xp_vis(self):
@@ -529,7 +531,7 @@ class Trainer:
             will_save_states = self.args.eval_images and self.T - self.training_video_T > (self.args.t_max // self.args.eval_images_interval)
             video_states = []
 
-            while not episode_finished:
+            while not episode_finished and self.T < self.args.t_max:
                 # TODO: Cleanup
                 # new_epsilon = self.epsilon
                 if self.args.count_epsilon:
