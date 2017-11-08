@@ -357,6 +357,9 @@ class Trainer:
                     terminated = True
                     break
 
+                if self.args.visitations:
+                    self.visitations()
+
                 self.agent.experience(s, a, reward, sn, 1, terminated, pseudo_reward=bonus, exploring=True)
                 s = sn
             self.agent.end_of_trajectory()
