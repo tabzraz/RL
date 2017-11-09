@@ -225,7 +225,7 @@ class DoomEnv(gym.Env):
 
         if self.game.is_episode_finished():
             is_finished = True
-            if reward < 0.9:
+            if reward < 0.1:
                 # The environment ended because we took the time_limit number of timesteps
                 info["Steps_Termination"] = True
             # print("Finished steps", reward, is_finished)
