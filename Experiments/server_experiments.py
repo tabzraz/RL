@@ -6,7 +6,11 @@ import os
 import sys
 from math import ceil
 
+<<<<<<< HEAD
 exps_batch_name = "Maze12_Epsilon_Decay"
+=======
+exps_batch_name = "Doom_NoNegReward_LowerBeta"
+>>>>>>> Doom NoNegReward lower beta experiments
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
@@ -29,10 +33,17 @@ exploration_steps = 500
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
+<<<<<<< HEAD
 betas = [0.001] # 0.001
 t_maxs = [x * 1000 for x in [1200]]
 cts_sizes = [12] #[12]
 num_seeds = 4
+=======
+betas = [0.0001] # 0.001
+t_maxs = [x * 1000 for x in [3000]]
+cts_sizes = [21] #[12]
+num_seeds = 2
+>>>>>>> Doom NoNegReward lower beta experiments
 # num_seeds = 2
 epsilon_starts = [1 for _ in range(1)]
 epsilon_finishs = [0.05 for _ in range(1)]
@@ -60,8 +71,8 @@ bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
 bonus_replay = False
-bonus_replay_thresholds = [0.001, 0.005]
-bonus_replay_sizes = [x * 1000 for x in [10, 50, 100]]
+bonus_replay_thresholds = [0.1, 0.2]
+bonus_replay_sizes = [x * 1000 for x in [10]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
@@ -341,8 +352,8 @@ for env in envs:
 # Experiments = ["touch ../Logs/{}.test".format(i) for i in range(3)]
 Experiments = commands
 
-Brown = ("brown", [0, 2, 3, 4, 6], 1)
-Savitar = ("savitar", [1,2,7], 2)
+Brown = ("brown", [4,5,6], 1)
+Savitar = ("savitar", [1,2,3,7], 2)
 DGX1 = ("dgx1", [i for i in range(8)], 1)
 
 # (Server, [Gpus to use], experiments per gpu)
