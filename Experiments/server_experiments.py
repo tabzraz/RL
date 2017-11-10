@@ -6,11 +6,11 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Doom_NoNegReward_SmallBonus_LowerBeta"
+exps_batch_name = "Montezuma_20mil"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
-envs = ["DoomMazeHard-v0"] 
-# envs = ["MontezumaRevengeNoFrameskip-v4"]
+# envs = ["DoomMazeHard-v0"] 
+envs = ["Wrapped_MontezumaRevenge-v0"]
 # envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 # envs = ["Mario-1-1-v0"]
@@ -25,13 +25,14 @@ target_network = 1000
 eval_interval = 100
 vis_interval = 100
 exploration_steps = 500
+tb_interval = 100
 
 lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 
-betas = [0.0001] # 0.001
-t_maxs = [x * 1000 for x in [3000]]
+betas = [0.01, 0.001] # 0.001
+t_maxs = [x * 1000 for x in [20000]]
 cts_sizes = [21] #[12]
 num_seeds = 2
 
@@ -40,10 +41,10 @@ epsilon_starts = [1 for _ in range(1)]
 epsilon_finishs = [0.05 for _ in range(1)]
 epsilon_steps = [1]# + [x * 1000 for x in [200, 400, 600, 800, 1000]]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [300]]
+xp_replay_sizes = [x * 1000 for x in [500]]
 stale_limits = [x * 1000 for x in [1000]]
 epsilon_scaling = [True]
-epsilon_decay = [0.9]
+epsilon_decay = [0.999]
 
 n_steps = [1]
 variable_n_step = False
@@ -61,9 +62,9 @@ force_scalers = [0 for _ in state_action_modes]
 bandit_no_epsilon_scaling = True #HACK
 ucb_bandits = [False for _ in state_action_modes] #[True, True, True, False, False, False]
 
-bonus_replay = True
-bonus_replay_thresholds = [0.1, 0.2]
-bonus_replay_sizes = [x * 1000 for x in [10]]
+bonus_replay = False
+bonus_replay_thresholds = [0.2, 0.4]
+bonus_replay_sizes = [x * 1000 for x in [50]]
 if not bonus_replay:
     bonus_replay_thresholds = [1]
     bonus_replay_sizes = [1]
@@ -320,6 +321,7 @@ for env in envs:
                                                                                 python_command += " --eval-interval {}".format(eval_interval)
                                                                                 python_command += " --interval-size {} --frontier-interval {}".format(vis_interval, vis_interval)
                                                                                 python_command += " --exploration-steps {}".format(exploration_steps)
+                                                                                python_command += " --tb-interval {}".format(tb_interval)
                                                                                 if gpu:
                                                                                     python_command += " --gpu"
                                                                                 # if debug_eval:
@@ -343,13 +345,13 @@ for env in envs:
 # Experiments = ["touch ../Logs/{}.test".format(i) for i in range(3)]
 Experiments = commands
 
-Brown = ("brown", [4,5,6], 1)
-Savitar = ("savitar", [1,2,3,7], 2)
-DGX1 = ("dgx1", [i for i in range(8)], 1)
+Brown = ("brown", [5,6], 1)
+Savitar = ("savitar", [1,2,3,7], 1)
+DGX1 = ("dgx1", [4,5,6,7], 1)
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
-Servers = [Brown, Savitar]
+Servers = [Brown, DGX1, Savitar]
 # Servers = [("dgx1", [i for i in range(8)], 1)]
 
 Central_Logs = "/data/savitar/tabhid/Runs/Servers"

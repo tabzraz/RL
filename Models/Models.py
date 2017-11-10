@@ -1,6 +1,6 @@
 # --- Torch models ---
 from .Torch import DQN_Maze, DQN_Maze_Big, DQN_Maze_FC
-from .Torch import DQN_Atari
+from .Torch import DQN_Atari, DQN_Atari_Small
 from .Torch import DQN_Doom
 from .Torch import NEC_Maze
 from .Torch import DQN_Distrib_Maze
@@ -14,7 +14,7 @@ torch_models["VentureNoFrameskip-v4"] = DQN_Atari.DQN
 torch_models["MontezumaRevengeNoFrameskip-v4"] = DQN_Atari.DQN
 
 # Wrappred Atari 42 x 42
-torch_models["Wrapped_MontezumaRevenge-v0"] = DQN_Doom.DQN
+torch_models["Wrapped_MontezumaRevenge-v0"] = DQN_Atari_Small.DQN
 
 # DQN VizDoom
 torch_models["ppaquette/DoomMyWayHome-v0"] = DQN_Doom.DQN
