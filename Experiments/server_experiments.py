@@ -25,7 +25,7 @@ target_network = 1000
 eval_interval = 100
 vis_interval = 100
 exploration_steps = 500
-tb_interval = 100
+tb_interval = 1000
 
 lrs = [0.0001] # 0.0001
 counts = [True]

@@ -73,7 +73,8 @@ class DDQN_Agent:
                     action_pseudo_count = info["Pseudo_Count"]
                     # TODO: Log the optimism bonuses
                     optimism_bonus = self.args.optimistic_scaler / np.power(action_pseudo_count + 0.01, self.args.bandit_p)
-                    self.log("Bandit/Action_{}".format(a), optimism_bonus, step=self.T)
+                    if self.args.tb and self.T % self.args.tb_interval == 0:
+                        self.log("Bandit/Action_{}".format(a), optimism_bonus, step=self.T)
                     q_values[a] += optimism_bonus
             else:
                 action_counts = []
