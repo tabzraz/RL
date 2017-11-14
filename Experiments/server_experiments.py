@@ -6,12 +6,12 @@ import os
 import sys
 from math import ceil
 
-exps_batch_name = "Montezuma_20mil"
+exps_batch_name = "Maze12_8Run_EpsilonSchedule"
 exps_batch_name += "__{}".format(datetime.datetime.now().strftime("%Y_%m_%d"))
 
 # envs = ["DoomMazeHard-v0"] 
-envs = ["Wrapped_MontezumaRevenge-v0"]
-# envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
+# envs = ["Wrapped_MontezumaRevenge-v0"]
+envs = ["Thin-Maze-{}-Neg-v0".format(size) for size in [12]] 
 # envs = ["Empty-Room-{}-v0".format(20)]
 # envs = ["Mario-1-1-v0"]
 DOOM = False
@@ -31,19 +31,19 @@ lrs = [0.0001] # 0.0001
 counts = [True]
 # cts_convs = [False]
 
-betas = [0.01, 0.001] # 0.001
-t_maxs = [x * 1000 for x in [20000]]
-cts_sizes = [21] #[12]
-num_seeds = 2
+betas = [0.001] # 0.001
+t_maxs = [x * 1000 for x in [1200]]
+cts_sizes = [12] #[12]
+num_seeds = 8
 
 # num_seeds = 2
-epsilon_starts = [1 for _ in range(1)]
-epsilon_finishs = [0.05 for _ in range(1)]
-epsilon_steps = [1]# + [x * 1000 for x in [200, 400, 600, 800, 1000]]
+epsilon_starts = [1 for _ in range(6)]
+epsilon_finishs = [0.05 for _ in range(6)]
+epsilon_steps = [1] + [x * 1000 for x in [200, 400, 600, 800, 1000]]
 batch_sizes = [(32, 1)]
-xp_replay_sizes = [x * 1000 for x in [500]]
+xp_replay_sizes = [x * 1000 for x in [300]]
 stale_limits = [x * 1000 for x in [1000]]
-epsilon_scaling = [True]
+epsilon_scaling = [False]
 epsilon_decay = [0.999]
 
 n_steps = [1]
@@ -55,7 +55,7 @@ reward_clips = [-1]
 
 # state_action_modes = ["Plain", "Force", "Optimistic"]
 # state_action_modes = [None]
-optimism_scalers = [0, 0.1, 0.01, 0.001]
+optimism_scalers = [0]#, 0.1, 0.01, 0.001]
 bandit_ps = [1/2] #[(1/4), (1/2), (1), (2)]
 state_action_modes = [None] + ["Optimistic" for _ in optimism_scalers]
 force_scalers = [0 for _ in state_action_modes]
@@ -345,9 +345,9 @@ for env in envs:
 # Experiments = ["touch ../Logs/{}.test".format(i) for i in range(3)]
 Experiments = commands
 
-Brown = ("brown", [5,6], 1)
+Brown = ("brown", [0,1], 1)
 Savitar = ("savitar", [1,2,3,7], 1)
-DGX1 = ("dgx1", [4,5,6,7], 1)
+DGX1 = ("dgx1", [0,1,2,3], 1)
 
 # (Server, [Gpus to use], experiments per gpu)
 # Servers = [("brown", [0, 2, 3, 4, 6], 2), ("dgx1", [0, 1, 2, 3, 4, 5, 6, 7], 1), ("savitar", [0, 1, 7], 2)]
